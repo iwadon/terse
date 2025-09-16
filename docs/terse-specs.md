@@ -228,36 +228,27 @@
 - 戻り値: 能力情報の構造体または辞書形式。
 - P0では最小限の定義にとどめ、拡張はP1以降で追加可能。
 
-### 共通フィールド
+### 共通フィールド（P0コア能力）
 
 | フィールド               | 値域                                     | 説明            | P0での既定     |
 | ------------------- | -------------------------------------- | ------------- | ---------- |
 | `profile`           | {P0,P1,P2,P3}                          | 実効プロファイル      | P0         |
 | `rows`              | 正整数または Unknown                         | 端末の行数         | Unknown可   |
 | `cols`              | 正整数または Unknown                         | 端末の列数         | Unknown可   |
-| `colors`            | {none, basic16, palette256, truecolor} | 色能力           | none       |
 | `cursor_visibility` | {toggle, always_on}                   | カーソル表示切替可能性   | always_on |
-| `alt_screen`        | {true,false}                           | オルタネートスクリーン可否 | false      |
-| `mouse`             | {none,x10,sgr,other}                   | マウス追跡能力       | none       |
-| `paste_bracketed`   | {true,false}                           | ブランケットペースト対応  | false      |
-| `title`             | {true,false}                           | ターミナルタイトル変更可否 | false      |
-| `hyperlink`         | {true,false}                           | ハイパーリンク表示可否   | false      |
 
-### 縮退規則（能力関連）
+### 縮退規則（P0コア能力）
 
 | 要求          | 能力未対応時の挙動                                                 |
 | ----------- | --------------------------------------------------------- |
-| 色指定         | もっとも近い下位へ縮退（例: truecolor→256→16→無色）。最終的に無色なら無視。             |
 | カーソル非表示     | `cursor_visibility=always_on` の場合は無効果。                    |
-| オルタネートスクリーン | `alt_screen=false` の場合は無効果。                               |
-| マウス追跡       | `mouse=none` の場合はイベント生成されない。                              |
-| ブランケットペースト  | `paste_bracketed=false` の場合は `PasteBegin/End` イベントを生成しない。 |
-| タイトル変更      | `title=false` の場合は無効果。                                    |
-| ハイパーリンク     | `hyperlink=false` の場合は無効果。                                |
 
-### 拡張の余地
+### プロファイル拡張
 
-- 将来のプロファイルで `images`（sixel/kitty等）、`clipboard`、`cursor_shape` 等の追加フィールドを規定可能。
+- **P1以降**で追加される能力フィールド：
+  - P1: `colors`, `effects`（色・装飾）
+  - P2: `mouse`, `paste_bracketed`, `title`, `hyperlink`（入出力拡張）
+  - P3: `images`, `clipboard`, `cursor_shape`, `keyboard_reporting`, `notifications` 等（高度拡張）
 - Human68k環境では多くが未対応となり、P0相当の返却となることを想定。
 
 ---
@@ -588,10 +579,17 @@
 | Palette256 指定 | Basic16 の近似色に縮退。                         |
 | 装飾（未対応）       | 無視（スタイル変更なし）。                            |
 
-### 能力表の拡張
+### 能力表の拡張（P1で追加）
 
 - `capabilities.colors`：{none, basic16, palette256, truecolor}
-- `capabilities.effects`：サポートする装飾ビット集合。
+- `capabilities.effects`：サポートする装飾ビット集合
+
+### 縮退規則（P1追加）
+
+| 要求          | 能力未対応時の挙動                                                 |
+| ----------- | --------------------------------------------------------- |
+| 色指定         | もっとも近い下位へ縮退（例: truecolor→256→16→無色）。最終的に無色なら無視。             |
+| 装飾（未対応）       | 無視（スタイル変更なし）。                                           |
 
 ### 初期状態
 
@@ -650,12 +648,21 @@
 - 縮退：
   - `title=false` または `hyperlink=false` の場合は無効果。
 
-### 能力表の拡張
+### 能力表の拡張（P2で追加）
 
 - `capabilities.mouse`：{none,x10,vt200,sgr}
 - `capabilities.paste_bracketed`：{true,false}
 - `capabilities.title`：{true,false}
 - `capabilities.hyperlink`：{true,false}
+
+### 縮退規則（P2追加）
+
+| 要求          | 能力未対応時の挙動                                                 |
+| ----------- | --------------------------------------------------------- |
+| マウス追跡       | `mouse=none` の場合はイベント生成されない。                              |
+| ブランケットペースト  | `paste_bracketed=false` の場合は `PasteBegin/End` イベントを生成しない。 |
+| タイトル変更      | `title=false` の場合は無効果。                                    |
+| ハイパーリンク     | `hyperlink=false` の場合は無効果。                                |
 
 ### 初期状態
 
@@ -713,13 +720,26 @@
 - `notifications`：端末内通知表示（OSC 9等）。
 - `focus_in/out`：フォーカスイベント通知。
 
-### 能力表の拡張
+### 能力表の拡張（P3で追加）
 
-- `capabilities.images`：{none,sixel,iterm2,kitty}
-- `capabilities.clipboard`：{true,false}
+- `capabilities.images`：{none, sixel, iterm2, kitty}（複数対応の場合は配列）
+- `capabilities.image_limits`：最大サイズ・ピクセル数・埋め込み数・透過サポート等
+- `capabilities.clipboard`：{none, osc52_write, osc52_rw}
 - `capabilities.cursor_shape`：{true,false}
-- `capabilities.notifications`：{true,false}
+- `capabilities.keyboard_reporting`：{none, xterm_mok, kitty, wezterm, other}
+- `capabilities.notifications`：{none, bell, visual, desktop}（複合可）
 - `capabilities.focus_events`：{true,false}
+- `capabilities.multiplexer`：{none, tmux, screen, other}
+
+### 縮退規則（P3追加）
+
+| 要求          | 能力未対応時の挙動                                                 |
+| ----------- | --------------------------------------------------------- |
+| 画像描画        | 未対応時は無効果。代替テキスト表示はアプリ判断。                               |
+| クリップボード操作   | 未対応時は無効果。読み出しはエラーまたは未対応を返す。                             |
+| カーソル形状変更    | 未対応時は無効果。                                               |
+| 詳細キーボード報告   | 未対応時は通常のP0/P2相当のイベントに留まる。                               |
+| 通知・ベル・フラッシュ | 未対応時は無効果。                                               |
 
 ### 初期状態
 
