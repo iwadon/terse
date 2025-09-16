@@ -119,9 +119,65 @@
 
 ## エラーと安全規約
 
-- **Transport層エラー**（送信失敗など）はエラーコード／例外として上位へ通知。
-- `close()` は必ず「カーソル表示ON」「スクリーン復帰」を試みる。
-- 入力から得た生シーケンスをそのままログに出力する際は、制御コードをエスケープすることを推奨。
+### エラー分類
+
+ライブラリで扱うエラーは以下のカテゴリに分類される：
+
+1. **Transport層エラー**：物理的な入出力の失敗
+2. **プロトコルエラー**：端末との通信プロトコルの問題
+3. **リソースエラー**：メモリ不足、サイズ制限等
+4. **設定エラー**：不正な引数、未対応能力の要求等
+5. **状態エラー**：ライブラリの不正な状態での操作
+
+### Transport層エラー詳細
+
+| エラー種別 | 発生API | 原因 | 処理方針 |
+|-----------|---------|------|----------|
+| **送信失敗** | `write_text`, `move_to` 等の出力API | 接続切断、バッファ満杯、権限不足 | 即座にエラー返却。部分送信は未定義動作 |
+| **受信失敗** | `read_event` | 接続切断、読み込みタイムアウト、信号割り込み | エラー返却。EOFと区別する |
+| **初期化失敗** | `open` | デバイスアクセス不可、端末モード設定失敗 | エラー返却。リソース確保前なので後始末不要 |
+| **終了処理失敗** | `close` | 復帰処理の部分的失敗 | 可能な限り継続実行。最終的なエラー状態のみ報告 |
+
+### 例外処理 vs エラーコード
+
+言語の慣習に従い、以下の使い分けを推奨：
+
+#### 例外を使用する場合（C++、Python、Rust等）
+- **例外**: Transport層エラー、プロトコルエラー、リソースエラー
+- **戻り値**: 正常な結果（イベント、能力情報等）
+- **None/Option**: タイムアウト、未検出状態（非エラー）
+
+#### エラーコードを使用する場合（C等）
+- **負値**: エラーコード（POSIX errno 互換推奨）
+- **0**: 成功
+- **正値**: 有効なデータ、ハンドル等
+
+### エラー復旧処理
+
+#### 自動復旧
+以下のエラーでは自動復旧を試みる：
+- **一時的送信失敗**: 短時間リトライ（最大3回、100ms間隔）
+- **信号割り込み**: システムコール再実行
+- **部分的終了処理失敗**: 残り処理を継続実行
+
+#### 復旧不可能
+以下のエラーでは復旧せずエラー報告：
+- **接続切断**: アプリケーションレベルでの再接続が必要
+- **権限不足**: 環境修正が必要
+- **致命的プロトコルエラー**: 端末互換性問題
+
+### 状態一貫性保証
+
+エラー発生時の状態保証：
+- **出力API失敗**: 端末状態は不定。アプリケーションで `reset_style()` 等による復旧推奨
+- **入力API失敗**: 内部状態は一貫性を保持。`read_event` 再呼出し可能
+- **close() 失敗**: 部分的復旧済み。プロセス終了時の最終手段として機能
+
+### 安全規約
+
+- `close()` は必ず「カーソル表示ON」「スタイルリセット」を試みる
+- 部分的失敗でも可能な限り復帰処理を継続する
+- 入力から得た生シーケンスをそのままログに出力する際は、制御コードをエスケープすることを推奨
 
 ---
 
@@ -202,8 +258,25 @@
 
 ### エラー条件
 
-- Transport受信エラー（切断等）は **エラー** として返す（例外/エラーコードは言語規約）。
-- `Resize` の取得失敗時はイベントを生成しない（`get_size()` は別途Unknownになりうる）。
+#### Transport受信エラー
+以下の状況でエラーを返す（例外/エラーコードは言語規約に従う）：
+
+| 状況 | エラーの意味 | アプリケーション対応 |
+|------|-------------|-------------------|
+| **接続切断** | 端末プロセス終了、SSH切断等 | 再接続またはアプリケーション終了 |
+| **デバイスエラー** | ハードウェア障害、権限喪失 | エラー報告後の適切な終了処理 |
+| **バッファーオーバーフロー** | 大量データ受信でメモリ不足 | リトライまたは設定調整 |
+| **プロトコル異常** | 解析不能な制御シーケンス | 警告ログ後の処理継続 |
+
+#### 正常な非エラー状態
+- **タイムアウト**: `None` を返す（エラーではない）
+- **Unknown サイズ**: `get_size()` が `Unknown` を返す（エラーではない）
+- **RawSequence**: 未知シーケンスをそのまま返す（エラーではない）
+
+#### Resize取得の特別扱い
+- `Resize` の取得失敗時はイベントを生成しない
+- `get_size()` は別途 Unknown になりうる
+- これはエラーではなく、能力不足として扱う
 
 ### 安全とログ指針
 
@@ -539,10 +612,38 @@
 - `close()` は可能な範囲で **カーソル表示ON**、**スタイルリセット**、必要ならスクリーン復帰（P1+）等を行う。
 - `close()` 呼出し忘れに対する挙動は **未規定**（実装依存）。可能ならプロセス終了時のクリーンアップフックを用いて安全側に復帰することが望ましい。
 
-### EOF/切断
+### EOF/切断処理
 
-- 入力ストリームの **EOF/切断** を検出した場合、`read_event()` は **エラー** または **特別な終了状態**で通知する（言語ごとの規約に従う）。
-- EOFは `None`（タイムアウト）とは区別されるべきである。
+#### EOF検出
+- 入力ストリームの **EOF/切断** を検出した場合、`read_event()` は以下のように動作：
+  - **例外言語**: `EOFError`, `ConnectionError` 等の専用例外をスロー
+  - **エラーコード言語**: 負のエラーコードを返却（例：`-ECONNRESET`、`-EPIPE`）
+  - **Result型言語**: `Err(ErrorKind::UnexpectedEof)` 等を返却
+
+#### EOFとタイムアウトの区別
+- **EOF**: 入力ストリームの終端。復旧不可能
+- **タイムアウト**: 指定時間内にデータなし。`None` を返し、後続の `read_event` 呼び出し可能
+- **信号割り込み**: システムコール中断。内部で再試行またはエラー報告
+
+#### アプリケーション推奨対応
+```pseudo
+try {
+    while (running) {
+        event = read_event(100);  // 100ms タイムアウト
+        if (event == None) {
+            // タイムアウト：継続可能
+            continue;
+        }
+        handle_event(event);
+    }
+} catch (EOFError) {
+    // 入力終了：アプリケーション終了処理
+    cleanup_and_exit();
+} catch (TransportError) {
+    // 通信エラー：再試行または終了
+    retry_or_exit();
+}
+```
 
 ---
 
@@ -913,6 +1014,143 @@
 | SGRマウス    | x10       | 取得不可なら無イベント |
 | ハイパーリンク   | 無効果       | 表示テキストのみ    |
 | 画像(kitty) | 無効        | 代替テキスト表示    |
+
+---
+
+## エラー処理実装例（参考）
+
+### 言語別エラー処理パターン
+
+#### Rust
+```rust
+pub enum TerseError {
+    Transport(io::Error),
+    Protocol(String),
+    InvalidArgument(String),
+    Unsupported(String),
+}
+
+pub type Result<T> = std::result::Result<T, TerseError>;
+
+impl Terminal {
+    pub fn read_event(&mut self, timeout_ms: i32) -> Result<Option<Event>> {
+        match self.transport.read_with_timeout(timeout_ms) {
+            Ok(Some(bytes)) => Ok(Some(self.parse_event(bytes)?)),
+            Ok(None) => Ok(None), // タイムアウト
+            Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => {
+                Err(TerseError::Transport(e))
+            }
+            Err(e) => Err(TerseError::Transport(e)),
+        }
+    }
+}
+```
+
+#### Python
+```python
+class TerseError(Exception):
+    """ベース例外クラス"""
+    pass
+
+class TransportError(TerseError):
+    """Transport層エラー"""
+    pass
+
+class ProtocolError(TerseError):
+    """プロトコルエラー"""
+    pass
+
+class Terminal:
+    def read_event(self, timeout_ms: int) -> Optional[Event]:
+        try:
+            data = self.transport.read_with_timeout(timeout_ms)
+            if data is None:
+                return None  # タイムアウト
+            return self.parse_event(data)
+        except EOFError as e:
+            raise TransportError("Connection closed") from e
+        except OSError as e:
+            raise TransportError(f"I/O error: {e}") from e
+```
+
+#### C
+```c
+typedef enum {
+    TERSE_OK = 0,
+    TERSE_ERROR_TRANSPORT = -1,
+    TERSE_ERROR_PROTOCOL = -2,
+    TERSE_ERROR_INVALID_ARG = -3,
+    TERSE_ERROR_UNSUPPORTED = -4,
+    TERSE_ERROR_EOF = -5,
+} terse_error_t;
+
+terse_error_t terse_read_event(terse_t* term, int timeout_ms, terse_event_t* event) {
+    char buffer[BUFFER_SIZE];
+    ssize_t n = read_with_timeout(term->fd, buffer, sizeof(buffer), timeout_ms);
+    
+    if (n == 0) {
+        return TERSE_ERROR_EOF;
+    } else if (n < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return TERSE_OK;  // タイムアウト、event は NULL
+        }
+        return TERSE_ERROR_TRANSPORT;
+    }
+    
+    return parse_event(buffer, n, event);
+}
+```
+
+### 復旧処理実装例
+
+#### 自動リトライ機能
+```pseudo
+function write_with_retry(data, max_retries=3) {
+    for (attempt = 0; attempt < max_retries; attempt++) {
+        try {
+            return transport.write(data);
+        } catch (TemporaryError e) {
+            if (attempt == max_retries - 1) throw e;
+            sleep(100ms * (attempt + 1));  // 指数バックオフ
+        }
+    }
+}
+```
+
+#### 安全終了処理
+```pseudo
+function safe_close() {
+    errors = [];
+    
+    // カーソル表示復帰（失敗しても継続）
+    try {
+        send_cursor_show();
+    } catch (Error e) {
+        errors.append(e);
+    }
+    
+    // スタイルリセット（失敗しても継続）
+    try {
+        send_style_reset();
+    } catch (Error e) {
+        errors.append(e);
+    }
+    
+    // 端末モード復帰（失敗しても継続）
+    try {
+        restore_terminal_mode();
+    } catch (Error e) {
+        errors.append(e);
+    }
+    
+    // 最終的なエラー報告
+    if (!errors.empty()) {
+        log_warnings(errors);
+        return PARTIAL_FAILURE;
+    }
+    return SUCCESS;
+}
+```
 
 ---
 
