@@ -78,7 +78,7 @@ close(handle_p0);
 handle_p1 = open(P1, options);
 if (get_capabilities(handle_p1).profile >= P1) {
     // P1機能（色・装飾）を使用可能
-    set_style(foreground=RED, bold=true);
+  set_style(handle_p1, foreground=RED, bold=true);
 }
 ```
 
@@ -106,17 +106,17 @@ if (get_capabilities(handle_p1).profile >= P1) {
 function safe_profile_transition(current_handle, target_profile) {
     // 1. 現在状態の記録
     current_state = capture_state(current_handle);
-    
+
     // 2. 安全な終了
     safe_close(current_handle);
-    
+
     // 3. 新プロファイルで再開
     new_handle = open(target_profile, options);
     actual_profile = get_capabilities(new_handle).profile;
-    
+
     // 4. 状態復元（対応範囲内で）
     restore_compatible_state(new_handle, current_state, actual_profile);
-    
+
     return new_handle;
 }
 ```
@@ -136,16 +136,16 @@ actual = get_capabilities(handle);
 
 switch (actual.profile) {
     case P3:
-        enable_full_features();
+  enable_full_features(handle);
         break;
     case P2:
-        enable_basic_interaction();
+  enable_basic_interaction(handle);
         break;
     case P1:
-        enable_visual_enhancement();
+  enable_visual_enhancement(handle);
         break;
     case P0:
-        enable_text_only_mode();
+  enable_text_only_mode(handle);
         break;
 }
 ```
@@ -166,22 +166,22 @@ switch (actual.profile) {
 ```pseudo
 // 防御的プログラミング
 function use_color_if_available(text, color) {
-    caps = get_capabilities();
+  caps = get_capabilities(handle);
     if (caps.colors != "none") {
-        set_style(foreground=color);
-        write_text(text);
-        reset_style();
+    set_style(handle, foreground=color);
+    write_text(handle, text);
+    reset_style(handle);
     } else {
-        write_text(text);  // 色なしで出力
+    write_text(handle, text);  // 色なしで出力
     }
 }
 
 // 機能別分岐
 function setup_mouse_if_supported() {
-    caps = get_capabilities();
+  caps = get_capabilities(handle);
     if (caps.mouse != "none") {
-        enable_mouse("sgr");
-        register_mouse_handler(on_mouse_event);
+    enable_mouse(handle, "sgr");
+    register_mouse_handler(handle, on_mouse_event);
     }
 }
 ```
@@ -192,35 +192,35 @@ function setup_mouse_if_supported() {
 
 ### ライフサイクル
 
-| API                                | 概要           | 備考           |
-| ---------------------------------- | ------------ | ------------ |
-| `open(requested_profile, options)` | ハンドルを生成し利用開始 | 実際の能力を交渉し返す。端末能力に応じてプロファイル縮退あり |
-| `close(handle)`                    | 利用終了、画面状態を復元 | カーソル表示・スタイルリセット・拡張機能無効化 |
+| API                                             | 概要           | 備考           |
+| ----------------------------------------------- | ------------ | ------------ |
+| `open(requested_profile, options) -> Handle`    | ハンドルを生成し利用開始 | 実際の能力を交渉し返す。端末能力に応じてプロファイル縮退あり |
+| `close(handle)`                                 | 利用終了、画面状態を復元 | カーソル表示・スタイルリセット・拡張機能無効化 |
 
 ### 出力
 
-| API                     | 概要                     | 縮退時の挙動          |
-| ----------------------- | ---------------------- | --------------- |
-| `clear_screen(mode)`    | 画面消去（after/before/all） | 未対応時は無効果        |
-| `clear_line(mode)`      | 行消去（after/before/all）  | 未対応時は無効果        |
-| `move_to(row,col)`      | 絶対カーソル移動               | 範囲外は端末内でクランプ    |
-| `move_by(drow,dcol)`    | 相対カーソル移動               | 未対応時は無効果        |
-| `show_cursor(bool)`     | カーソル表示／非表示             | 未対応時は常に表示       |
-| `write_text(graphemes)` | 文字列出力（符号化を経由）          | 符号化不可文字は代替文字に変換 |
-| `flush()`               | バッファー送出                 | 未対応時は逐次送出と同等。推奨: 16ms間隔で自動フラッシュ |
+| API                              | 概要                     | 縮退時の挙動          |
+| -------------------------------- | ---------------------- | --------------- |
+| `clear_screen(handle, mode)`     | 画面消去（after/before/all） | 未対応時は無効果        |
+| `clear_line(handle, mode)`       | 行消去（after/before/all）  | 未対応時は無効果        |
+| `move_to(handle, row, col)`      | 絶対カーソル移動               | 範囲外は端末内でクランプ    |
+| `move_by(handle, drow, dcol)`    | 相対カーソル移動               | 未対応時は無効果        |
+| `show_cursor(handle, bool)`      | カーソル表示／非表示             | 未対応時は常に表示       |
+| `write_text(handle, graphemes)`  | 文字列出力（符号化を経由）          | 符号化不可文字は代替文字に変換 |
+| `flush(handle)`                  | バッファー送出                 | 未対応時は逐次送出と同等。推奨: 16ms間隔で自動フラッシュ |
 
 ### 入力
 
-| API                      | 概要            | 縮退時の挙動                       |
-| ------------------------ | ------------- | ---------------------------- |
-| `read_event(timeout_ms)` | 入力を抽象イベントに正規化 | 未知シーケンスは `RawSequence` として返す |
+| API                                 | 概要            | 縮退時の挙動                       |
+| ----------------------------------- | ------------- | ---------------------------- |
+| `read_event(handle, timeout_ms)`    | 入力を抽象イベントに正規化 | 未知シーケンスは `RawSequence` として返す |
 
 ### 能力
 
-| API                  | 概要           | 備考             |
-| -------------------- | ------------ | -------------- |
-| `get_size()`         | 行数・列数を返す     | 取得不可なら Unknown |
-| `get_capabilities()` | 色・マウスなどの能力情報 | P0では最小限（色なし）   |
+| API                           | 概要           | 備考             |
+| ----------------------------- | ------------ | -------------- |
+| `get_size(handle)`            | 行数・列数を返す     | 取得不可なら Unknown |
+| `get_capabilities(handle)`    | 色・マウスなどの能力情報 | P0では最小限（色なし）   |
 
 ---
 
@@ -313,7 +313,7 @@ function setup_mouse_if_supported() {
 ### 状態一貫性保証
 
 エラー発生時の状態保証：
-- **出力API失敗**: 端末状態は不定。アプリケーションで `reset_style()` 等による復旧推奨
+- **出力API失敗**: 端末状態は不定。アプリケーションで `reset_style(handle)` 等による復旧推奨
 - **入力API失敗**: 内部状態は一貫性を保持。`read_event` 再呼出し可能
 - **close() 失敗**: 部分的復旧済み。プロセス終了時の最終手段として機能
 
@@ -339,7 +339,7 @@ function setup_mouse_if_supported() {
 
 ### イベントモデル
 
-- **同期取得**：`read_event(timeout_ms) -> Event | None`。
+- **同期取得**：`read_event(handle, timeout_ms) -> Event | None`。
   - `timeout_ms < 0`：無期限待ち。`0`：即時ポーリング。正数：指定ミリ秒。
 - **正規化**：受信バイト列を既知パターンへ最長一致で正規化し、抽象イベントに変換する。
 - **順序保証**：受信順序を保持。端末/OSのバッファリングにより到着順が入替る場合は到着順を優先。
@@ -397,7 +397,7 @@ function setup_mouse_if_supported() {
 
 ### タイムアウトと None
 
-- `read_event(t)` は、tミリ秒以内にイベントがない場合 **`None`** を返す。
+- `read_event(handle, t)` は、tミリ秒以内にイベントがない場合 **`None`** を返す。
 - 例外/エラーがない限り、`None` は正常動作を意味する。
 
 ### エラー条件
@@ -610,7 +610,7 @@ function setup_mouse_if_supported() {
 
 #### 出力側
 
-- `write_text("\n")` は常に **LF (0x0A)** を送出する。
+- `write_text(handle, "\n")` は常に **LF (0x0A)** を送出する。
 - CRLF変換は行わない。必要に応じて `"\r\n"` を明示的に送るのはアプリケーションの責務。
 
 #### 入力側
@@ -800,10 +800,10 @@ try {
 
 ### API 拡張
 
-| API                  | 概要                    | 備考                                    |
-| -------------------- | --------------------- | ------------------------------------- |
-| `set_style(style)`   | 前景・背景色と装飾ビット集合をまとめて指定 | 状態ベース。部分更新も許容。                        |
-| `reset_style(scope)` | スタイルのリセット             | `scope={all,color_only,effects_only}` |
+| API                               | 概要                    | 備考                                    |
+| --------------------------------- | --------------------- | ------------------------------------- |
+| `set_style(handle, style)`        | 前景・背景色と装飾ビット集合をまとめて指定 | 状態ベース。部分更新も許容。                        |
+| `reset_style(handle, scope)`      | スタイルのリセット             | `scope={all,color_only,effects_only}` |
 
 ### スタイル要素
 
@@ -850,8 +850,8 @@ try {
 
 ### 安全規約
 
-- `reset_style(all)` を呼ぶことで、常に既定の安全状態（色なし・装飾なし）へ戻せる。
-- 端末によっては色リセットが完全でない場合があるため、`reset_style(all)` は **SGR 0** を送出することを推奨。
+- `reset_style(handle, all)` を呼ぶことで、常に既定の安全状態（色なし・装飾なし）へ戻せる。
+- 端末によっては色リセットが完全でない場合があるため、`reset_style(handle, all)` は **SGR 0** を送出することを推奨。
 
 ---
 
@@ -865,7 +865,7 @@ try {
 ### マウス追跡
 
 - API:
-  - `enable_mouse(mode)` / `disable_mouse()`
+  - `enable_mouse(handle, mode)` / `disable_mouse(handle)`
 - モード：
   - `x10`：最小限（座標・ボタン）。
   - `vt200`：押下/離上を含む。
@@ -879,7 +879,7 @@ try {
 
 - 機能：ペースト開始/終了をイベント化。
 - API:
-  - `enable_bracketed_paste()` / `disable_bracketed_paste()`
+  - `enable_bracketed_paste(handle)` / `disable_bracketed_paste(handle)`
 - イベント：
   - `PasteBegin`, `PasteEnd`
 - 縮退：
@@ -888,8 +888,8 @@ try {
 ### タイトル・リンク制御
 
 - API:
-  - `set_title(string)`：端末ウィンドウ/タブタイトルを設定。
-  - `set_hyperlink(url, label)`：ハイパーリンク埋め込み（OSC 8準拠）。
+  - `set_title(handle, string)`：端末ウィンドウ/タブタイトルを設定。
+  - `set_hyperlink(handle, url, label)`：ハイパーリンク埋め込み（OSC 8準拠）。
 - 縮退：
   - `title=false` または `hyperlink=false` の場合は無効果。
 
@@ -937,7 +937,7 @@ try {
 ### 画像表示
 
 - API候補：
-  - `draw_image(data, format, row, col, options)`
+  - `draw_image(handle, data, format, row, col, options)`
 - サポート形式：
   - `sixel`（古典的、DEC・一部xterm系）
   - `iterm2` プロトコル（OSC 1337）
@@ -1013,8 +1013,8 @@ try {
 ### 画像描画
 
 - API（抽象）：
-  - `draw_image(image, geom)`：画像を描画。`geom` は `{row,col,width,height,placement}` を含む。
-  - `erase_image(region)`：領域内の画像を消去。
+  - `draw_image(handle, image, geom)`：画像を描画。`geom` は `{row,col,width,height,placement}` を含む。
+  - `erase_image(handle, region)`：領域内の画像を消去。
 - バックエンド写像（代表例）：
   - **Sixel**（DEC/Sixel対応端末）
   - **iTerm2 Image Protocol**
@@ -1028,8 +1028,8 @@ try {
 ### クリップボード
 
 - API：
-  - `clipboard_write(selection, data)`：`selection={clipboard, primary}` 等（端末依存）。
-  - `clipboard_read(selection)`（**読み出しは未対応の端末が多い**）
+  - `clipboard_write(handle, selection, data)`：`selection={clipboard, primary}` 等（端末依存）。
+  - `clipboard_read(handle, selection)`（**読み出しは未対応の端末が多い**）
 - バックエンド写像：**OSC 52**（Base64）など。tmux/screen下ではブロックされることがある。
 - 縮退：
   - 未対応時は無効果。`clipboard_read` はエラーまたは未対応を返す。
@@ -1039,7 +1039,7 @@ try {
 ### カーソル形状／可視属性
 
 - API：
-  - `set_cursor(shape, blink)`：`shape={block, underline, bar}`, `blink={true,false}`
+  - `set_cursor(handle, shape, blink)`：`shape={block, underline, bar}`, `blink={true,false}`
 - バックエンド写像：**DECSCUSR**（`CSI SP q`）。
 - 縮退：未対応時は無効果。
 - 能力：
@@ -1049,7 +1049,7 @@ try {
 
 - 目的：`Shift+Enter` 等、P0で区別不能だった修飾キー情報を取得。
 - API：
-  - `enable_keyboard_reporting(kind)` / `disable_keyboard_reporting()`
+  - `enable_keyboard_reporting(handle, kind)` / `disable_keyboard_reporting(handle)`
 - バックエンド写像：
   - **xterm modifyOtherKeys**（MOK）
   - **kitty keyboard protocol**
@@ -1061,7 +1061,7 @@ try {
 
 ### 通知・ベル・フラッシュ
 
-- API：`notify(kind, payload)`
+- API：`notify(handle, kind, payload)`
   - `kind={bell, visual_bell, desktop_notification}`（対応端末・統合環境でのみ有効）
 - 縮退：未対応時は無効果。
 - 能力：`capabilities.notifications`：`{none, bell, visual, desktop}`（複合可）
@@ -1259,7 +1259,7 @@ typedef enum {
 terse_error_t terse_read_event(terse_t* term, int timeout_ms, terse_event_t* event) {
     char buffer[BUFFER_SIZE];
     ssize_t n = read_with_timeout(term->fd, buffer, sizeof(buffer), timeout_ms);
-    
+
     if (n == 0) {
         return TERSE_ERROR_EOF;
     } else if (n < 0) {
@@ -1268,7 +1268,7 @@ terse_error_t terse_read_event(terse_t* term, int timeout_ms, terse_event_t* eve
         }
         return TERSE_ERROR_TRANSPORT;
     }
-    
+
     return parse_event(buffer, n, event);
 }
 ```
@@ -1293,28 +1293,28 @@ function write_with_retry(data, max_retries=3) {
 ```pseudo
 function safe_close() {
     errors = [];
-    
+
     // カーソル表示復帰（失敗しても継続）
     try {
         send_cursor_show();
     } catch (Error e) {
         errors.append(e);
     }
-    
+
     // スタイルリセット（失敗しても継続）
     try {
         send_style_reset();
     } catch (Error e) {
         errors.append(e);
     }
-    
+
     // 端末モード復帰（失敗しても継続）
     try {
         restore_terminal_mode();
     } catch (Error e) {
         errors.append(e);
     }
-    
+
     // 最終的なエラー報告
     if (!errors.empty()) {
         log_warnings(errors);
@@ -1432,7 +1432,7 @@ benchmark_output() {
     }
     flush();
     end_time = now();
-    
+
     throughput = length(text) * 100 / (end_time - start_time);
     return throughput; // 文字/秒
 }
@@ -1441,13 +1441,13 @@ benchmark_output() {
 benchmark_input() {
     events = simulate_key_sequence(1000); // 1000キーイベント
     start_time = now();
-    
+
     for (event in events) {
         inject_raw_input(event.bytes);
         parsed = read_event(0); // ポーリング
         assert(parsed == event.expected);
     }
-    
+
     end_time = now();
     return 1000 / (end_time - start_time); // イベント/秒
 }
@@ -1490,3 +1490,17 @@ benchmark_input() {
 - Codec=Shift_JISを既定に。文字幅・サイズ取得を常に可能とする。
 - 色・装飾・マウス等は未対応縮退を徹底。
 - 画面モード切替フックを利用しResizeイベント生成。
+
+---
+
+## APIデザイン方針（ガイドライン）
+
+- コアAPIはすべて`handle`を明示的に受け取り、再入可能性・並行性・複数端末同時制御・テスト容易性を担保する。
+- 言語ラッパ（C++/Rust/Python等）ではインスタンスメソッド化して `handle` を隠蔽してもよい。
+- 便宜的なスレッドローカルcurrentコンテキストAPI（例：`set_current(handle)`→`clear_screen(mode)`）を用意することは許容するが、
+  - current未設定時は明確にエラーとすること、
+  - マルチスレッド環境ではスレッドローカルであること、
+  - コアの `...(..., handle, ...)` 版を必ず提供すること、
+  を条件とする。
+
+この方針に沿い、本仕様書の関数シグネチャは「handle明示渡し」に統一して記述する。
