@@ -169,6 +169,46 @@ TEST(TerseOutputCapabilities, NoOutput_WhenBasicOutputDisabled)
 	close(fds[1]);
 }
 
+TEST(TerseOutputState, SkipsDuplicateCursorHide)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_pipe_handle(&handle, fds);
+
+	EXPECT_EQ(0, terse_show_cursor(handle, 0));
+	char buf[32];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[?25l") != NULL);
+
+	EXPECT_EQ(0, terse_show_cursor(handle, 0));
+	expect_no_bytes_available(fds[0]);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseOutputState, SkipsDuplicateMoveTo)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_pipe_handle(&handle, fds);
+
+	EXPECT_EQ(0, terse_move_to(handle, 5, 10));
+	char buf[32];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[5;10H") != NULL);
+
+	EXPECT_EQ(0, terse_move_to(handle, 5, 10));
+	expect_no_bytes_available(fds[0]);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
 TEST(TerseClearScreen, EmitsAllSequence_OnAll)
 {
 	int fds[2];

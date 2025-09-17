@@ -15,6 +15,9 @@ struct terse_handle {
 	terse_capabilities_t capabilities;
 	terse_options_t options;
 	terse_size_t size;
+	int cursor_visible;
+	int cursor_row;
+	int cursor_col;
 };
 
 static terse_capabilities_t
@@ -155,6 +158,9 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	if (disabled & TERSE_CAP_DISABLE_SIZE) {
 		handle->capabilities.has_size = 0;
 	}
+	handle->cursor_visible = 1;
+	handle->cursor_row = 0;
+	handle->cursor_col = 0;
 	refresh_size(handle);
 
 	return handle;
@@ -241,7 +247,11 @@ emit_reset_sequences(terse_handle_t handle)
 	}
 	static const char *const cursor_on_seq = "\x1b[?25h";
 	static const char *const reset_seq = "\x1b[0m";
-	write_bytes(handle->options.output_fd, cursor_on_seq, strlen(cursor_on_seq));
+	if (!handle->cursor_visible) {
+		if (write_bytes(handle->options.output_fd, cursor_on_seq, strlen(cursor_on_seq)) == 0) {
+			handle->cursor_visible = 1;
+		}
+	}
 	write_bytes(handle->options.output_fd, reset_seq, strlen(reset_seq));
 }
 
@@ -470,6 +480,9 @@ terse_move_to(terse_handle_t handle, int row, int col)
 	if (col < 1) {
 		col = 1;
 	}
+	if (row == handle->cursor_row && col == handle->cursor_col) {
+		return 0;
+	}
 
 	char sequence[32];
 	int written = snprintf(sequence, sizeof(sequence), "\x1b[%d;%dH", row, col);
@@ -478,7 +491,12 @@ terse_move_to(terse_handle_t handle, int row, int col)
 		return -EINVAL;
 	}
 
-	return write_bytes(handle->options.output_fd, sequence, (size_t)written);
+	int out = write_bytes(handle->options.output_fd, sequence, (size_t)written);
+	if (out == 0) {
+		handle->cursor_row = row;
+		handle->cursor_col = col;
+	}
+	return out;
 }
 
 int
@@ -493,6 +511,8 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 	}
 
 	int fd = handle->options.output_fd;
+	int new_row = handle->cursor_row;
+	int new_col = handle->cursor_col;
 
 	if (drow < 0) {
 		char seq[32];
@@ -505,6 +525,7 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 		if (w < 0) {
 			return w;
 		}
+		new_row += drow;
 	} else if (drow > 0) {
 		char seq[32];
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dB", drow);
@@ -516,6 +537,7 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 		if (w < 0) {
 			return w;
 		}
+		new_row += drow;
 	}
 
 	if (dcol < 0) {
@@ -529,6 +551,7 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 		if (w < 0) {
 			return w;
 		}
+		new_col += dcol;
 	} else if (dcol > 0) {
 		char seq[32];
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dC", dcol);
@@ -540,7 +563,17 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 		if (w < 0) {
 			return w;
 		}
+		new_col += dcol;
 	}
+
+	if (new_row < 1) {
+		new_row = 1;
+	}
+	if (new_col < 1) {
+		new_col = 1;
+	}
+	handle->cursor_row = new_row;
+	handle->cursor_col = new_col;
 
 	return 0;
 }
@@ -555,8 +588,15 @@ terse_show_cursor(terse_handle_t handle, int visible)
 	if (!handle->capabilities.has_cursor_visibility) {
 		return 0;
 	}
-
-	return write_literal(handle, visible ? "\x1b[?25h" : "\x1b[?25l");
+	int target = visible ? 1 : 0;
+	if (handle->cursor_visible == target) {
+		return 0;
+	}
+	int result = write_literal(handle, target ? "\x1b[?25h" : "\x1b[?25l");
+	if (result == 0) {
+		handle->cursor_visible = target;
+	}
+	return result;
 }
 
 int

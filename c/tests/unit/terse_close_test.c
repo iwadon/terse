@@ -31,6 +31,11 @@ TEST(TerseClose, EmitsResetSequences_OnClose)
 	int fds[2];
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
+	EXPECT_EQ(0, terse_show_cursor(handle, 0));
+	char initial[32];
+	ssize_t initial_n = read_pipe(fds[0], initial, sizeof(initial));
+	EXPECT_TRUE(initial_n > 0);
+	EXPECT_TRUE(strstr(initial, "\x1b[?25l") != NULL);
 
 	char buf[32];
 	errno = 0;
