@@ -27,6 +27,14 @@ typedef struct terse_capabilities {
 	int has_clear_line;
 	int has_clear_screen;
 	int has_size;
+	int has_sgr_basic;
+	int has_sgr_extended;
+	int has_truecolor;
+	int has_text_styles;
+	int has_mouse_tracking;
+	int has_bracketed_paste;
+	int has_title;
+	int has_hyperlinks;
 } terse_capabilities_t;
 
 typedef enum terse_capability_flag {
@@ -37,6 +45,14 @@ typedef enum terse_capability_flag {
 	TERSE_CAP_DISABLE_CLEAR_LINE = 1u << 4,
 	TERSE_CAP_DISABLE_CLEAR_SCREEN = 1u << 5,
 	TERSE_CAP_DISABLE_SIZE = 1u << 6,
+	TERSE_CAP_DISABLE_SGR_BASIC = 1u << 7,
+	TERSE_CAP_DISABLE_SGR_EXTENDED = 1u << 8,
+	TERSE_CAP_DISABLE_TRUECOLOR = 1u << 9,
+	TERSE_CAP_DISABLE_TEXT_STYLES = 1u << 10,
+	TERSE_CAP_DISABLE_MOUSE = 1u << 11,
+	TERSE_CAP_DISABLE_BRACKETED_PASTE = 1u << 12,
+	TERSE_CAP_DISABLE_TITLE = 1u << 13,
+	TERSE_CAP_DISABLE_HYPERLINK = 1u << 14,
 } terse_capability_flag_t;
 
 typedef struct terse_options {

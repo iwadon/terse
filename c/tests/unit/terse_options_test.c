@@ -72,6 +72,30 @@ TEST(TerseGetOptions, CopiesHandleOptions_OnValidHandle)
 	close(fds[1]);
 }
 
+TEST(TerseCapabilities, DefaultsMatchP0)
+{
+	terse_handle_t handle = terse_open(TERSE_P0, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_EQ(TERSE_P0, caps.profile);
+	EXPECT_EQ(1, caps.has_basic_output);
+	EXPECT_EQ(1, caps.has_cursor_visibility);
+	EXPECT_EQ(1, caps.has_move_absolute);
+	EXPECT_EQ(1, caps.has_move_relative);
+	EXPECT_EQ(1, caps.has_clear_line);
+	EXPECT_EQ(1, caps.has_clear_screen);
+	EXPECT_EQ(0, caps.has_size);
+	EXPECT_EQ(0, caps.has_sgr_basic);
+	EXPECT_EQ(0, caps.has_sgr_extended);
+	EXPECT_EQ(0, caps.has_truecolor);
+	EXPECT_EQ(0, caps.has_text_styles);
+	EXPECT_EQ(0, caps.has_mouse_tracking);
+	EXPECT_EQ(0, caps.has_bracketed_paste);
+	EXPECT_EQ(0, caps.has_title);
+	EXPECT_EQ(0, caps.has_hyperlinks);
+	terse_close(handle);
+}
+
 TEST(TerseGetOptions, ReturnsEINVAL_OnNullOut)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);

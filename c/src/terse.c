@@ -51,6 +51,14 @@ make_p0_capabilities(void)
 		.has_clear_line = 1,
 		.has_clear_screen = 1,
 		.has_size = 0,
+		.has_sgr_basic = 0,
+		.has_sgr_extended = 0,
+		.has_truecolor = 0,
+		.has_text_styles = 0,
+		.has_mouse_tracking = 0,
+		.has_bracketed_paste = 0,
+		.has_title = 0,
+		.has_hyperlinks = 0,
 	};
 	return caps;
 }
@@ -176,6 +184,30 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	}
 	if (disabled & TERSE_CAP_DISABLE_SIZE) {
 		handle->capabilities.has_size = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_SGR_BASIC) {
+		handle->capabilities.has_sgr_basic = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_SGR_EXTENDED) {
+		handle->capabilities.has_sgr_extended = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_TRUECOLOR) {
+		handle->capabilities.has_truecolor = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_TEXT_STYLES) {
+		handle->capabilities.has_text_styles = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_MOUSE) {
+		handle->capabilities.has_mouse_tracking = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_BRACKETED_PASTE) {
+		handle->capabilities.has_bracketed_paste = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_TITLE) {
+		handle->capabilities.has_title = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_HYPERLINK) {
+		handle->capabilities.has_hyperlinks = 0;
 	}
 	handle->cursor_visible = 1;
 	handle->cursor_row = 0;
