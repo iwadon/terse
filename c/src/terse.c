@@ -93,8 +93,10 @@ refresh_size(terse_handle_t handle)
 	if (!size.known && handle->options.input_fd != handle->options.output_fd) {
 		size = query_fd_size(handle->options.input_fd);
 	}
-	handle->size = size;
-	handle->capabilities.has_size = size.known;
+	if (size.known || !handle->size.known) {
+		handle->size = size;
+		handle->capabilities.has_size = size.known;
+	}
 }
 
 terse_handle_t
@@ -680,7 +682,9 @@ terse_get_size(terse_handle_t handle)
 	if (ensure_handle(handle) < 0) {
 		return unknown;
 	}
-	refresh_size(handle);
+	if (!handle->size.known) {
+		refresh_size(handle);
+	}
 	return handle->size;
 }
 

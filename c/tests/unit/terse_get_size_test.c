@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <termios.h>
 #include <unistd.h>
 
 static void create_pipe_handle(terse_handle_t *out_handle, int fds[2])
@@ -75,6 +76,21 @@ static int open_pty_pair(int *master_fd, int *slave_fd)
 	return 0;
 }
 
+static void set_raw_mode(int fd)
+{
+	struct termios tio;
+	if (tcgetattr(fd, &tio) != 0) {
+		return;
+	}
+	tio.c_lflag &= ~(ICANON | ECHO | IEXTEN | ISIG);
+	tio.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+	tio.c_oflag &= ~(OPOST);
+	tio.c_cflag |= CS8;
+	tio.c_cc[VMIN] = 1;
+	tio.c_cc[VTIME] = 0;
+	(void)tcsetattr(fd, TCSANOW, &tio);
+}
+
 TEST(TerseGetSize, ReturnsKnown_OnPty)
 {
 	int master_fd = -1;
@@ -117,10 +133,12 @@ TEST(TerseGetSize, UpdatesOnResizeEvent)
 	if (open_pty_pair(&master_fd, &slave_fd) != 0) {
 		return;
 	}
+	set_raw_mode(master_fd);
+	set_raw_mode(slave_fd);
 
 	terse_options_t options = {
-		.input_fd = master_fd,
-		.output_fd = master_fd,
+		.input_fd = slave_fd,
+		.output_fd = slave_fd,
 		.codec_name = "UTF-8",
 	};
 
