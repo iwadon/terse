@@ -96,6 +96,12 @@ static void line_edit_loop(terse_handle_t handle)
 
 		if (event.type == TERSE_EVENT_CHAR) {
 			unsigned int ch = event.data.ch.scalar;
+			if ((event.data.ch.mods & TERSE_MOD_CTRL) != 0) {
+				if (ch == 'C') {
+					break;
+				}
+				continue;
+			}
 			if (isprint((int)ch) && length + 1 < BUFFER_CAPACITY) {
 				memmove(buffer + cursor + 1, buffer + cursor, length - cursor + 1);
 				buffer[cursor] = (char)ch;

@@ -25,3 +25,7 @@ add_test(NAME c.terse_options_test COMMAND terse_options_test)
 add_executable(terse_close_test unit/terse_close_test.c)
 target_link_libraries(terse_close_test PRIVATE terse)
 add_test(NAME c.terse_close_test COMMAND terse_close_test)
+
+add_executable(terse_read_event_ctrl_test unit/terse_read_event_ctrl_test.c)
+target_link_libraries(terse_read_event_ctrl_test PRIVATE terse)
+add_test(NAME c.terse_read_event_ctrl_test COMMAND terse_read_event_ctrl_test)
