@@ -18,6 +18,7 @@ struct terse_handle {
 	int cursor_visible;
 	int cursor_row;
 	int cursor_col;
+	int cursor_known;
 	terse_error_category_t last_error;
 	int last_errno;
 };
@@ -179,6 +180,7 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	handle->cursor_visible = 1;
 	handle->cursor_row = 0;
 	handle->cursor_col = 0;
+	handle->cursor_known = 0;
 	clear_error(handle);
 	refresh_size(handle);
 
@@ -540,6 +542,7 @@ terse_move_to(terse_handle_t handle, int row, int col)
 	if (out == 0) {
 		handle->cursor_row = row;
 		handle->cursor_col = col;
+		handle->cursor_known = 1;
 	}
 	return out;
 }
@@ -623,6 +626,7 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 	}
 	handle->cursor_row = new_row;
 	handle->cursor_col = new_col;
+	handle->cursor_known = 1;
 	clear_error(handle);
 	return 0;
 }
@@ -888,4 +892,55 @@ terse_get_last_error(terse_handle_t handle)
 	info.category = handle->last_error;
 	info.code = handle->last_errno;
 	return info;
+}
+
+int
+terse_capture_state(terse_handle_t handle, terse_state_t *out_state)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!out_state) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+		return -EINVAL;
+	}
+	out_state->cursor_known = handle->cursor_known;
+	out_state->cursor_visible = handle->cursor_visible;
+	out_state->cursor_row = handle->cursor_row;
+	out_state->cursor_col = handle->cursor_col;
+	clear_error(handle);
+	return 0;
+}
+
+int
+terse_restore_state(terse_handle_t handle, const terse_state_t *state)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!state) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+		return -EINVAL;
+	}
+	int result = 0;
+	if (state->cursor_known) {
+		if (handle->capabilities.has_move_absolute && state->cursor_row > 0 && state->cursor_col > 0) {
+			int move_rc = terse_move_to(handle, state->cursor_row, state->cursor_col);
+			if (move_rc < 0 && result == 0) {
+				result = move_rc;
+			}
+		}
+	}
+	if (handle->capabilities.has_cursor_visibility) {
+		int want_visible = state->cursor_known ? state->cursor_visible : 1;
+		int vis_rc = terse_show_cursor(handle, want_visible);
+		if (vis_rc < 0 && result == 0) {
+			result = vis_rc;
+		}
+	}
+	return result;
 }

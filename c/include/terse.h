@@ -52,6 +52,13 @@ typedef struct terse_size {
 	int known;
 } terse_size_t;
 
+typedef struct terse_state {
+	int cursor_known;
+	int cursor_visible;
+	int cursor_row;
+	int cursor_col;
+} terse_state_t;
+
 typedef enum terse_error_category {
 	TERSE_ERROR_NONE = 0,
 	TERSE_ERROR_TRANSPORT,
@@ -132,6 +139,8 @@ terse_size_t terse_get_size(terse_handle_t handle);
 int terse_get_options(terse_handle_t handle, terse_options_t *out_options);
 int terse_validate_options(const terse_options_t *options);
 terse_error_info_t terse_get_last_error(terse_handle_t handle);
+int terse_capture_state(terse_handle_t handle, terse_state_t *out_state);
+int terse_restore_state(terse_handle_t handle, const terse_state_t *state);
 
 
 #endif // TERSE_H_INCLUDED

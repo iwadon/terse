@@ -382,3 +382,54 @@ int main()
 {
 	return RunAllTests();
 }
+
+TEST(TerseStateCapture, RestoresCursorPositionAndVisibility)
+{
+	int fds1[2];
+	terse_handle_t handle1;
+	create_pipe_handle(&handle1, fds1);
+	EXPECT_EQ(0, terse_move_to(handle1, 4, 7));
+	EXPECT_EQ(0, terse_show_cursor(handle1, 0));
+	terse_state_t state;
+	EXPECT_EQ(0, terse_capture_state(handle1, &state));
+	terse_close(handle1);
+	close(fds1[0]);
+	close(fds1[1]);
+
+	int fds2[2];
+	terse_handle_t handle2;
+	create_pipe_handle(&handle2, fds2);
+	EXPECT_EQ(0, terse_restore_state(handle2, &state));
+	char buf[64];
+	ssize_t n = read_pipe(fds2[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[4;7H") != NULL);
+	EXPECT_TRUE(strstr(buf, "\x1b[?25l") != NULL);
+	terse_close(handle2);
+	close(fds2[0]);
+	close(fds2[1]);
+}
+
+TEST(TerseStateCapture, ReturnsConfigError_OnNullState)
+{
+	terse_handle_t handle = terse_open(TERSE_P0, NULL);
+	EXPECT_TRUE(handle != NULL);
+	int rc = terse_capture_state(handle, NULL);
+	EXPECT_EQ(-EINVAL, rc);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_CONFIG, err.category);
+	EXPECT_EQ(EINVAL, err.code);
+	terse_close(handle);
+}
+
+TEST(TerseStateRestore, ReturnsConfigError_OnNullState)
+{
+	terse_handle_t handle = terse_open(TERSE_P0, NULL);
+	EXPECT_TRUE(handle != NULL);
+	int rc = terse_restore_state(handle, NULL);
+	EXPECT_EQ(-EINVAL, rc);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_CONFIG, err.category);
+	EXPECT_EQ(EINVAL, err.code);
+	terse_close(handle);
+}
