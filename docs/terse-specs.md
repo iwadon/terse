@@ -207,7 +207,13 @@ function setup_mouse_if_supported() {
 | `move_by(handle, drow, dcol)`    | 相対カーソル移動               | 未対応時は無効果        |
 | `show_cursor(handle, bool)`      | カーソル表示／非表示             | 未対応時は常に表示       |
 | `write_text(handle, graphemes)`  | 文字列出力（符号化を経由）          | 符号化不可文字は代替文字に変換 |
-| `flush(handle)`                  | バッファー送出                 | 未対応時は逐次送出と同等。推奨: 16ms間隔で自動フラッシュ |
+| `flush(handle)`                  | 明示的なバッファー送出（P0では即時送出のためNo-op） | 無効果（エラー状態リセットのみ） |
+
+### スタイル・色制御（P0拡張）
+
+- **スタイル設定**: `terse_set_style(handle, TERSE_STYLE_XXX)` で Bold/Italic/Underline/Inverse/Strike をまとめて指定。`TERSE_CAP_ENABLE_TEXT_STYLES` を有効化した場合のみANSIシーケンスを送出。
+- **縮退動作**: 機能無効時はNo-opで成功（`TERSE_ERROR_NONE`）。
+- **状態復元**: `terse_capture_state` / `terse_restore_state` でカーソル位置・表示と同時にスタイル状態を保存/復元できる。
 
 ### 入力
 
@@ -272,6 +278,8 @@ function setup_mouse_if_supported() {
 3. **リソースエラー**：メモリ不足、サイズ制限等（P0では未使用）
 4. **設定エラー**：不正な引数、未対応能力の要求等（`EINVAL` など）
 5. **状態エラー**：ライブラリの不正な状態での操作（`terse_get_last_error(NULL)` など）
+
+> **補足:** APIが成功した場合（`0`または正値）は `category=TERSE_ERROR_NONE` が保証される。機能無効化によるNo-opでもエラーはクリアされる。
 
 > **補足**: 戻り値が成功 (`0`/正値) の場合、`category=TERSE_ERROR_NONE` が保証される。機能無効化によるノーオペ時にもエラー状態はクリアされる。
 
@@ -1506,3 +1514,5 @@ benchmark_input() {
   を条件とする。
 
 この方針に沿い、本仕様書の関数シグネチャは「handle明示渡し」に統一して記述する。
+- **出力スタイル（SGR）**：`terse_set_style()` で `TERSE_STYLE_*` フラグを設定。対応機能が無効な場合は無効果。
+- **状態キャプチャ/復元**：`terse_capture_state()` と `terse_restore_state()` でカーソル位置・表示・スタイルを保存/適用できる。
