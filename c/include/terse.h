@@ -32,7 +32,14 @@ typedef struct terse_capabilities {
 	int has_move_relative;
 	int has_clear_line;
 	int has_clear_screen;
+	int has_size;
 } terse_capabilities_t;
+
+typedef struct terse_size {
+	int rows;
+	int cols;
+	int known;
+} terse_size_t;
 
 enum {
 	TERSE_MOD_SHIFT = (1 << 0),
@@ -96,6 +103,7 @@ int terse_show_cursor(terse_handle_t handle, int visible);
 int terse_write_text(terse_handle_t handle, const char *graphemes);
 int terse_flush(terse_handle_t handle);
 int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event);
+terse_size_t terse_get_size(terse_handle_t handle);
 
 
 #endif // TERSE_H_INCLUDED

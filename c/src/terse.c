@@ -7,12 +7,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
 struct terse_handle {
 	terse_profile_t requested_profile;
 	terse_capabilities_t capabilities;
 	terse_options_t options;
+	terse_size_t size;
 };
 
 static terse_capabilities_t
@@ -26,6 +28,7 @@ make_p0_capabilities(void)
 		.has_move_relative = 1,
 		.has_clear_line = 1,
 		.has_clear_screen = 1,
+		.has_size = 0,
 	};
 	return caps;
 }
@@ -41,11 +44,42 @@ default_options(void)
 	return options;
 }
 
-static terse_capabilities_t
-derive_capabilities(terse_profile_t requested_profile)
+static terse_size_t
+make_unknown_size(void)
 {
-	(void)requested_profile;
-	return make_p0_capabilities();
+	terse_size_t size = {
+		.rows = 0,
+		.cols = 0,
+		.known = 0,
+	};
+	return size;
+}
+
+static terse_size_t
+query_fd_size(int fd)
+{
+	terse_size_t size = make_unknown_size();
+	if (fd < 0) {
+		return size;
+	}
+	struct winsize ws;
+	if (ioctl(fd, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0 && ws.ws_row > 0) {
+		size.rows = ws.ws_row;
+		size.cols = ws.ws_col;
+		size.known = 1;
+	}
+	return size;
+}
+
+static void
+refresh_size(terse_handle_t handle)
+{
+	terse_size_t size = query_fd_size(handle->options.output_fd);
+	if (!size.known && handle->options.input_fd != handle->options.output_fd) {
+		size = query_fd_size(handle->options.input_fd);
+	}
+	handle->size = size;
+	handle->capabilities.has_size = size.known;
 }
 
 terse_handle_t
@@ -61,7 +95,7 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	}
 
 	handle->requested_profile = requested_profile;
-	handle->capabilities = derive_capabilities(requested_profile);
+	handle->capabilities = make_p0_capabilities();
 
 	if (options) {
 		handle->options = *options;
@@ -71,6 +105,8 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	} else {
 		handle->options = default_options();
 	}
+	handle->size = make_unknown_size();
+	refresh_size(handle);
 
 	return handle;
 }
@@ -86,6 +122,9 @@ terse_get_capabilities(terse_handle_t handle)
 {
 	if (!handle) {
 		return make_p0_capabilities();
+	}
+	if (!handle->size.known) {
+		refresh_size(handle);
 	}
 	return handle->capabilities;
 }
@@ -130,8 +169,13 @@ write_bytes(int fd, const char *bytes, size_t len)
 static int
 write_literal(terse_handle_t handle, const char *literal)
 {
-	if (!handle || !literal) {
-		return -1;
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!literal) {
+		errno = EINVAL;
+		return -EINVAL;
 	}
 	return write_bytes(handle->options.output_fd, literal, strlen(literal));
 }
@@ -555,6 +599,10 @@ terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event
 		if (parse_csi_sequence(seq, len, values, 8, &value_count, &final) == 0) {
 			if (final == 't' && value_count >= 3 && values[0] == 8) {
 				set_resize_event(out_event, values[1], values[2]);
+				handle->size.rows = values[1];
+				handle->size.cols = values[2];
+				handle->size.known = 1;
+				handle->capabilities.has_size = 1;
 				return TERSE_EVENT_OK;
 			}
 			if (final == 'A' || final == 'B' || final == 'C' || final == 'D') {
@@ -592,4 +640,15 @@ terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event
 	unsigned char raw_bytes[1] = { first };
 	set_raw_event(out_event, raw_bytes, 1);
 	return TERSE_EVENT_OK;
+}
+
+terse_size_t
+terse_get_size(terse_handle_t handle)
+{
+	terse_size_t unknown = make_unknown_size();
+	if (ensure_handle(handle) < 0) {
+		return unknown;
+	}
+	refresh_size(handle);
+	return handle->size;
 }
