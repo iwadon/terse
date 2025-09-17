@@ -1,6 +1,7 @@
 #include "terse.h"
 
 #include <errno.h>
+#include <poll.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -124,6 +125,66 @@ write_literal(terse_handle_t handle, const char *literal)
 		return -1;
 	}
 	return write_bytes(handle->options.output_fd, literal, strlen(literal));
+}
+
+static int
+wait_for_input(int fd, int timeout_ms)
+{
+	struct pollfd pfd = {
+		.fd = fd,
+		.events = POLLIN,
+	};
+	int poll_timeout = timeout_ms < 0 ? -1 : timeout_ms;
+	for (;;) {
+		int ready = poll(&pfd, 1, poll_timeout);
+		if (ready < 0) {
+			if (errno == EINTR) {
+				continue;
+			}
+		}
+		return ready;
+	}
+}
+
+static ssize_t
+read_byte(int fd, unsigned char *out)
+{
+	ssize_t n = read(fd, out, 1);
+	if (n < 0 && errno == EINTR) {
+		return read(fd, out, 1);
+	}
+	return n;
+}
+
+static size_t
+drain_escape_sequence(int fd, unsigned char *buffer, size_t max)
+{
+	size_t len = 1;
+	while (len < max) {
+		struct pollfd pfd = {
+			.fd = fd,
+			.events = POLLIN,
+		};
+		int ready = poll(&pfd, 1, 0);
+		if (ready < 0) {
+			if (errno == EINTR) {
+				continue;
+			}
+			break;
+		}
+		if (ready == 0) {
+			break;
+		}
+		ssize_t n = read(fd, buffer + len, 1);
+		if (n <= 0) {
+			break;
+		}
+		len += (size_t)n;
+		if (buffer[1] != '[' || len >= 3) {
+			break;
+		}
+	}
+	return len;
 }
 
 int
@@ -263,4 +324,106 @@ int
 terse_flush(terse_handle_t handle)
 {
 	return ensure_handle(handle);
+}
+
+static void
+set_key_event(terse_event_t *event, terse_event_type_t type)
+{
+	event->type = type;
+	event->data.key.mods = 0;
+}
+
+static void
+set_char_event(terse_event_t *event, unsigned int scalar)
+{
+	event->type = TERSE_EVENT_CHAR;
+	event->data.ch.scalar = scalar;
+	event->data.ch.width = 1;
+	event->data.ch.mods = 0;
+}
+
+static void
+set_raw_event(terse_event_t *event, const unsigned char *bytes, size_t length)
+{
+	event->type = TERSE_EVENT_RAW_SEQUENCE;
+	if (length > TERSE_EVENT_RAW_MAX) {
+		length = TERSE_EVENT_RAW_MAX;
+	}
+	event->data.raw.length = length;
+	memset(event->data.raw.bytes, 0, TERSE_EVENT_RAW_MAX);
+	memcpy(event->data.raw.bytes, bytes, length);
+}
+
+int
+terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event)
+{
+	if (!handle || !out_event) {
+		return -1;
+	}
+
+	int fd = handle->options.input_fd;
+	int ready = wait_for_input(fd, timeout_ms);
+	if (ready == 0) {
+		return TERSE_EVENT_NONE;
+	}
+	if (ready < 0) {
+		return -1;
+	}
+
+	unsigned char first = 0;
+	ssize_t n = read_byte(fd, &first);
+	if (n <= 0) {
+		return -1;
+	}
+
+	switch (first) {
+	case '\r':
+	case '\n':
+		set_key_event(out_event, TERSE_EVENT_ENTER);
+		return TERSE_EVENT_OK;
+	case '\b':
+	case 0x7f:
+		set_key_event(out_event, TERSE_EVENT_BACKSPACE);
+		return TERSE_EVENT_OK;
+	case '\t':
+		set_key_event(out_event, TERSE_EVENT_TAB);
+		return TERSE_EVENT_OK;
+	default:
+		break;
+	}
+
+	if (first == 0x1b) {
+		unsigned char seq[TERSE_EVENT_RAW_MAX] = { 0 };
+		seq[0] = first;
+		size_t len = drain_escape_sequence(fd, seq, TERSE_EVENT_RAW_MAX);
+		if (len >= 3 && seq[1] == '[') {
+			switch (seq[2]) {
+			case 'A':
+				set_key_event(out_event, TERSE_EVENT_ARROW_UP);
+				return TERSE_EVENT_OK;
+			case 'B':
+				set_key_event(out_event, TERSE_EVENT_ARROW_DOWN);
+				return TERSE_EVENT_OK;
+			case 'C':
+				set_key_event(out_event, TERSE_EVENT_ARROW_RIGHT);
+				return TERSE_EVENT_OK;
+			case 'D':
+				set_key_event(out_event, TERSE_EVENT_ARROW_LEFT);
+				return TERSE_EVENT_OK;
+			default:
+				break;
+			}
+		}
+		set_raw_event(out_event, seq, len);
+		return TERSE_EVENT_OK;
+	}
+
+	if (first >= 0x20 && first <= 0x7e) {
+		set_char_event(out_event, first);
+		return TERSE_EVENT_OK;
+	}
+
+	unsigned char raw_bytes[1] = { first };
+	set_raw_event(out_event, raw_bytes, 1);
+	return TERSE_EVENT_OK;
 }

@@ -9,3 +9,7 @@ add_test(NAME c.terse_write_text_test COMMAND terse_write_text_test)
 add_executable(terse_output_test unit/terse_output_test.c)
 target_link_libraries(terse_output_test PRIVATE terse)
 add_test(NAME c.terse_output_test COMMAND terse_output_test)
+
+add_executable(terse_read_event_test unit/terse_read_event_test.c)
+target_link_libraries(terse_read_event_test PRIVATE terse)
+add_test(NAME c.terse_read_event_test COMMAND terse_read_event_test)
