@@ -93,14 +93,19 @@ terse_get_capabilities(terse_handle_t handle)
 static int
 ensure_handle(terse_handle_t handle)
 {
-	return handle ? 0 : -1;
+	if (!handle) {
+		errno = EINVAL;
+		return -EINVAL;
+	}
+	return 0;
 }
 
 static int
 write_bytes(int fd, const char *bytes, size_t len)
 {
 	if (!bytes) {
-		return -1;
+		errno = EINVAL;
+		return -EINVAL;
 	}
 	while (len > 0) {
 		ssize_t written = write(fd, bytes, len);
@@ -108,10 +113,13 @@ write_bytes(int fd, const char *bytes, size_t len)
 			if (errno == EINTR) {
 				continue;
 			}
-			return -1;
+			int err = errno;
+			errno = err;
+			return -err;
 		}
 		if (written == 0) {
-			return -1;
+			errno = EPIPE;
+			return -EPIPE;
 		}
 		bytes += (size_t)written;
 		len -= (size_t)written;
@@ -142,6 +150,9 @@ wait_for_input(int fd, int timeout_ms)
 			if (errno == EINTR) {
 				continue;
 			}
+			int err = errno;
+			errno = err;
+			return -err;
 		}
 		return ready;
 	}
@@ -150,11 +161,18 @@ wait_for_input(int fd, int timeout_ms)
 static ssize_t
 read_byte(int fd, unsigned char *out)
 {
-	ssize_t n = read(fd, out, 1);
-	if (n < 0 && errno == EINTR) {
-		return read(fd, out, 1);
+	for (;;) {
+		ssize_t n = read(fd, out, 1);
+		if (n < 0) {
+			if (errno == EINTR) {
+				continue;
+			}
+			int err = errno;
+			errno = err;
+			return -err;
+		}
+		return n;
 	}
-	return n;
 }
 
 static size_t
@@ -269,8 +287,9 @@ modifier_bits_from_param(int param)
 int
 terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 {
-	if (ensure_handle(handle) != 0) {
-		return -1;
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
 	}
 
 	const char *sequence = NULL;
@@ -285,7 +304,8 @@ terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 		sequence = "\x1b[2J";
 		break;
 	default:
-		return -1;
+		errno = EINVAL;
+		return -EINVAL;
 	}
 
 	return write_literal(handle, sequence);
@@ -294,8 +314,9 @@ terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 int
 terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 {
-	if (ensure_handle(handle) != 0) {
-		return -1;
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
 	}
 
 	const char *sequence = NULL;
@@ -310,7 +331,8 @@ terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 		sequence = "\x1b[2K";
 		break;
 	default:
-		return -1;
+		errno = EINVAL;
+		return -EINVAL;
 	}
 
 	return write_literal(handle, sequence);
@@ -319,8 +341,9 @@ terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 int
 terse_move_to(terse_handle_t handle, int row, int col)
 {
-	if (ensure_handle(handle) != 0) {
-		return -1;
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
 	}
 
 	if (row < 1) {
@@ -333,7 +356,8 @@ terse_move_to(terse_handle_t handle, int row, int col)
 	char sequence[32];
 	int written = snprintf(sequence, sizeof(sequence), "\x1b[%d;%dH", row, col);
 	if (written <= 0 || (size_t)written >= sizeof(sequence)) {
-		return -1;
+		errno = EINVAL;
+		return -EINVAL;
 	}
 
 	return write_bytes(handle->options.output_fd, sequence, (size_t)written);
@@ -342,8 +366,9 @@ terse_move_to(terse_handle_t handle, int row, int col)
 int
 terse_move_by(terse_handle_t handle, int drow, int dcol)
 {
-	if (ensure_handle(handle) != 0) {
-		return -1;
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
 	}
 
 	int fd = handle->options.output_fd;
@@ -351,28 +376,48 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 	if (drow < 0) {
 		char seq[32];
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dA", -drow);
-		if (len <= 0 || write_bytes(fd, seq, (size_t)len) != 0) {
-			return -1;
+		if (len <= 0) {
+			errno = EINVAL;
+			return -EINVAL;
+		}
+		int w = write_bytes(fd, seq, (size_t)len);
+		if (w < 0) {
+			return w;
 		}
 	} else if (drow > 0) {
 		char seq[32];
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dB", drow);
-		if (len <= 0 || write_bytes(fd, seq, (size_t)len) != 0) {
-			return -1;
+		if (len <= 0) {
+			errno = EINVAL;
+			return -EINVAL;
+		}
+		int w = write_bytes(fd, seq, (size_t)len);
+		if (w < 0) {
+			return w;
 		}
 	}
 
 	if (dcol < 0) {
 		char seq[32];
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dD", -dcol);
-		if (len <= 0 || write_bytes(fd, seq, (size_t)len) != 0) {
-			return -1;
+		if (len <= 0) {
+			errno = EINVAL;
+			return -EINVAL;
+		}
+		int w = write_bytes(fd, seq, (size_t)len);
+		if (w < 0) {
+			return w;
 		}
 	} else if (dcol > 0) {
 		char seq[32];
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dC", dcol);
-		if (len <= 0 || write_bytes(fd, seq, (size_t)len) != 0) {
-			return -1;
+		if (len <= 0) {
+			errno = EINVAL;
+			return -EINVAL;
+		}
+		int w = write_bytes(fd, seq, (size_t)len);
+		if (w < 0) {
+			return w;
 		}
 	}
 
@@ -382,8 +427,9 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 int
 terse_show_cursor(terse_handle_t handle, int visible)
 {
-	if (ensure_handle(handle) != 0) {
-		return -1;
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
 	}
 
 	return write_literal(handle, visible ? "\x1b[?25h" : "\x1b[?25l");
@@ -392,8 +438,13 @@ terse_show_cursor(terse_handle_t handle, int visible)
 int
 terse_write_text(terse_handle_t handle, const char *graphemes)
 {
-	if (!handle || !graphemes) {
-		return -1;
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!graphemes) {
+		errno = EINVAL;
+		return -EINVAL;
 	}
 
 	return write_literal(handle, graphemes);
@@ -444,8 +495,13 @@ set_resize_event(terse_event_t *event, int rows, int cols)
 int
 terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event)
 {
-	if (!handle || !out_event) {
-		return -1;
+	if (!out_event) {
+		errno = EINVAL;
+		return -EINVAL;
+	}
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
 	}
 
 	int fd = handle->options.input_fd;
@@ -459,8 +515,12 @@ terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event
 
 	unsigned char first = 0;
 	ssize_t n = read_byte(fd, &first);
-	if (n <= 0) {
-		return -1;
+	if (n == 0) {
+		errno = EPIPE;
+		return -EPIPE;
+	}
+	if (n < 0) {
+		return (int)n;
 	}
 
 	switch (first) {
@@ -499,7 +559,7 @@ terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event
 			}
 			if (final == 'A' || final == 'B' || final == 'C' || final == 'D') {
 				int mods = 0;
-				if (value_count >= 2 && values[0] == 1) {
+				if (value_count > 0) {
 					mods = modifier_bits_from_param(values[value_count - 1]);
 				}
 				switch (final) {

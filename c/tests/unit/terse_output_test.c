@@ -144,6 +144,38 @@ TEST(TerseShowCursor, EmitsHideSequence_OnFalse)
 	close(fds[0]);
 }
 
+TEST(TerseClearScreen, ReturnsEINVAL_OnInvalidMode)
+{
+	errno = 0;
+	int result = terse_clear_screen(NULL, TERSE_CLEAR_AFTER);
+	EXPECT_EQ(-EINVAL, result);
+	EXPECT_EQ(EINVAL, errno);
+}
+
+TEST(TerseWriteText, ReturnsEBadf_OnUnreadableFd)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[0],
+		.codec_name = "UTF-8",
+	};
+
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	close(fds[1]);
+
+	errno = 0;
+	int rc = terse_write_text(handle, "hi");
+	EXPECT_EQ(-EBADF, rc);
+	EXPECT_EQ(EBADF, errno);
+
+	terse_close(handle);
+	close(fds[0]);
+}
+
 int main()
 {
 	return RunAllTests();

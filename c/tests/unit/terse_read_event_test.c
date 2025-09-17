@@ -1,6 +1,7 @@
 #include "terse.h"
 #include "test.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
@@ -176,6 +177,38 @@ TEST(TerseReadEvent, ReturnsRawSequence_OnUnknownEscape)
 	terse_close(handle);
 	close(fds[0]);
 	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsEINVAL_OnNullArguments)
+{
+	terse_event_t event;
+	errno = 0;
+	EXPECT_EQ(-EINVAL, terse_read_event(NULL, 0, &event));
+	EXPECT_EQ(EINVAL, errno);
+
+	errno = 0;
+	terse_handle_t handle = terse_open(TERSE_P0, NULL);
+	EXPECT_TRUE(handle != NULL);
+	EXPECT_EQ(-EINVAL, terse_read_event(handle, 0, NULL));
+	EXPECT_EQ(EINVAL, errno);
+	terse_close(handle);
+}
+
+TEST(TerseReadEvent, ReturnsEpipe_OnPipeClosed)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+	close(fds[1]); // close writer end to force EOF
+
+	terse_event_t event;
+	errno = 0;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(-EPIPE, result);
+	EXPECT_EQ(EPIPE, errno);
+
+	terse_close(handle);
+	close(fds[0]);
 }
 
 int main()
