@@ -427,6 +427,13 @@ function setup_mouse_if_supported() {
 - **Unknown サイズ**: `get_size()` が `Unknown` を返す（エラーではない）
 - **RawSequence**: 未知シーケンスをそのまま返す（エラーではない）
 
+### ロギングと監視
+
+- アプリケーションは API 呼び出し失敗時に `terse_get_last_error()` を取得し、`category` と `code` をログ出力する。例: `Transport` かつ `code=EBADF` ならハンドル再初期化を検討する。
+- エラー発生直後に `terse_get_last_error()` を再評価すると、成功時に `TERSE_ERROR_NONE` にクリアされる点に注意。
+- 無効化された機能がノーオペで成功した場合は `TERSE_ERROR_NONE` のままなので、特別なログは不要。
+- 信号割り込みなど一時的なエラーは API 内でリトライ済み。繰り返し失敗する場合のみ `TERSE_ERROR_TRANSPORT` が設定される。
+
 #### Resize取得の特別扱い
 - `Resize` の取得失敗時はイベントを生成しない
 - `get_size()` は別途Unknownになりうる
