@@ -33,6 +33,8 @@ make_p0_capabilities(void)
 	return caps;
 }
 
+static void emit_reset_sequences(terse_handle_t handle);
+
 static terse_options_t
 default_options(void)
 {
@@ -130,6 +132,7 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 void
 terse_close(terse_handle_t handle)
 {
+	emit_reset_sequences(handle);
 	free(handle);
 }
 
@@ -194,6 +197,18 @@ write_literal(terse_handle_t handle, const char *literal)
 		return -EINVAL;
 	}
 	return write_bytes(handle->options.output_fd, literal, strlen(literal));
+}
+
+static void
+emit_reset_sequences(terse_handle_t handle)
+{
+	if (!handle) {
+		return;
+	}
+	static const char *const cursor_on_seq = "\x1b[?25h";
+	static const char *const reset_seq = "\x1b[0m";
+	write_bytes(handle->options.output_fd, cursor_on_seq, strlen(cursor_on_seq));
+	write_bytes(handle->options.output_fd, reset_seq, strlen(reset_seq));
 }
 
 static int

@@ -1,0 +1,59 @@
+#include "terse.h"
+#include "test.h"
+
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+
+static void create_pipe_handle(terse_handle_t *out_handle, int fds[2])
+{
+	EXPECT_TRUE(pipe(fds) == 0);
+
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+	};
+
+	*out_handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(*out_handle != NULL);
+}
+
+static ssize_t read_pipe(int fd, char *buffer, size_t size)
+{
+	memset(buffer, 0, size);
+	return read(fd, buffer, size);
+}
+
+TEST(TerseClose, EmitsResetSequences_OnClose)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_pipe_handle(&handle, fds);
+
+	char buf[32];
+	errno = 0;
+	terse_close(handle);
+	close(fds[1]);
+
+	size_t total = 0;
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	total = (size_t)(n > 0 ? n : 0);
+	EXPECT_TRUE(total >= 6);
+	EXPECT_TRUE(strstr(buf, "\x1b[?25h") != NULL);
+	EXPECT_TRUE(strstr(buf, "\x1b[0m") != NULL);
+
+	close(fds[0]);
+}
+
+TEST(TerseClose, AcceptsNullHandle)
+{
+	errno = 0;
+	terse_close(NULL);
+	EXPECT_EQ(0, errno);
+}
+
+int main()
+{
+	return RunAllTests();
+}

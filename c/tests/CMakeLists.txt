@@ -21,3 +21,7 @@ add_test(NAME c.terse_get_size_test COMMAND terse_get_size_test)
 add_executable(terse_options_test unit/terse_options_test.c)
 target_link_libraries(terse_options_test PRIVATE terse)
 add_test(NAME c.terse_options_test COMMAND terse_options_test)
+
+add_executable(terse_close_test unit/terse_close_test.c)
+target_link_libraries(terse_close_test PRIVATE terse)
+add_test(NAME c.terse_close_test COMMAND terse_close_test)
