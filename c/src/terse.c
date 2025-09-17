@@ -44,6 +44,19 @@ default_options(void)
 	return options;
 }
 
+int
+terse_validate_options(const terse_options_t *options)
+{
+	if (!options) {
+		return 0;
+	}
+	if (options->input_fd < 0 || options->output_fd < 0) {
+		errno = EBADF;
+		return -EBADF;
+	}
+	return 0;
+}
+
 static terse_size_t
 make_unknown_size(void)
 {
@@ -86,6 +99,9 @@ terse_handle_t
 terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 {
 	if (requested_profile < TERSE_P0 || requested_profile > TERSE_P3) {
+		return NULL;
+	}
+	if (terse_validate_options(options) < 0) {
 		return NULL;
 	}
 
@@ -651,4 +667,19 @@ terse_get_size(terse_handle_t handle)
 	}
 	refresh_size(handle);
 	return handle->size;
+}
+
+int
+terse_get_options(terse_handle_t handle, terse_options_t *out_options)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!out_options) {
+		errno = EINVAL;
+		return -EINVAL;
+	}
+	*out_options = handle->options;
+	return 0;
 }
