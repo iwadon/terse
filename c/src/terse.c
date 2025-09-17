@@ -1,7 +1,9 @@
 #include "terse.h"
 
+#include <errno.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 struct terse_handle {
@@ -131,8 +133,30 @@ terse_show_cursor(terse_handle_t handle, int visible)
 int
 terse_write_text(terse_handle_t handle, const char *graphemes)
 {
-	(void)graphemes;
-	return ensure_handle(handle);
+	if (!handle || !graphemes) {
+		return -1;
+	}
+
+	size_t remaining = strlen(graphemes);
+	const char *cursor = graphemes;
+	int fd = handle->options.output_fd;
+
+	while (remaining > 0) {
+		ssize_t written = write(fd, cursor, remaining);
+		if (written < 0) {
+			if (errno == EINTR) {
+				continue;
+			}
+			return -1;
+		}
+		if (written == 0) {
+			return -1;
+		}
+		cursor += (size_t)written;
+		remaining -= (size_t)written;
+	}
+
+	return 0;
 }
 
 int
