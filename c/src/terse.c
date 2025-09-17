@@ -1,5 +1,6 @@
 #include "terse.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <poll.h>
 #include <stddef.h>
@@ -165,7 +166,7 @@ drain_escape_sequence(int fd, unsigned char *buffer, size_t max)
 			.fd = fd,
 			.events = POLLIN,
 		};
-		int ready = poll(&pfd, 1, 0);
+		int ready = poll(&pfd, 1, 10);
 		if (ready < 0) {
 			if (errno == EINTR) {
 				continue;
@@ -180,11 +181,89 @@ drain_escape_sequence(int fd, unsigned char *buffer, size_t max)
 			break;
 		}
 		len += (size_t)n;
-		if (buffer[1] != '[' || len >= 3) {
-			break;
+		if (len >= 3) {
+			unsigned char c = buffer[len - 1];
+			if (c >= '@' && c <= '~') {
+				break;
+			}
 		}
 	}
 	return len;
+}
+
+static int
+parse_csi_sequence(const unsigned char *seq, size_t len, int *values, size_t max_values, size_t *value_count, char *final)
+{
+	if (len < 2 || seq[0] != 0x1b || seq[1] != '[') {
+		return -1;
+	}
+	if (len < 3) {
+		return -1;
+	}
+	char terminator = (char)seq[len - 1];
+	if (terminator < '@' || terminator > '~') {
+		return -1;
+	}
+	size_t count = 0;
+	size_t index = 2;
+	while (index < len - 1) {
+		int value = 0;
+		int has_digit = 0;
+		while (index < len - 1 && isdigit((unsigned char)seq[index])) {
+			has_digit = 1;
+			value = (value * 10) + (seq[index] - '0');
+			++index;
+		}
+		if (has_digit) {
+			if (count < max_values) {
+				values[count] = value;
+			}
+			++count;
+		}
+		if (index >= len - 1) {
+			break;
+		}
+		if (seq[index] == ';') {
+			++index;
+			continue;
+		}
+		break;
+	}
+	*value_count = count;
+	*final = terminator;
+	return 0;
+}
+
+static int
+modifier_bits_from_param(int param)
+{
+	int mods = 0;
+	switch (param) {
+	case 2:
+		mods = TERSE_MOD_SHIFT;
+		break;
+	case 3:
+		mods = TERSE_MOD_ALT;
+		break;
+	case 4:
+		mods = TERSE_MOD_SHIFT | TERSE_MOD_ALT;
+		break;
+	case 5:
+		mods = TERSE_MOD_CTRL;
+		break;
+	case 6:
+		mods = TERSE_MOD_SHIFT | TERSE_MOD_CTRL;
+		break;
+	case 7:
+		mods = TERSE_MOD_ALT | TERSE_MOD_CTRL;
+		break;
+	case 8:
+		mods = TERSE_MOD_SHIFT | TERSE_MOD_ALT | TERSE_MOD_CTRL;
+		break;
+	default:
+		break;
+	}
+	return mods;
 }
 
 int
@@ -327,19 +406,19 @@ terse_flush(terse_handle_t handle)
 }
 
 static void
-set_key_event(terse_event_t *event, terse_event_type_t type)
+set_key_event(terse_event_t *event, terse_event_type_t type, int mods)
 {
 	event->type = type;
-	event->data.key.mods = 0;
+	event->data.key.mods = mods;
 }
 
 static void
-set_char_event(terse_event_t *event, unsigned int scalar)
+set_char_event(terse_event_t *event, unsigned int scalar, int mods)
 {
 	event->type = TERSE_EVENT_CHAR;
 	event->data.ch.scalar = scalar;
 	event->data.ch.width = 1;
-	event->data.ch.mods = 0;
+	event->data.ch.mods = mods;
 }
 
 static void
@@ -352,6 +431,14 @@ set_raw_event(terse_event_t *event, const unsigned char *bytes, size_t length)
 	event->data.raw.length = length;
 	memset(event->data.raw.bytes, 0, TERSE_EVENT_RAW_MAX);
 	memcpy(event->data.raw.bytes, bytes, length);
+}
+
+static void
+set_resize_event(terse_event_t *event, int rows, int cols)
+{
+	event->type = TERSE_EVENT_RESIZE;
+	event->data.resize.rows = rows;
+	event->data.resize.cols = cols;
 }
 
 int
@@ -379,39 +466,58 @@ terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event
 	switch (first) {
 	case '\r':
 	case '\n':
-		set_key_event(out_event, TERSE_EVENT_ENTER);
+		set_key_event(out_event, TERSE_EVENT_ENTER, 0);
 		return TERSE_EVENT_OK;
 	case '\b':
 	case 0x7f:
-		set_key_event(out_event, TERSE_EVENT_BACKSPACE);
+		set_key_event(out_event, TERSE_EVENT_BACKSPACE, 0);
 		return TERSE_EVENT_OK;
 	case '\t':
-		set_key_event(out_event, TERSE_EVENT_TAB);
+		set_key_event(out_event, TERSE_EVENT_TAB, 0);
 		return TERSE_EVENT_OK;
 	default:
 		break;
+	}
+
+	if (first >= 0x01 && first <= 0x1a) {
+		unsigned int scalar = 'A' + (first - 1);
+		set_char_event(out_event, scalar, TERSE_MOD_CTRL);
+		return TERSE_EVENT_OK;
 	}
 
 	if (first == 0x1b) {
 		unsigned char seq[TERSE_EVENT_RAW_MAX] = { 0 };
 		seq[0] = first;
 		size_t len = drain_escape_sequence(fd, seq, TERSE_EVENT_RAW_MAX);
-		if (len >= 3 && seq[1] == '[') {
-			switch (seq[2]) {
-			case 'A':
-				set_key_event(out_event, TERSE_EVENT_ARROW_UP);
+		int values[8] = { 0 };
+		size_t value_count = 0;
+		char final = 0;
+		if (parse_csi_sequence(seq, len, values, 8, &value_count, &final) == 0) {
+			if (final == 't' && value_count >= 3 && values[0] == 8) {
+				set_resize_event(out_event, values[1], values[2]);
 				return TERSE_EVENT_OK;
-			case 'B':
-				set_key_event(out_event, TERSE_EVENT_ARROW_DOWN);
-				return TERSE_EVENT_OK;
-			case 'C':
-				set_key_event(out_event, TERSE_EVENT_ARROW_RIGHT);
-				return TERSE_EVENT_OK;
-			case 'D':
-				set_key_event(out_event, TERSE_EVENT_ARROW_LEFT);
-				return TERSE_EVENT_OK;
-			default:
-				break;
+			}
+			if (final == 'A' || final == 'B' || final == 'C' || final == 'D') {
+				int mods = 0;
+				if (value_count >= 2 && values[0] == 1) {
+					mods = modifier_bits_from_param(values[value_count - 1]);
+				}
+				switch (final) {
+				case 'A':
+					set_key_event(out_event, TERSE_EVENT_ARROW_UP, mods);
+					return TERSE_EVENT_OK;
+				case 'B':
+					set_key_event(out_event, TERSE_EVENT_ARROW_DOWN, mods);
+					return TERSE_EVENT_OK;
+				case 'C':
+					set_key_event(out_event, TERSE_EVENT_ARROW_RIGHT, mods);
+					return TERSE_EVENT_OK;
+				case 'D':
+					set_key_event(out_event, TERSE_EVENT_ARROW_LEFT, mods);
+					return TERSE_EVENT_OK;
+				default:
+					break;
+				}
 			}
 		}
 		set_raw_event(out_event, seq, len);
@@ -419,7 +525,7 @@ terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event
 	}
 
 	if (first >= 0x20 && first <= 0x7e) {
-		set_char_event(out_event, first);
+		set_char_event(out_event, first, 0);
 		return TERSE_EVENT_OK;
 	}
 

@@ -50,10 +50,11 @@ typedef enum terse_event_type {
 	TERSE_EVENT_ARROW_DOWN,
 	TERSE_EVENT_ARROW_LEFT,
 	TERSE_EVENT_ARROW_RIGHT,
+	TERSE_EVENT_RESIZE,
 	TERSE_EVENT_RAW_SEQUENCE
 } terse_event_type_t;
 
-#define TERSE_EVENT_RAW_MAX 16
+#define TERSE_EVENT_RAW_MAX 32
 
 typedef struct terse_event {
 	terse_event_type_t type;
@@ -66,6 +67,10 @@ typedef struct terse_event {
 		struct {
 			int mods;
 		} key;
+		struct {
+			int rows;
+			int cols;
+		} resize;
 		struct {
 			size_t length;
 			unsigned char bytes[TERSE_EVENT_RAW_MAX];

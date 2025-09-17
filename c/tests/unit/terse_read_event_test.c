@@ -96,6 +96,88 @@ TEST(TerseReadEvent, ReturnsArrow_OnEscapeSequence)
 	close(fds[1]);
 }
 
+TEST(TerseReadEvent, ReturnsCtrlChar_WithControlModifier)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char ch = 0x01; // Ctrl+A
+	EXPECT_TRUE(write(fds[1], &ch, 1) == 1);
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
+	EXPECT_EQ((unsigned int)'A', event.data.ch.scalar);
+	EXPECT_EQ(TERSE_MOD_CTRL, event.data.ch.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsArrowWithShift_OnModifierSequence)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char seq[] = "\x1b[1;2A";
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_ARROW_UP, event.type);
+	EXPECT_EQ(TERSE_MOD_SHIFT, event.data.key.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsResize_OnCsi8Sequence)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char seq[] = "\x1b[8;24;80t";
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_RESIZE, event.type);
+	EXPECT_EQ(24, event.data.resize.rows);
+	EXPECT_EQ(80, event.data.resize.cols);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsRawSequence_OnUnknownEscape)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char seq[] = "\x1b]0;title\x07";
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_RAW_SEQUENCE, event.type);
+	EXPECT_TRUE(event.data.raw.length >= 2);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
 int main()
 {
 	return RunAllTests();
