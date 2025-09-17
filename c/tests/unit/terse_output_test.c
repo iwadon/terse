@@ -14,6 +14,7 @@ static void create_pipe_handle(terse_handle_t *out_handle, int fds[2])
 		.input_fd = fds[0],
 		.output_fd = fds[1],
 		.codec_name = "UTF-8",
+		.disabled_caps = 0,
 	};
 
 	*out_handle = terse_open(TERSE_P0, &options);
@@ -35,6 +36,15 @@ static ssize_t read_pipe(int fd, char *buffer, size_t size)
 	return n;
 }
 
+static void expect_no_bytes_available(int fd)
+{
+	char tmp[16];
+	errno = 0;
+	ssize_t n = read(fd, tmp, sizeof(tmp));
+	EXPECT_TRUE(n == -1);
+	EXPECT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK);
+}
+
 TEST(TerseClearScreen, EmitsAfterSequence_OnAfter)
 {
 	int fds[2];
@@ -51,6 +61,112 @@ TEST(TerseClearScreen, EmitsAfterSequence_OnAfter)
 	EXPECT_TRUE(strstr(buf, "\x1b[J") != NULL);
 
 	close(fds[0]);
+}
+
+TEST(TerseOutputCapabilities, NoOutput_WhenClearScreenDisabled)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = TERSE_CAP_DISABLE_CLEAR_SCREEN,
+	};
+
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	int flags = fcntl(fds[0], F_GETFL);
+	EXPECT_TRUE(flags != -1);
+	EXPECT_TRUE(fcntl(fds[0], F_SETFL, flags | O_NONBLOCK) == 0);
+
+	EXPECT_EQ(0, terse_clear_screen(handle, TERSE_CLEAR_ALL));
+	expect_no_bytes_available(fds[0]);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseOutputCapabilities, NoOutput_WhenMoveDisabled)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = TERSE_CAP_DISABLE_MOVE_ABSOLUTE | TERSE_CAP_DISABLE_MOVE_RELATIVE,
+	};
+
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	int flags = fcntl(fds[0], F_GETFL);
+	EXPECT_TRUE(flags != -1);
+	EXPECT_TRUE(fcntl(fds[0], F_SETFL, flags | O_NONBLOCK) == 0);
+
+	EXPECT_EQ(0, terse_move_to(handle, 5, 5));
+	expect_no_bytes_available(fds[0]);
+	EXPECT_EQ(0, terse_move_by(handle, 3, -2));
+	expect_no_bytes_available(fds[0]);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseOutputCapabilities, NoOutput_WhenCursorHiddenUnsupported)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = TERSE_CAP_DISABLE_CURSOR_VISIBILITY,
+	};
+
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	int flags = fcntl(fds[0], F_GETFL);
+	EXPECT_TRUE(flags != -1);
+	EXPECT_TRUE(fcntl(fds[0], F_SETFL, flags | O_NONBLOCK) == 0);
+
+	EXPECT_EQ(0, terse_show_cursor(handle, 0));
+	expect_no_bytes_available(fds[0]);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseOutputCapabilities, NoOutput_WhenBasicOutputDisabled)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = TERSE_CAP_DISABLE_BASIC_OUTPUT,
+	};
+
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	int flags = fcntl(fds[0], F_GETFL);
+	EXPECT_TRUE(flags != -1);
+	EXPECT_TRUE(fcntl(fds[0], F_SETFL, flags | O_NONBLOCK) == 0);
+
+	EXPECT_EQ(0, terse_write_text(handle, "hello"));
+	expect_no_bytes_available(fds[0]);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
 }
 
 TEST(TerseClearScreen, EmitsAllSequence_OnAll)

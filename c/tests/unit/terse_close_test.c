@@ -13,6 +13,7 @@ static void create_pipe_handle(terse_handle_t *out_handle, int fds[2])
 		.input_fd = fds[0],
 		.output_fd = fds[1],
 		.codec_name = "UTF-8",
+		.disabled_caps = 0,
 	};
 
 	*out_handle = terse_open(TERSE_P0, &options);
@@ -43,6 +44,30 @@ TEST(TerseClose, EmitsResetSequences_OnClose)
 	EXPECT_TRUE(strstr(buf, "\x1b[?25h") != NULL);
 	EXPECT_TRUE(strstr(buf, "\x1b[0m") != NULL);
 
+	close(fds[0]);
+}
+
+TEST(TerseClose, SkipsReset_WhenBasicOutputDisabled)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = TERSE_CAP_DISABLE_BASIC_OUTPUT,
+	};
+
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+
+	char buf[32];
+	errno = 0;
+	terse_close(handle);
+	close(fds[1]);
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n == 0);
 	close(fds[0]);
 }
 

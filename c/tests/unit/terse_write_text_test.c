@@ -13,6 +13,7 @@ TEST(TerseWriteText, Succeeds_OnPipeOutput)
 		.input_fd = fds[0],
 		.output_fd = fds[1],
 		.codec_name = "UTF-8",
+		.disabled_caps = 0,
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);

@@ -42,6 +42,7 @@ default_options(void)
 		.input_fd = STDIN_FILENO,
 		.output_fd = STDOUT_FILENO,
 		.codec_name = "UTF-8",
+		.disabled_caps = 0,
 	};
 	return options;
 }
@@ -89,6 +90,11 @@ query_fd_size(int fd)
 static void
 refresh_size(terse_handle_t handle)
 {
+	if (handle->options.disabled_caps & TERSE_CAP_DISABLE_SIZE) {
+		handle->size = make_unknown_size();
+		handle->capabilities.has_size = 0;
+		return;
+	}
 	terse_size_t size = query_fd_size(handle->options.output_fd);
 	if (!size.known && handle->options.input_fd != handle->options.output_fd) {
 		size = query_fd_size(handle->options.input_fd);
@@ -126,6 +132,29 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 		handle->options = default_options();
 	}
 	handle->size = make_unknown_size();
+
+	unsigned int disabled = handle->options.disabled_caps;
+	if (disabled & TERSE_CAP_DISABLE_BASIC_OUTPUT) {
+		handle->capabilities.has_basic_output = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_CURSOR_VISIBILITY) {
+		handle->capabilities.has_cursor_visibility = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_MOVE_ABSOLUTE) {
+		handle->capabilities.has_move_absolute = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_MOVE_RELATIVE) {
+		handle->capabilities.has_move_relative = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_CLEAR_LINE) {
+		handle->capabilities.has_clear_line = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_CLEAR_SCREEN) {
+		handle->capabilities.has_clear_screen = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_SIZE) {
+		handle->capabilities.has_size = 0;
+	}
 	refresh_size(handle);
 
 	return handle;
@@ -205,6 +234,9 @@ static void
 emit_reset_sequences(terse_handle_t handle)
 {
 	if (!handle) {
+		return;
+	}
+	if (!handle->capabilities.has_basic_output) {
 		return;
 	}
 	static const char *const cursor_on_seq = "\x1b[?25h";
@@ -368,6 +400,9 @@ terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 	if (rc < 0) {
 		return rc;
 	}
+	if (!handle->capabilities.has_clear_screen) {
+		return 0;
+	}
 
 	const char *sequence = NULL;
 	switch (mode) {
@@ -394,6 +429,9 @@ terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
 		return rc;
+	}
+	if (!handle->capabilities.has_clear_line) {
+		return 0;
 	}
 
 	const char *sequence = NULL;
@@ -422,6 +460,9 @@ terse_move_to(terse_handle_t handle, int row, int col)
 	if (rc < 0) {
 		return rc;
 	}
+	if (!handle->capabilities.has_move_absolute) {
+		return 0;
+	}
 
 	if (row < 1) {
 		row = 1;
@@ -446,6 +487,9 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
 		return rc;
+	}
+	if (!handle->capabilities.has_move_relative) {
+		return 0;
 	}
 
 	int fd = handle->options.output_fd;
@@ -508,6 +552,9 @@ terse_show_cursor(terse_handle_t handle, int visible)
 	if (rc < 0) {
 		return rc;
 	}
+	if (!handle->capabilities.has_cursor_visibility) {
+		return 0;
+	}
 
 	return write_literal(handle, visible ? "\x1b[?25h" : "\x1b[?25l");
 }
@@ -522,6 +569,9 @@ terse_write_text(terse_handle_t handle, const char *graphemes)
 	if (!graphemes) {
 		errno = EINVAL;
 		return -EINVAL;
+	}
+	if (!handle->capabilities.has_basic_output) {
+		return 0;
 	}
 
 	return write_literal(handle, graphemes);
@@ -680,6 +730,9 @@ terse_get_size(terse_handle_t handle)
 {
 	terse_size_t unknown = make_unknown_size();
 	if (ensure_handle(handle) < 0) {
+		return unknown;
+	}
+	if (handle->options.disabled_caps & TERSE_CAP_DISABLE_SIZE) {
 		return unknown;
 	}
 	if (!handle->size.known) {

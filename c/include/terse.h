@@ -18,12 +18,6 @@ typedef enum terse_clear_mode {
 	TERSE_CLEAR_ALL
 } terse_clear_mode_t;
 
-typedef struct terse_options {
-	int input_fd;
-	int output_fd;
-	const char *codec_name;
-} terse_options_t;
-
 typedef struct terse_capabilities {
 	terse_profile_t profile;
 	int has_basic_output;
@@ -34,6 +28,23 @@ typedef struct terse_capabilities {
 	int has_clear_screen;
 	int has_size;
 } terse_capabilities_t;
+
+typedef enum terse_capability_flag {
+	TERSE_CAP_DISABLE_BASIC_OUTPUT = 1u << 0,
+	TERSE_CAP_DISABLE_CURSOR_VISIBILITY = 1u << 1,
+	TERSE_CAP_DISABLE_MOVE_ABSOLUTE = 1u << 2,
+	TERSE_CAP_DISABLE_MOVE_RELATIVE = 1u << 3,
+	TERSE_CAP_DISABLE_CLEAR_LINE = 1u << 4,
+	TERSE_CAP_DISABLE_CLEAR_SCREEN = 1u << 5,
+	TERSE_CAP_DISABLE_SIZE = 1u << 6,
+} terse_capability_flag_t;
+
+typedef struct terse_options {
+	int input_fd;
+	int output_fd;
+	const char *codec_name;
+	unsigned int disabled_caps;
+} terse_options_t;
 
 typedef struct terse_size {
 	int rows;

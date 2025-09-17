@@ -14,6 +14,7 @@ static void create_input_handle(terse_handle_t *out_handle, int fds[2])
 		.input_fd = fds[0],
 		.output_fd = STDOUT_FILENO,
 		.codec_name = "UTF-8",
+		.disabled_caps = 0,
 	};
 
 	*out_handle = terse_open(TERSE_P0, &options);

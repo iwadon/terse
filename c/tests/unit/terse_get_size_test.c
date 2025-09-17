@@ -19,6 +19,7 @@ static void create_pipe_handle(terse_handle_t *out_handle, int fds[2])
 		.input_fd = fds[0],
 		.output_fd = fds[1],
 		.codec_name = "UTF-8",
+		.disabled_caps = 0,
 	};
 
 	*out_handle = terse_open(TERSE_P0, &options);
@@ -108,6 +109,7 @@ TEST(TerseGetSize, ReturnsKnown_OnPty)
 		.input_fd = slave_fd,
 		.output_fd = slave_fd,
 		.codec_name = "UTF-8",
+		.disabled_caps = 0,
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
@@ -140,6 +142,7 @@ TEST(TerseGetSize, UpdatesOnResizeEvent)
 		.input_fd = slave_fd,
 		.output_fd = slave_fd,
 		.codec_name = "UTF-8",
+		.disabled_caps = 0,
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
@@ -162,6 +165,36 @@ TEST(TerseGetSize, UpdatesOnResizeEvent)
 
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_TRUE(caps.has_size == 1);
+
+	terse_close(handle);
+	close(master_fd);
+	close(slave_fd);
+}
+
+TEST(TerseGetSize, ReturnsUnknown_WhenCapabilityDisabled)
+{
+	int master_fd = -1;
+	int slave_fd = -1;
+	if (open_pty_pair(&master_fd, &slave_fd) != 0) {
+		return;
+	}
+	set_raw_mode(master_fd);
+	set_raw_mode(slave_fd);
+
+	terse_options_t options = {
+		.input_fd = slave_fd,
+		.output_fd = slave_fd,
+		.codec_name = "UTF-8",
+		.disabled_caps = TERSE_CAP_DISABLE_SIZE,
+	};
+
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_TRUE(caps.has_size == 0);
+	terse_size_t size = terse_get_size(handle);
+	EXPECT_TRUE(size.known == 0);
 
 	terse_close(handle);
 	close(master_fd);
