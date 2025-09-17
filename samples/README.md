@@ -16,3 +16,11 @@ cc -I../c/include -L../build/c -lterse p0_demo.c -o p0_demo
 ```
 
 (Adjust include/library paths based on your build layout.)
+
+## Style Demonstration
+
+`p0_demo.c` shows how to:
+
+- enable text styles via `TERSE_CAP_ENABLE_TEXT_STYLES`
+- call `terse_set_style` with `TERSE_STYLE_*` flags
+- capture/restore style state together with cursor position

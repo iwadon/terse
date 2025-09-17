@@ -211,9 +211,12 @@ function setup_mouse_if_supported() {
 
 ### スタイル・色制御（P0拡張）
 
-- **スタイル設定**: `terse_set_style(handle, TERSE_STYLE_XXX)` で Bold/Italic/Underline/Inverse/Strike をまとめて指定。`TERSE_CAP_ENABLE_TEXT_STYLES` を有効化した場合のみANSIシーケンスを送出。
-- **縮退動作**: 機能無効時はNo-opで成功（`TERSE_ERROR_NONE`）。
+- **有効化**: スタイル関連を利用する場合は `terse_options_t.enabled_caps` に `TERSE_CAP_ENABLE_TEXT_STYLES` を指定する。追加で `TERSE_CAP_ENABLE_SGR_BASIC/EXTENDED/TRUECOLOR` を将来的に利用可能（P0では未使用）。
+- **スタイル設定**: `terse_set_style(handle, TERSE_STYLE_XXX)` で Bold/Italic/Underline/Inverse/Strike をまとめて指定。複数フラグはビットOR。再設定時は重複シーケンスを抑制。
+- **縮退動作**: 機能無効時はNo-opで成功（`TERSE_ERROR_NONE`）、`terse_get_last_error` に値が残ることはない。
 - **状態復元**: `terse_capture_state` / `terse_restore_state` でカーソル位置・表示と同時にスタイル状態を保存/復元できる。
+  - スタイルが未知の場合は `restore` 時にリセット（`0m`）および指定スタイルを再適用。
+- **リセット**: `terse_set_style(handle, 0)` または `terse_close` のリセットシーケンスでスタイルを初期化。
 
 ### 入力
 
