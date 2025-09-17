@@ -10,6 +10,8 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#define TERSE_STYLE_ALL_SUPPORTED (TERSE_STYLE_BOLD | TERSE_STYLE_ITALIC | TERSE_STYLE_UNDERLINE | TERSE_STYLE_INVERSE | TERSE_STYLE_STRIKE)
+
 struct terse_handle {
 	terse_profile_t requested_profile;
 	terse_capabilities_t capabilities;
@@ -19,6 +21,8 @@ struct terse_handle {
 	int cursor_row;
 	int cursor_col;
 	int cursor_known;
+	unsigned int style_flags;
+	int style_known;
 	terse_error_category_t last_error;
 	int last_errno;
 };
@@ -73,6 +77,7 @@ default_options(void)
 		.output_fd = STDOUT_FILENO,
 		.codec_name = "UTF-8",
 		.disabled_caps = 0,
+		.enabled_caps = 0,
 	};
 	return options;
 }
@@ -209,10 +214,37 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	if (disabled & TERSE_CAP_DISABLE_HYPERLINK) {
 		handle->capabilities.has_hyperlinks = 0;
 	}
+	unsigned int enabled = handle->options.enabled_caps;
+	if (enabled & TERSE_CAP_ENABLE_SGR_BASIC) {
+		handle->capabilities.has_sgr_basic = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_TEXT_STYLES) {
+		handle->capabilities.has_text_styles = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_SGR_EXTENDED) {
+		handle->capabilities.has_sgr_extended = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_TRUECOLOR) {
+		handle->capabilities.has_truecolor = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_MOUSE) {
+		handle->capabilities.has_mouse_tracking = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_BRACKETED_PASTE) {
+		handle->capabilities.has_bracketed_paste = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_TITLE) {
+		handle->capabilities.has_title = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_HYPERLINK) {
+		handle->capabilities.has_hyperlinks = 1;
+	}
 	handle->cursor_visible = 1;
 	handle->cursor_row = 0;
 	handle->cursor_col = 0;
 	handle->cursor_known = 0;
+	handle->style_flags = 0;
+	handle->style_known = 1;
 	clear_error(handle);
 	refresh_size(handle);
 
@@ -325,7 +357,10 @@ emit_reset_sequences(terse_handle_t handle)
 			handle->cursor_visible = 1;
 		}
 	}
-	write_sequence(handle, reset_seq, strlen(reset_seq));
+	if (write_sequence(handle, reset_seq, strlen(reset_seq)) == 0) {
+		handle->style_flags = 0;
+		handle->style_known = 1;
+	}
 }
 
 static int
@@ -686,6 +721,77 @@ terse_show_cursor(terse_handle_t handle, int visible)
 	return result;
 }
 
+static unsigned int
+mask_style_flags(unsigned int style_flags)
+{
+	return style_flags & TERSE_STYLE_ALL_SUPPORTED;
+}
+
+static int
+emit_style_sequence(terse_handle_t handle, unsigned int style_flags)
+{
+	unsigned int masked = mask_style_flags(style_flags);
+	if (masked == 0) {
+		return write_literal(handle, "\x1b[0m");
+	}
+	int reset = write_literal(handle, "\x1b[0m");
+	if (reset < 0) {
+		return reset;
+	}
+	char seq[64];
+	size_t pos = 0;
+	pos += snprintf(seq + pos, sizeof(seq) - pos, "\x1b[");
+	int first = 1;
+	if (masked & TERSE_STYLE_BOLD) {
+		pos += snprintf(seq + pos, sizeof(seq) - pos, "%s1", first ? "" : ";");
+		first = 0;
+	}
+	if (masked & TERSE_STYLE_ITALIC) {
+		pos += snprintf(seq + pos, sizeof(seq) - pos, "%s3", first ? "" : ";");
+		first = 0;
+	}
+	if (masked & TERSE_STYLE_UNDERLINE) {
+		pos += snprintf(seq + pos, sizeof(seq) - pos, "%s4", first ? "" : ";");
+		first = 0;
+	}
+	if (masked & TERSE_STYLE_INVERSE) {
+		pos += snprintf(seq + pos, sizeof(seq) - pos, "%s7", first ? "" : ";");
+		first = 0;
+	}
+	if (masked & TERSE_STYLE_STRIKE) {
+		pos += snprintf(seq + pos, sizeof(seq) - pos, "%s9", first ? "" : ";");
+		first = 0;
+	}
+	pos += snprintf(seq + pos, sizeof(seq) - pos, "m");
+	return write_sequence(handle, seq, pos);
+}
+
+int
+terse_set_style(terse_handle_t handle, unsigned int style_flags)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	unsigned int masked = mask_style_flags(style_flags);
+	if (!handle->capabilities.has_text_styles) {
+		handle->style_flags = masked;
+		handle->style_known = 1;
+		clear_error(handle);
+		return 0;
+	}
+	if (handle->style_known && masked == handle->style_flags) {
+		clear_error(handle);
+		return 0;
+	}
+	int result = emit_style_sequence(handle, masked);
+	if (result == 0) {
+		handle->style_flags = masked;
+		handle->style_known = 1;
+	}
+	return result;
+}
+
 int
 terse_write_text(terse_handle_t handle, const char *graphemes)
 {
@@ -942,6 +1048,8 @@ terse_capture_state(terse_handle_t handle, terse_state_t *out_state)
 	out_state->cursor_visible = handle->cursor_visible;
 	out_state->cursor_row = handle->cursor_row;
 	out_state->cursor_col = handle->cursor_col;
+	out_state->style_known = handle->style_known;
+	out_state->style_flags = handle->style_flags;
 	clear_error(handle);
 	return 0;
 }
@@ -972,6 +1080,12 @@ terse_restore_state(terse_handle_t handle, const terse_state_t *state)
 		int vis_rc = terse_show_cursor(handle, want_visible);
 		if (vis_rc < 0 && result == 0) {
 			result = vis_rc;
+		}
+	}
+	if (state->style_known) {
+		int style_rc = terse_set_style(handle, state->style_flags);
+		if (style_rc < 0 && result == 0) {
+			result = style_rc;
 		}
 	}
 	return result;

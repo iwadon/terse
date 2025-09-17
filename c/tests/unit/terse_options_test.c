@@ -25,6 +25,7 @@ TEST(TerseValidateOptions, ReturnsEbaf_OnNegativeInputFd)
 		.output_fd = STDOUT_FILENO,
 		.codec_name = "UTF-8",
 		.disabled_caps = 0,
+		.enabled_caps = 0,
 	};
 	errno = 0;
 	int rc = terse_validate_options(&options);
@@ -55,6 +56,7 @@ TEST(TerseGetOptions, CopiesHandleOptions_OnValidHandle)
 		.output_fd = fds[1],
 		.codec_name = "Shift_JIS",
 		.disabled_caps = TERSE_CAP_DISABLE_CLEAR_SCREEN,
+		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES,
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
@@ -66,6 +68,7 @@ TEST(TerseGetOptions, CopiesHandleOptions_OnValidHandle)
 	EXPECT_EQ(options.output_fd, got.output_fd);
 	EXPECT_TRUE(got.codec_name == options.codec_name);
 	EXPECT_EQ(options.disabled_caps, got.disabled_caps);
+	EXPECT_EQ(options.enabled_caps, got.enabled_caps);
 
 	terse_close(handle);
 	close(fds[0]);

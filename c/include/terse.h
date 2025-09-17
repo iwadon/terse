@@ -55,11 +55,23 @@ typedef enum terse_capability_flag {
 	TERSE_CAP_DISABLE_HYPERLINK = 1u << 14,
 } terse_capability_flag_t;
 
+typedef enum terse_capability_enable_flag {
+	TERSE_CAP_ENABLE_SGR_BASIC = 1u << 0,
+	TERSE_CAP_ENABLE_TEXT_STYLES = 1u << 1,
+	TERSE_CAP_ENABLE_SGR_EXTENDED = 1u << 2,
+	TERSE_CAP_ENABLE_TRUECOLOR = 1u << 3,
+	TERSE_CAP_ENABLE_MOUSE = 1u << 4,
+	TERSE_CAP_ENABLE_BRACKETED_PASTE = 1u << 5,
+	TERSE_CAP_ENABLE_TITLE = 1u << 6,
+	TERSE_CAP_ENABLE_HYPERLINK = 1u << 7
+} terse_capability_enable_flag_t;
+
 typedef struct terse_options {
 	int input_fd;
 	int output_fd;
 	const char *codec_name;
 	unsigned int disabled_caps;
+	unsigned int enabled_caps;
 } terse_options_t;
 
 typedef struct terse_size {
@@ -73,7 +85,17 @@ typedef struct terse_state {
 	int cursor_visible;
 	int cursor_row;
 	int cursor_col;
+	int style_known;
+	unsigned int style_flags;
 } terse_state_t;
+
+enum {
+	TERSE_STYLE_BOLD = 1u << 0,
+	TERSE_STYLE_ITALIC = 1u << 1,
+	TERSE_STYLE_UNDERLINE = 1u << 2,
+	TERSE_STYLE_INVERSE = 1u << 3,
+	TERSE_STYLE_STRIKE = 1u << 4
+};
 
 typedef enum terse_error_category {
 	TERSE_ERROR_NONE = 0,
@@ -157,6 +179,7 @@ int terse_validate_options(const terse_options_t *options);
 terse_error_info_t terse_get_last_error(terse_handle_t handle);
 int terse_capture_state(terse_handle_t handle, terse_state_t *out_state);
 int terse_restore_state(terse_handle_t handle, const terse_state_t *state);
+int terse_set_style(terse_handle_t handle, unsigned int style_flags);
 
 
 #endif // TERSE_H_INCLUDED
