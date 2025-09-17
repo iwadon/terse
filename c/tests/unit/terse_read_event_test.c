@@ -30,6 +30,9 @@ TEST(TerseReadEvent, ReturnsNone_OnTimeout)
 	terse_event_t event;
 	int result = terse_read_event(handle, 10, &event);
 	EXPECT_EQ(TERSE_EVENT_NONE, result);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
+	EXPECT_EQ(0, err.code);
 
 	terse_close(handle);
 	close(fds[0]);
@@ -52,6 +55,9 @@ TEST(TerseReadEvent, ReturnsChar_OnAsciiInput)
 	EXPECT_EQ((unsigned int)'A', event.data.ch.scalar);
 	EXPECT_EQ(1, event.data.ch.width);
 	EXPECT_EQ(0, event.data.ch.mods);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
+	EXPECT_EQ(0, err.code);
 
 	terse_close(handle);
 	close(fds[0]);
@@ -207,6 +213,9 @@ TEST(TerseReadEvent, ReturnsEpipe_OnPipeClosed)
 	int result = terse_read_event(handle, 50, &event);
 	EXPECT_EQ(-EPIPE, result);
 	EXPECT_EQ(EPIPE, errno);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_TRANSPORT, err.category);
+	EXPECT_EQ(EPIPE, err.code);
 
 	terse_close(handle);
 	close(fds[0]);

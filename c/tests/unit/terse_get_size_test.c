@@ -34,6 +34,9 @@ TEST(TerseGetSize, ReturnsUnknown_OnPipe)
 
 	terse_size_t size = terse_get_size(handle);
 	EXPECT_TRUE(size.known == 0);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
+	EXPECT_EQ(0, err.code);
 
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_TRUE(caps.has_size == 0);

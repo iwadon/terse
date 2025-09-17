@@ -18,7 +18,25 @@ struct terse_handle {
 	int cursor_visible;
 	int cursor_row;
 	int cursor_col;
+	terse_error_category_t last_error;
+	int last_errno;
 };
+
+static void
+set_error(terse_handle_t handle, terse_error_category_t category, int code)
+{
+	if (!handle) {
+		return;
+	}
+	handle->last_error = category;
+	handle->last_errno = code;
+}
+
+static void
+clear_error(terse_handle_t handle)
+{
+	set_error(handle, TERSE_ERROR_NONE, 0);
+}
 
 static terse_capabilities_t
 make_p0_capabilities(void)
@@ -161,6 +179,7 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	handle->cursor_visible = 1;
 	handle->cursor_row = 0;
 	handle->cursor_col = 0;
+	clear_error(handle);
 	refresh_size(handle);
 
 	return handle;
@@ -182,6 +201,7 @@ terse_get_capabilities(terse_handle_t handle)
 	if (!handle->size.known) {
 		refresh_size(handle);
 	}
+	clear_error(handle);
 	return handle->capabilities;
 }
 
@@ -231,9 +251,28 @@ write_literal(terse_handle_t handle, const char *literal)
 	}
 	if (!literal) {
 		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
 		return -EINVAL;
 	}
-	return write_bytes(handle->options.output_fd, literal, strlen(literal));
+	int out = write_bytes(handle->options.output_fd, literal, strlen(literal));
+	if (out < 0) {
+		set_error(handle, TERSE_ERROR_TRANSPORT, -out);
+	} else {
+		clear_error(handle);
+	}
+	return out;
+}
+
+static int
+write_sequence(terse_handle_t handle, const char *sequence, size_t length)
+{
+	int out = write_bytes(handle->options.output_fd, sequence, length);
+	if (out < 0) {
+		set_error(handle, TERSE_ERROR_TRANSPORT, -out);
+	} else {
+		clear_error(handle);
+	}
+	return out;
 }
 
 static void
@@ -248,11 +287,11 @@ emit_reset_sequences(terse_handle_t handle)
 	static const char *const cursor_on_seq = "\x1b[?25h";
 	static const char *const reset_seq = "\x1b[0m";
 	if (!handle->cursor_visible) {
-		if (write_bytes(handle->options.output_fd, cursor_on_seq, strlen(cursor_on_seq)) == 0) {
+		if (write_sequence(handle, cursor_on_seq, strlen(cursor_on_seq)) == 0) {
 			handle->cursor_visible = 1;
 		}
 	}
-	write_bytes(handle->options.output_fd, reset_seq, strlen(reset_seq));
+	write_sequence(handle, reset_seq, strlen(reset_seq));
 }
 
 static int
@@ -411,6 +450,7 @@ terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 		return rc;
 	}
 	if (!handle->capabilities.has_clear_screen) {
+		clear_error(handle);
 		return 0;
 	}
 
@@ -427,6 +467,7 @@ terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 		break;
 	default:
 		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
 		return -EINVAL;
 	}
 
@@ -441,6 +482,7 @@ terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 		return rc;
 	}
 	if (!handle->capabilities.has_clear_line) {
+		clear_error(handle);
 		return 0;
 	}
 
@@ -457,6 +499,7 @@ terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 		break;
 	default:
 		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
 		return -EINVAL;
 	}
 
@@ -471,6 +514,7 @@ terse_move_to(terse_handle_t handle, int row, int col)
 		return rc;
 	}
 	if (!handle->capabilities.has_move_absolute) {
+		clear_error(handle);
 		return 0;
 	}
 
@@ -481,6 +525,7 @@ terse_move_to(terse_handle_t handle, int row, int col)
 		col = 1;
 	}
 	if (row == handle->cursor_row && col == handle->cursor_col) {
+		clear_error(handle);
 		return 0;
 	}
 
@@ -491,7 +536,7 @@ terse_move_to(terse_handle_t handle, int row, int col)
 		return -EINVAL;
 	}
 
-	int out = write_bytes(handle->options.output_fd, sequence, (size_t)written);
+	int out = write_sequence(handle, sequence, (size_t)written);
 	if (out == 0) {
 		handle->cursor_row = row;
 		handle->cursor_col = col;
@@ -507,10 +552,14 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 		return rc;
 	}
 	if (!handle->capabilities.has_move_relative) {
+		clear_error(handle);
+		return 0;
+	}
+	if (drow == 0 && dcol == 0) {
+		clear_error(handle);
 		return 0;
 	}
 
-	int fd = handle->options.output_fd;
 	int new_row = handle->cursor_row;
 	int new_col = handle->cursor_col;
 
@@ -521,7 +570,7 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 			errno = EINVAL;
 			return -EINVAL;
 		}
-		int w = write_bytes(fd, seq, (size_t)len);
+		int w = write_sequence(handle, seq, (size_t)len);
 		if (w < 0) {
 			return w;
 		}
@@ -533,7 +582,7 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 			errno = EINVAL;
 			return -EINVAL;
 		}
-		int w = write_bytes(fd, seq, (size_t)len);
+		int w = write_sequence(handle, seq, (size_t)len);
 		if (w < 0) {
 			return w;
 		}
@@ -547,7 +596,7 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 			errno = EINVAL;
 			return -EINVAL;
 		}
-		int w = write_bytes(fd, seq, (size_t)len);
+		int w = write_sequence(handle, seq, (size_t)len);
 		if (w < 0) {
 			return w;
 		}
@@ -559,7 +608,7 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 			errno = EINVAL;
 			return -EINVAL;
 		}
-		int w = write_bytes(fd, seq, (size_t)len);
+		int w = write_sequence(handle, seq, (size_t)len);
 		if (w < 0) {
 			return w;
 		}
@@ -574,7 +623,7 @@ terse_move_by(terse_handle_t handle, int drow, int dcol)
 	}
 	handle->cursor_row = new_row;
 	handle->cursor_col = new_col;
-
+	clear_error(handle);
 	return 0;
 }
 
@@ -586,10 +635,12 @@ terse_show_cursor(terse_handle_t handle, int visible)
 		return rc;
 	}
 	if (!handle->capabilities.has_cursor_visibility) {
+		clear_error(handle);
 		return 0;
 	}
 	int target = visible ? 1 : 0;
 	if (handle->cursor_visible == target) {
+		clear_error(handle);
 		return 0;
 	}
 	int result = write_literal(handle, target ? "\x1b[?25h" : "\x1b[?25l");
@@ -608,9 +659,11 @@ terse_write_text(terse_handle_t handle, const char *graphemes)
 	}
 	if (!graphemes) {
 		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
 		return -EINVAL;
 	}
 	if (!handle->capabilities.has_basic_output) {
+		clear_error(handle);
 		return 0;
 	}
 
@@ -620,7 +673,12 @@ terse_write_text(terse_handle_t handle, const char *graphemes)
 int
 terse_flush(terse_handle_t handle)
 {
-	return ensure_handle(handle);
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	clear_error(handle);
+	return 0;
 }
 
 static void
@@ -662,31 +720,38 @@ set_resize_event(terse_event_t *event, int rows, int cols)
 int
 terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event)
 {
-	if (!out_event) {
-		errno = EINVAL;
-		return -EINVAL;
-	}
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
 		return rc;
+	}
+	if (!out_event) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+		return -EINVAL;
 	}
 
 	int fd = handle->options.input_fd;
 	int ready = wait_for_input(fd, timeout_ms);
 	if (ready == 0) {
+		clear_error(handle);
 		return TERSE_EVENT_NONE;
 	}
 	if (ready < 0) {
-		return -1;
+		int err = -ready;
+		set_error(handle, TERSE_ERROR_TRANSPORT, err);
+		return -err;
 	}
 
 	unsigned char first = 0;
 	ssize_t n = read_byte(fd, &first);
 	if (n == 0) {
 		errno = EPIPE;
+		set_error(handle, TERSE_ERROR_TRANSPORT, EPIPE);
 		return -EPIPE;
 	}
 	if (n < 0) {
+		int err = -(int)n;
+		set_error(handle, TERSE_ERROR_TRANSPORT, err);
 		return (int)n;
 	}
 
@@ -694,13 +759,16 @@ terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event
 	case '\r':
 	case '\n':
 		set_key_event(out_event, TERSE_EVENT_ENTER, 0);
+		clear_error(handle);
 		return TERSE_EVENT_OK;
 	case '\b':
 	case 0x7f:
 		set_key_event(out_event, TERSE_EVENT_BACKSPACE, 0);
+		clear_error(handle);
 		return TERSE_EVENT_OK;
 	case '\t':
 		set_key_event(out_event, TERSE_EVENT_TAB, 0);
+		clear_error(handle);
 		return TERSE_EVENT_OK;
 	default:
 		break;
@@ -726,6 +794,7 @@ terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event
 				handle->size.cols = values[2];
 				handle->size.known = 1;
 				handle->capabilities.has_size = 1;
+				clear_error(handle);
 				return TERSE_EVENT_OK;
 			}
 			if (final == 'A' || final == 'B' || final == 'C' || final == 'D') {
@@ -736,15 +805,19 @@ terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event
 				switch (final) {
 				case 'A':
 					set_key_event(out_event, TERSE_EVENT_ARROW_UP, mods);
+					clear_error(handle);
 					return TERSE_EVENT_OK;
 				case 'B':
 					set_key_event(out_event, TERSE_EVENT_ARROW_DOWN, mods);
+					clear_error(handle);
 					return TERSE_EVENT_OK;
 				case 'C':
 					set_key_event(out_event, TERSE_EVENT_ARROW_RIGHT, mods);
+					clear_error(handle);
 					return TERSE_EVENT_OK;
 				case 'D':
 					set_key_event(out_event, TERSE_EVENT_ARROW_LEFT, mods);
+					clear_error(handle);
 					return TERSE_EVENT_OK;
 				default:
 					break;
@@ -752,16 +825,19 @@ terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event
 			}
 		}
 		set_raw_event(out_event, seq, len);
+		clear_error(handle);
 		return TERSE_EVENT_OK;
 	}
 
 	if (first >= 0x20 && first <= 0x7e) {
 		set_char_event(out_event, first, 0);
+		clear_error(handle);
 		return TERSE_EVENT_OK;
 	}
 
 	unsigned char raw_bytes[1] = { first };
 	set_raw_event(out_event, raw_bytes, 1);
+	clear_error(handle);
 	return TERSE_EVENT_OK;
 }
 
@@ -773,11 +849,13 @@ terse_get_size(terse_handle_t handle)
 		return unknown;
 	}
 	if (handle->options.disabled_caps & TERSE_CAP_DISABLE_SIZE) {
+		clear_error(handle);
 		return unknown;
 	}
 	if (!handle->size.known) {
 		refresh_size(handle);
 	}
+	clear_error(handle);
 	return handle->size;
 }
 
@@ -790,8 +868,24 @@ terse_get_options(terse_handle_t handle, terse_options_t *out_options)
 	}
 	if (!out_options) {
 		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
 		return -EINVAL;
 	}
 	*out_options = handle->options;
+	clear_error(handle);
 	return 0;
+}
+
+terse_error_info_t
+terse_get_last_error(terse_handle_t handle)
+{
+	terse_error_info_t info = { TERSE_ERROR_NONE, 0 };
+	if (!handle) {
+		info.category = TERSE_ERROR_STATE;
+		info.code = EINVAL;
+		return info;
+	}
+	info.category = handle->last_error;
+	info.code = handle->last_errno;
+	return info;
 }

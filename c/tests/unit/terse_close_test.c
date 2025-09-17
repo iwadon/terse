@@ -48,6 +48,9 @@ TEST(TerseClose, EmitsResetSequences_OnClose)
 	EXPECT_TRUE(total >= 6);
 	EXPECT_TRUE(strstr(buf, "\x1b[?25h") != NULL);
 	EXPECT_TRUE(strstr(buf, "\x1b[0m") != NULL);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
+	EXPECT_EQ(0, err.code);
 
 	close(fds[0]);
 }
@@ -73,6 +76,9 @@ TEST(TerseClose, SkipsReset_WhenBasicOutputDisabled)
 	close(fds[1]);
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n == 0);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
+	EXPECT_EQ(0, err.code);
 	close(fds[0]);
 }
 

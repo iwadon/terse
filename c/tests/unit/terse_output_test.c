@@ -83,6 +83,9 @@ TEST(TerseOutputCapabilities, NoOutput_WhenClearScreenDisabled)
 
 	EXPECT_EQ(0, terse_clear_screen(handle, TERSE_CLEAR_ALL));
 	expect_no_bytes_available(fds[0]);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
+	EXPECT_EQ(0, err.code);
 
 	terse_close(handle);
 	close(fds[0]);
@@ -111,6 +114,9 @@ TEST(TerseOutputCapabilities, NoOutput_WhenMoveDisabled)
 	expect_no_bytes_available(fds[0]);
 	EXPECT_EQ(0, terse_move_by(handle, 3, -2));
 	expect_no_bytes_available(fds[0]);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
+	EXPECT_EQ(0, err.code);
 
 	terse_close(handle);
 	close(fds[0]);
@@ -137,6 +143,9 @@ TEST(TerseOutputCapabilities, NoOutput_WhenCursorHiddenUnsupported)
 
 	EXPECT_EQ(0, terse_show_cursor(handle, 0));
 	expect_no_bytes_available(fds[0]);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
+	EXPECT_EQ(0, err.code);
 
 	terse_close(handle);
 	close(fds[0]);
@@ -163,6 +172,9 @@ TEST(TerseOutputCapabilities, NoOutput_WhenBasicOutputDisabled)
 
 	EXPECT_EQ(0, terse_write_text(handle, "hello"));
 	expect_no_bytes_available(fds[0]);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
+	EXPECT_EQ(0, err.code);
 
 	terse_close(handle);
 	close(fds[0]);
@@ -207,6 +219,40 @@ TEST(TerseOutputState, SkipsDuplicateMoveTo)
 	terse_close(handle);
 	close(fds[0]);
 	close(fds[1]);
+}
+
+TEST(TerseOutputError, ReturnsConfigError_OnInvalidMode)
+{
+	terse_handle_t handle = terse_open(TERSE_P0, NULL);
+	EXPECT_TRUE(handle != NULL);
+	int rc = terse_clear_screen(handle, 99);
+	EXPECT_EQ(-EINVAL, rc);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_CONFIG, err.category);
+	EXPECT_EQ(EINVAL, err.code);
+	terse_close(handle);
+}
+
+TEST(TerseOutputError, ReturnsTransportError_OnWriteFailure)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+	};
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	close(fds[1]);
+	int rc = terse_write_text(handle, "hi");
+	EXPECT_EQ(-EBADF, rc);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_TRANSPORT, err.category);
+	EXPECT_EQ(EBADF, err.code);
+	terse_close(handle);
+	close(fds[0]);
 }
 
 TEST(TerseClearScreen, EmitsAllSequence_OnAll)

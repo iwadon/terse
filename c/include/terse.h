@@ -52,6 +52,20 @@ typedef struct terse_size {
 	int known;
 } terse_size_t;
 
+typedef enum terse_error_category {
+	TERSE_ERROR_NONE = 0,
+	TERSE_ERROR_TRANSPORT,
+	TERSE_ERROR_PROTOCOL,
+	TERSE_ERROR_RESOURCE,
+	TERSE_ERROR_CONFIG,
+	TERSE_ERROR_STATE
+} terse_error_category_t;
+
+typedef struct terse_error_info {
+	terse_error_category_t category;
+	int code;
+} terse_error_info_t;
+
 enum {
 	TERSE_MOD_SHIFT = (1 << 0),
 	TERSE_MOD_CTRL = (1 << 1),
@@ -117,6 +131,7 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 terse_size_t terse_get_size(terse_handle_t handle);
 int terse_get_options(terse_handle_t handle, terse_options_t *out_options);
 int terse_validate_options(const terse_options_t *options);
+terse_error_info_t terse_get_last_error(terse_handle_t handle);
 
 
 #endif // TERSE_H_INCLUDED

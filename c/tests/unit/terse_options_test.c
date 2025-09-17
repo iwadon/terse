@@ -11,6 +11,13 @@ TEST(TerseValidateOptions, ReturnsZero_OnNull)
 	EXPECT_EQ(0, errno);
 }
 
+TEST(TerseErrorInfo, ReturnsStateError_OnNullHandle)
+{
+	terse_error_info_t info = terse_get_last_error(NULL);
+	EXPECT_EQ(TERSE_ERROR_STATE, info.category);
+	EXPECT_EQ(EINVAL, info.code);
+}
+
 TEST(TerseValidateOptions, ReturnsEbaf_OnNegativeInputFd)
 {
 	terse_options_t options = {
