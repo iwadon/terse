@@ -33,3 +33,7 @@ add_test(NAME c.terse_read_event_ctrl_test COMMAND terse_read_event_ctrl_test)
 add_executable(terse_mouse_test unit/terse_mouse_test.c)
 target_link_libraries(terse_mouse_test PRIVATE terse)
 add_test(NAME c.terse_mouse_test COMMAND terse_mouse_test)
+
+add_executable(terse_paste_test unit/terse_paste_test.c)
+target_link_libraries(terse_paste_test PRIVATE terse)
+add_test(NAME c.terse_paste_test COMMAND terse_paste_test)

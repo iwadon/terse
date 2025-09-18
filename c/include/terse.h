@@ -206,6 +206,8 @@ typedef enum terse_event_type {
 	TERSE_EVENT_MOUSE_UP,
 	TERSE_EVENT_MOUSE_MOVE,
 	TERSE_EVENT_MOUSE_SCROLL,
+	TERSE_EVENT_PASTE_BEGIN,
+	TERSE_EVENT_PASTE_END,
 	TERSE_EVENT_RESIZE,
 	TERSE_EVENT_RAW_SEQUENCE
 } terse_event_type_t;
@@ -273,5 +275,7 @@ int terse_set_style(terse_handle_t handle, const terse_style_t *style);
 int terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope);
 int terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode);
 int terse_disable_mouse(terse_handle_t handle);
+int terse_enable_bracketed_paste(terse_handle_t handle);
+int terse_disable_bracketed_paste(terse_handle_t handle);
 
 #endif // TERSE_H_INCLUDED

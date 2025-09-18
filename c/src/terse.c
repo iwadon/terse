@@ -348,6 +348,7 @@ struct terse_handle {
 	terse_mouse_mode_t mouse_mode;
 	int mouse_enabled;
 	terse_mouse_button_t mouse_button;
+	int paste_enabled;
 	terse_error_category_t last_error;
 	int last_errno;
 };
@@ -657,6 +658,7 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	handle->mouse_mode = TERSE_MOUSE_NONE;
 	handle->mouse_enabled = 0;
 	handle->mouse_button = TERSE_MOUSE_BUTTON_NONE;
+	handle->paste_enabled = 0;
 	clear_error(handle);
 	refresh_size(handle);
 
@@ -763,6 +765,9 @@ emit_reset_sequences(terse_handle_t handle)
 	}
 	if (handle->mouse_enabled) {
 		(void)terse_disable_mouse(handle);
+	}
+	if (handle->paste_enabled) {
+		(void)terse_disable_bracketed_paste(handle);
 	}
 	static const char *const cursor_on_seq = "\x1b[?25h";
 	if (!handle->cursor_visible) {
@@ -1510,6 +1515,56 @@ int terse_disable_mouse(terse_handle_t handle)
 	return 0;
 }
 
+static int
+set_bracketed_paste(terse_handle_t handle, int enable)
+{
+	const char *seq = enable ? "\x1b[?2004h" : "\x1b[?2004l";
+	return write_literal(handle, seq);
+}
+
+int terse_enable_bracketed_paste(terse_handle_t handle)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!handle->capabilities.has_bracketed_paste || !handle->capabilities.has_basic_output) {
+		handle->paste_enabled = 0;
+		clear_error(handle);
+		return 0;
+	}
+	if (handle->paste_enabled) {
+		clear_error(handle);
+		return 0;
+	}
+	if (set_bracketed_paste(handle, 1) < 0) {
+		return -handle->last_errno;
+	}
+	handle->paste_enabled = 1;
+	clear_error(handle);
+	return 0;
+}
+
+int terse_disable_bracketed_paste(terse_handle_t handle)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!handle->paste_enabled) {
+		clear_error(handle);
+		return 0;
+	}
+	if (handle->capabilities.has_basic_output) {
+		if (set_bracketed_paste(handle, 0) < 0) {
+			return -handle->last_errno;
+		}
+	}
+	handle->paste_enabled = 0;
+	clear_error(handle);
+	return 0;
+}
+
 int terse_write_text(terse_handle_t handle, const char *graphemes)
 {
 	int rc = ensure_handle(handle);
@@ -1647,6 +1702,18 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 		if (parse_csi_sequence(seq, len, values, 8, &value_count, &final) == 0) {
 			if ((final == 'M' || final == 'm') && len > 2 && seq[2] == '<') {
 				if (handle_sgr_mouse_sequence(handle, out_event, values, value_count, final)) {
+					return TERSE_EVENT_OK;
+				}
+			}
+			if (final == '~' && value_count >= 1 && handle->paste_enabled) {
+				if (values[0] == 200) {
+					out_event->type = TERSE_EVENT_PASTE_BEGIN;
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				}
+				if (values[0] == 201) {
+					out_event->type = TERSE_EVENT_PASTE_END;
+					clear_error(handle);
 					return TERSE_EVENT_OK;
 				}
 			}
