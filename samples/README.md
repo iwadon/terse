@@ -56,6 +56,22 @@ cc -I../c/include -L../build/c -lterse p1_color_demo.c -o p1_color_demo
 ./p1_color_demo
 ```
 
+## P2 Features Demo
+
+`p2_features_demo.c` showcases the new P2 APIs:
+
+- enables SGR mouse tracking (`terse_enable_mouse(…, TERSE_MOUSE_SGR)`)
+- enables bracketed paste notifications
+- updates terminal title and emits OSC 8 hyperlinks
+- prints a running log of mouse / paste / key events
+
+Build and run:
+
+```sh
+cc -I../c/include -L../build/c -lterse p2_features_demo.c -o p2_features_demo
+./p2_features_demo
+```
+
 ## Line Editing Demo
 
 `line_edit_demo.c` provides a minimal readline-style editor using only P0 APIs:
