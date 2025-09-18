@@ -14,8 +14,7 @@
 | --- | --- |
 | `TERM` | Usually `xterm-256color` for Terminal.app/iTerm2; kitty advertises `xterm-kitty`; Warp uses `xterm-256color`. |
 | `TERM_PROGRAM` / `TERM_PROGRAM_VERSION` | `Apple_Terminal` vs `iTerm.app` vs `WezTerm` vs `Hyper`. Useful primary discriminator. |
-| `LC_TERMINAL` / `LC_TERMINAL_VERSION` | Terminal.app=
-`Apple_Terminal`; iTerm2 exposes `iTerm2`. |
+| `LC_TERMINAL` / `LC_TERMINAL_VERSION` | Terminal.app=`Apple_Terminal`; iTerm2 exposes `iTerm2`. |
 | `COLORTERM` | `truecolor` is a good signal for P1 color availability. |
 | `ITERM_PROFILE`, `ITERM_SESSION_ID`, `WEZTERM_EXECUTABLE` | Vendor-specific hints.
 
