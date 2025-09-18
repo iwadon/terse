@@ -14,6 +14,10 @@
 
 #define TERSE_STYLE_ALL_SUPPORTED (TERSE_STYLE_BOLD | TERSE_STYLE_ITALIC | TERSE_STYLE_UNDERLINE | TERSE_STYLE_INVERSE | TERSE_STYLE_STRIKE)
 
+static const char TERSE_RESET_ALL_SEQ[] = "\x1b[0m";
+static const char TERSE_RESET_COLOR_SEQ[] = "\x1b[39;49m";
+static const char TERSE_RESET_EFFECTS_SEQ[] = "\x1b[22;23;24;27;29m";
+
 typedef struct terse_rgb {
 	unsigned char r;
 	unsigned char g;
@@ -307,6 +311,13 @@ struct terse_handle {
 };
 
 static void
+update_effective_style(terse_handle_t handle)
+{
+	handle->effective_style = make_effective_style(&handle->capabilities, &handle->style);
+	handle->style_known = 1;
+}
+
+static void
 set_error(terse_handle_t handle, terse_error_category_t category, int code)
 {
 	if (!handle) {
@@ -532,8 +543,7 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	handle->cursor_col = 0;
 	handle->cursor_known = 0;
 	handle->style = terse_style_default();
-	handle->effective_style = terse_style_default();
-	handle->style_known = 1;
+	update_effective_style(handle);
 	clear_error(handle);
 	refresh_size(handle);
 
@@ -639,16 +649,14 @@ emit_reset_sequences(terse_handle_t handle)
 		return;
 	}
 	static const char *const cursor_on_seq = "\x1b[?25h";
-	static const char *const reset_seq = "\x1b[0m";
 	if (!handle->cursor_visible) {
 		if (write_sequence(handle, cursor_on_seq, strlen(cursor_on_seq)) == 0) {
 			handle->cursor_visible = 1;
 		}
 	}
-	if (write_sequence(handle, reset_seq, strlen(reset_seq)) == 0) {
+	if (write_sequence(handle, TERSE_RESET_ALL_SEQ, sizeof(TERSE_RESET_ALL_SEQ) - 1) == 0) {
 		handle->style = terse_style_default();
-		handle->effective_style = terse_style_default();
-		handle->style_known = 1;
+		update_effective_style(handle);
 	}
 }
 
@@ -1175,6 +1183,76 @@ int terse_set_style(terse_handle_t handle, const terse_style_t *style)
 		handle->effective_style = effective;
 		handle->style_known = 1;
 	}
+	return result;
+}
+
+static int
+write_reset_sequence(terse_handle_t handle, terse_reset_scope_t scope)
+{
+	switch (scope) {
+	case TERSE_RESET_ALL:
+		return write_sequence(handle, TERSE_RESET_ALL_SEQ, sizeof(TERSE_RESET_ALL_SEQ) - 1);
+	case TERSE_RESET_COLOR_ONLY:
+		return write_sequence(handle, TERSE_RESET_COLOR_SEQ, sizeof(TERSE_RESET_COLOR_SEQ) - 1);
+	case TERSE_RESET_EFFECTS_ONLY:
+		return write_sequence(handle, TERSE_RESET_EFFECTS_SEQ, sizeof(TERSE_RESET_EFFECTS_SEQ) - 1);
+	default:
+		return 0;
+	}
+}
+
+int terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (scope < TERSE_RESET_ALL || scope > TERSE_RESET_EFFECTS_ONLY) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+		return -EINVAL;
+	}
+	int result = 0;
+	if (handle->capabilities.has_basic_output) {
+		int emit = 0;
+		switch (scope) {
+		case TERSE_RESET_ALL:
+			emit = (handle->capabilities.colors != TERSE_COLOR_NONE || handle->capabilities.effects != 0);
+			break;
+		case TERSE_RESET_COLOR_ONLY:
+			emit = (handle->capabilities.colors != TERSE_COLOR_NONE);
+			break;
+		case TERSE_RESET_EFFECTS_ONLY:
+			emit = (handle->capabilities.effects != 0);
+			break;
+		default:
+			emit = 0;
+			break;
+		}
+		if (emit) {
+			result = write_reset_sequence(handle, scope);
+			if (result < 0) {
+				return result;
+			}
+		}
+	}
+	switch (scope) {
+	case TERSE_RESET_ALL:
+		handle->style = terse_style_default();
+		break;
+	case TERSE_RESET_COLOR_ONLY:
+		handle->style.foreground = terse_color_default();
+		handle->style.background = terse_color_default();
+		handle->style.effects = mask_effects(handle->style.effects);
+		break;
+	case TERSE_RESET_EFFECTS_ONLY:
+		handle->style.effects = 0;
+		break;
+	default:
+		break;
+	}
+	update_effective_style(handle);
+	clear_error(handle);
 	return result;
 }
 

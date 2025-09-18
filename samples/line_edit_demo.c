@@ -63,8 +63,7 @@ static void render_line(terse_handle_t handle, int row, const char *prompt, cons
 	if (terse_write_text(handle, prompt) < 0) {
 		print_error(handle, "write_text");
 	}
-	terse_style_t reset = terse_style_default();
-	if (terse_set_style(handle, &reset) < 0) {
+	if (terse_reset_style(handle, TERSE_RESET_ALL) < 0) {
 		print_error(handle, "reset_style");
 	}
 	if (terse_write_text(handle, buffer) < 0) {

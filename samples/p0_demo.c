@@ -41,8 +41,7 @@ static void demo_output(terse_handle_t handle)
 	write_line(handle, 5, 1, TERSE_STYLE_ITALIC | TERSE_STYLE_STRIKE, "Italic + Strike");
 	wait_briefly();
 	write_line(handle, 7, 1, 0, "Back to normal");
-	terse_style_t reset = terse_style_default();
-	if (terse_set_style(handle, &reset) < 0) {
+	if (terse_reset_style(handle, TERSE_RESET_ALL) < 0) {
 		print_error("reset_style", handle);
 	}
 }

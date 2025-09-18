@@ -621,6 +621,117 @@ TEST(TerseSetStyle, EmitsTruecolorSequence)
 	close(fds[1]);
 }
 
+TEST(TerseResetStyle, EmitsAllResetSequence)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES | TERSE_CAP_ENABLE_SGR_BASIC
+	};
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	terse_style_t style = terse_style_default();
+	style.effects = TERSE_STYLE_BOLD;
+	style.foreground.kind = TERSE_COLOR_KIND_BASIC16;
+	style.foreground.data.basic16.color = TERSE_BASIC_COLOR_RED;
+	EXPECT_EQ(0, terse_set_style(handle, &style));
+	char drain[64];
+	EXPECT_TRUE(read_pipe(fds[0], drain, sizeof(drain)) > 0);
+	EXPECT_EQ(0, terse_reset_style(handle, TERSE_RESET_ALL));
+	char buf[32];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[0m") != NULL);
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseResetStyle, EmitsColorResetSequence)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = TERSE_CAP_ENABLE_SGR_BASIC
+	};
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	terse_style_t style = terse_style_default();
+	style.foreground.kind = TERSE_COLOR_KIND_BASIC16;
+	style.foreground.data.basic16.color = TERSE_BASIC_COLOR_BLUE;
+	EXPECT_EQ(0, terse_set_style(handle, &style));
+	char drain[64];
+	EXPECT_TRUE(read_pipe(fds[0], drain, sizeof(drain)) > 0);
+	EXPECT_EQ(0, terse_reset_style(handle, TERSE_RESET_COLOR_ONLY));
+	char buf[32];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[39;49m") != NULL);
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseResetStyle, EmitsEffectResetSequence)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES
+	};
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	terse_style_t style = make_effects_style(TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE);
+	EXPECT_EQ(0, terse_set_style(handle, &style));
+	char drain[64];
+	EXPECT_TRUE(read_pipe(fds[0], drain, sizeof(drain)) > 0);
+	EXPECT_EQ(0, terse_reset_style(handle, TERSE_RESET_EFFECTS_ONLY));
+	char buf[64];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[22;23;24;27;29m") != NULL);
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseResetStyle, NoOutputWhenCapabilitiesDisabled)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_pipe_handle(&handle, fds);
+	EXPECT_EQ(0, terse_reset_style(handle, TERSE_RESET_COLOR_ONLY));
+	expect_no_bytes_available(fds[0]);
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseResetStyle, ReturnsEINVAL_OnInvalidScope)
+{
+	terse_handle_t handle = terse_open(TERSE_P0, NULL);
+	EXPECT_TRUE(handle != NULL);
+	errno = 0;
+	int rc = terse_reset_style(handle, (terse_reset_scope_t)99);
+	EXPECT_EQ(-EINVAL, rc);
+	terse_error_info_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERROR_CONFIG, err.category);
+	EXPECT_EQ(EINVAL, err.code);
+	terse_close(handle);
+}
+
 TEST(TerseStateCapture, ReturnsConfigError_OnNullState)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);

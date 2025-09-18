@@ -170,7 +170,7 @@ function use_color_if_available(text, color) {
     if (caps.colors != "none") {
     set_style(handle, foreground=color);
     write_text(handle, text);
-    reset_style(handle);
+    reset_style(handle, all);
     } else {
     write_text(handle, text);  // 色なしで出力
     }
@@ -216,7 +216,7 @@ function setup_mouse_if_supported() {
 - **縮退動作**: 対応していない色/装飾は自動で下位互換に縮退（例: TrueColor→256→16→既定色）。機能無効時は No-op で成功し、`terse_get_last_error` に値が残ることはない。
 - **状態復元**: `terse_capture_state` / `terse_restore_state` でカーソル位置・表示と同時にスタイル状態を保存/復元できる。
   - スタイルが未知の場合は `restore` 時にリセット（`0m`）および指定スタイルを再適用。
-- **リセット**: `terse_style_t reset = terse_style_default(); terse_set_style(handle, &reset);` または `terse_close` のリセットシーケンスで初期化。
+- **リセット**: `terse_reset_style(handle, scope)` を利用する。`scope=all` は `SGR 0`、`scope=color_only` は `39;49`、`scope=effects_only` は `22;23;24;27;29` を送出する。`terse_close` も安全のため同様のリセットを行う。
 
 ### 入力
 
@@ -326,7 +326,7 @@ function setup_mouse_if_supported() {
 ### 状態一貫性保証
 
 エラー発生時の状態保証：
-- **出力API失敗**: 端末状態は不定。アプリケーションで `reset_style(handle)` 等による復旧推奨
+- **出力API失敗**: 端末状態は不定。アプリケーションで `reset_style(handle, all)` 等による復旧推奨
 - **入力API失敗**: 内部状態は一貫性を保持。`read_event` 再呼出し可能
 - **close() 失敗**: 部分的復旧済み。プロセス終了時の最終手段として機能
 

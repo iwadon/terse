@@ -4,6 +4,7 @@
 
 - opens a handle with text-styles enabled via `enabled_caps`
 - moves the cursor, writes text, and toggles styles by building `terse_style_t` values for `terse_set_style`
+- resets styling with `terse_reset_style(handle, TERSE_RESET_ALL)` when returning to defaults
 - captures and restores state (cursor position/visibility + styles)
 - reads events in a simple loop, illustrating `TERSE_EVENT_NONE` and character events
 - shows how `terse_get_last_error` can be used to log transport/config errors
@@ -23,6 +24,7 @@ cc -I../c/include -L../build/c -lterse p0_demo.c -o p0_demo
 
 - enable text styles via `TERSE_CAP_ENABLE_TEXT_STYLES`
 - construct `terse_style_t` (set `effects` / colors) and pass it to `terse_set_style`
+- call `terse_reset_style` with an appropriate scope when restoring defaults
 - capture/restore style state together with cursor position
 
 ## Line Editing Demo
@@ -31,7 +33,7 @@ cc -I../c/include -L../build/c -lterse p0_demo.c -o p0_demo
 
 - terminal raw mode handled locally with `termios`
 - cursor moves with `terse_move_to` and `terse_move_by` (indirectly via re-render)
-- text styles toggled via `terse_set_style` with `terse_style_t`
+- text styles toggled via `terse_set_style` with `terse_style_t`, and cleared via `terse_reset_style`
 - state captured/restored with `terse_capture_state` / `terse_restore_state`
 - input normalized by `terse_read_event`
 

@@ -67,6 +67,12 @@ typedef struct terse_style {
 	unsigned int effects;
 } terse_style_t;
 
+typedef enum terse_reset_scope {
+	TERSE_RESET_ALL = 0,
+	TERSE_RESET_COLOR_ONLY,
+	TERSE_RESET_EFFECTS_ONLY
+} terse_reset_scope_t;
+
 typedef struct terse_capabilities {
 	terse_profile_t profile;
 	int has_basic_output;
@@ -233,5 +239,6 @@ int terse_restore_state(terse_handle_t handle, const terse_state_t *state);
 terse_style_t terse_style_default(void);
 terse_color_t terse_color_default(void);
 int terse_set_style(terse_handle_t handle, const terse_style_t *style);
+int terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope);
 
 #endif // TERSE_H_INCLUDED
