@@ -16,16 +16,11 @@ static void print_error(const char *label, terse_handle_t handle)
 	}
 }
 
-static void write_line(terse_handle_t handle, int row, int col, unsigned int effects, const char *text)
+static void write_line(terse_handle_t handle, int row, int col, const char *text)
 {
 	if (terse_move_to(handle, row, col) < 0) {
 		print_error("move_to", handle);
 		return;
-	}
-	terse_style_t style = terse_style_default();
-	style.effects = effects;
-	if (terse_set_style(handle, &style) < 0) {
-		print_error("set_style", handle);
 	}
 	if (terse_write_text(handle, text) < 0) {
 		print_error("write_text", handle);
@@ -34,17 +29,13 @@ static void write_line(terse_handle_t handle, int row, int col, unsigned int eff
 
 static void demo_output(terse_handle_t handle)
 {
-	write_line(handle, 1, 1, TERSE_STYLE_BOLD, "P0 Demo: Basic output");
+	write_line(handle, 1, 1, "P0 Demo: Basic output");
 	wait_briefly();
-	write_line(handle, 3, 1, TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE, "Bold + Underline");
+	write_line(handle, 3, 1, "Second line");
 	wait_briefly();
-	write_line(handle, 5, 1, TERSE_STYLE_ITALIC | TERSE_STYLE_STRIKE, "Italic + Strike");
+	write_line(handle, 5, 1, "Third line");
 	wait_briefly();
-	write_line(handle, 7, 1, 0, "Back to normal");
-	terse_style_t reset = terse_style_default();
-	if (terse_set_style(handle, &reset) < 0) {
-		print_error("reset_style", handle);
-	}
+	write_line(handle, 7, 1, "Back to normal");
 }
 
 static void demo_restore(terse_handle_t handle)
@@ -54,7 +45,12 @@ static void demo_restore(terse_handle_t handle)
 		print_error("capture_state", handle);
 		return;
 	}
-	write_line(handle, 9, 1, TERSE_STYLE_BOLD, "Moving cursor temporarily...");
+	if (terse_move_to(handle, 9, 1) < 0) {
+		print_error("move_to", handle);
+	}
+	if (terse_write_text(handle, "Moving cursor temporarily...") < 0) {
+		print_error("write_text", handle);
+	}
 	wait_briefly();
 	if (terse_restore_state(handle, &state) < 0) {
 		print_error("restore_state", handle);
@@ -98,7 +94,7 @@ int main(void)
 		.output_fd = STDOUT_FILENO,
 		.codec_name = "UTF-8",
 		.disabled_caps = 0,
-		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES
+		.enabled_caps = 0
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);

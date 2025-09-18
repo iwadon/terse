@@ -2,10 +2,9 @@
 
 `samples/p0_demo.c` demonstrates the minimal P0 surface:
 
-- opens a handle with text-styles enabled via `enabled_caps`
-- moves the cursor, writes text, and toggles styles by building `terse_style_t` values for `terse_set_style`
-- resets styling with `terse_reset_style(handle, TERSE_RESET_ALL)` when returning to defaults
-- captures and restores state (cursor position/visibility + styles)
+- opens a handle with default capabilities (no optional styles/colors)
+- moves the cursor, writes text, and uses `terse_clear_*` calls
+- captures and restores cursor state with `terse_capture_state` / `terse_restore_state`
 - reads events in a simple loop, illustrating `TERSE_EVENT_NONE` and character events
 - shows how `terse_get_last_error` can be used to log transport/config errors
 
@@ -22,10 +21,24 @@ cc -I../c/include -L../build/c -lterse p0_demo.c -o p0_demo
 
 `p0_demo.c` shows how to:
 
-- enable text styles via `TERSE_CAP_ENABLE_TEXT_STYLES`
-- construct `terse_style_t` (set `effects`) and pass it to `terse_set_style`
-- call `terse_reset_style` with an appropriate scope when restoring defaults
-- capture/restore style state together with cursor position
+- use the basic cursor/output APIs at P0
+- capture/restore cursor position and visibility
+- handle `terse_read_event` timeouts and EOFs
+
+## P1 Style Demo
+
+`p1_style_demo.c` focuses on text effects (P1 capabilities):
+
+- enables text styles via `TERSE_CAP_ENABLE_TEXT_STYLES`
+- renders bold, faint, italic, underline, inverse, blink, and strike examples
+- uses `terse_reset_style` between samples to restore defaults
+
+Build and run:
+
+```sh
+cc -I../c/include -L../build/c -lterse p1_style_demo.c -o p1_style_demo
+./p1_style_demo
+```
 
 ## P1 Color Demo
 
