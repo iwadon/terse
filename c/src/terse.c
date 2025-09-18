@@ -179,6 +179,46 @@ make_vte_capabilities(int has_truecolor)
 	return caps;
 }
 
+static terse_capabilities_t
+make_iterm_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.has_clipboard_write = 1;
+	caps.images = TERSE_IMAGE_ITERM_INLINE;
+	caps.notifications |= TERSE_NOTIFICATION_SUPPORT_DESKTOP;
+	return caps;
+}
+
+static terse_capabilities_t
+make_wezterm_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.has_clipboard_write = 1;
+	caps.images = TERSE_IMAGE_ITERM_INLINE;
+	caps.notifications |= TERSE_NOTIFICATION_SUPPORT_DESKTOP;
+	return caps;
+}
+
+static terse_capabilities_t
+make_kitty_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.has_clipboard_write = 1;
+	return caps;
+}
+
+static terse_capabilities_t
+make_ghostty_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.has_clipboard_write = 1;
+	return caps;
+}
+
 static void
 clamp_capabilities_to_request(terse_capabilities_t *caps, terse_profile_t requested)
 {
@@ -212,6 +252,7 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	if (requested_profile == TERSE_P0) {
 		return caps;
 	}
+	const char *term = getenv("TERM");
 	const char *term_program = getenv("TERM_PROGRAM");
 	const char *lc_terminal = getenv("LC_TERMINAL");
 	const char *colorterm = getenv("COLORTERM");
@@ -248,6 +289,21 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
+	int is_iterm = 0;
+	if (term_program && strcmp(term_program, "iTerm.app") == 0) {
+		is_iterm = 1;
+	}
+	if (!is_iterm && lc_terminal && strcmp(lc_terminal, "iTerm2") == 0) {
+		is_iterm = 1;
+	}
+	if (!is_iterm && matches_da_prefix(secondary, secondary_len, "\x1b[>64;")) {
+		is_iterm = 1;
+	}
+	if (is_iterm) {
+		caps = make_iterm_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
 	int is_vte = 0;
 	if ((gnome_screen && *gnome_screen) || (gnome_service && *gnome_service) || (vte_version && *vte_version)) {
 		is_vte = 1;
@@ -260,6 +316,57 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	}
 	if (is_vte) {
 		caps = make_vte_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_wezterm = 0;
+	if (term_program && strcmp(term_program, "WezTerm") == 0) {
+		is_wezterm = 1;
+	}
+	if (!is_wezterm) {
+		const char *wezexec = getenv("WEZTERM_EXECUTABLE");
+		if (wezexec && *wezexec) {
+			is_wezterm = 1;
+		}
+	}
+	if (!is_wezterm && matches_da_prefix(secondary, secondary_len, "\x1b[>1;277;")) {
+		is_wezterm = 1;
+	}
+	if (is_wezterm) {
+		caps = make_wezterm_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_kitty = 0;
+	if (term && strcmp(term, "xterm-kitty") == 0) {
+		is_kitty = 1;
+	}
+	if (!is_kitty) {
+		const char *kitty_pid = getenv("KITTY_PID");
+		if (kitty_pid && *kitty_pid) {
+			is_kitty = 1;
+		}
+	}
+	if (!is_kitty && matches_da_prefix(secondary, secondary_len, "\x1b[>1;4000;")) {
+		is_kitty = 1;
+	}
+	if (is_kitty) {
+		caps = make_kitty_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_ghostty = 0;
+	if (term && strcmp(term, "xterm-ghostty") == 0) {
+		is_ghostty = 1;
+	}
+	if (!is_ghostty && term_program && strcmp(term_program, "ghostty") == 0) {
+		is_ghostty = 1;
+	}
+	if (!is_ghostty && matches_da_prefix(secondary, secondary_len, "\x1b[>1;10;")) {
+		is_ghostty = 1;
+	}
+	if (is_ghostty) {
+		caps = make_ghostty_capabilities(has_truecolor);
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}

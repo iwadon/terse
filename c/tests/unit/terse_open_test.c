@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define ARRAY_LEN(x) (sizeof(x) / sizeof((x)[0]))
+
 typedef struct env_backup {
 	const char *name;
 	char *value;
@@ -42,6 +44,7 @@ restore_env(env_backup_t *backup)
 static void
 clear_detection_environment(void)
 {
+	unsetenv("TERM");
 	unsetenv("TERM_PROGRAM");
 	unsetenv("TERM_PROGRAM_VERSION");
 	unsetenv("LC_TERMINAL");
@@ -51,6 +54,24 @@ clear_detection_environment(void)
 	unsetenv("GNOME_TERMINAL_SERVICE");
 	unsetenv("VTE_VERSION");
 	unsetenv("TERSE_SECONDARY_DA_HINT");
+	unsetenv("WEZTERM_EXECUTABLE");
+	unsetenv("KITTY_PID");
+}
+
+static void
+backup_env_list(env_backup_t *backups, size_t count, const char *const *names)
+{
+	for (size_t i = 0; i < count; ++i) {
+		backup_env(&backups[i], names[i]);
+	}
+}
+
+static void
+restore_env_list(env_backup_t *backups, size_t count)
+{
+	for (size_t i = 0; i < count; ++i) {
+		restore_env(&backups[i]);
+	}
 }
 
 TEST(TerseOpen, ReturnsNonNull_OnValidProfile)
@@ -68,45 +89,43 @@ TEST(TerseOpen, ReturnsNull_OnInvalidProfile)
 
 TEST(TerseOpen, ReturnsP0Profile_OnRequestAboveP0)
 {
-	env_backup_t term_program;
-	env_backup_t lc_terminal;
-	env_backup_t colorterm;
-	env_backup_t gnome_screen;
-	env_backup_t gnome_service;
-	env_backup_t vte_version;
-	env_backup_t secondary_da;
-	backup_env(&term_program, "TERM_PROGRAM");
-	backup_env(&lc_terminal, "LC_TERMINAL");
-	backup_env(&colorterm, "COLORTERM");
-	backup_env(&gnome_screen, "GNOME_TERMINAL_SCREEN");
-	backup_env(&gnome_service, "GNOME_TERMINAL_SERVICE");
-	backup_env(&vte_version, "VTE_VERSION");
-	backup_env(&secondary_da, "TERSE_SECONDARY_DA_HINT");
+	static const char *const names[] = {
+		"TERM",
+		"TERM_PROGRAM",
+		"TERM_PROGRAM_VERSION",
+		"LC_TERMINAL",
+		"LC_TERMINAL_VERSION",
+		"COLORTERM",
+		"GNOME_TERMINAL_SCREEN",
+		"GNOME_TERMINAL_SERVICE",
+		"VTE_VERSION",
+		"TERSE_SECONDARY_DA_HINT",
+		"WEZTERM_EXECUTABLE",
+		"KITTY_PID",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
 	clear_detection_environment();
 	terse_handle_t handle = terse_open(TERSE_P3, NULL);
 	EXPECT_TRUE(handle != NULL);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P0);
 	terse_close(handle);
-	restore_env(&term_program);
-	restore_env(&lc_terminal);
-	restore_env(&colorterm);
-	restore_env(&gnome_screen);
-	restore_env(&gnome_service);
-	restore_env(&vte_version);
-	restore_env(&secondary_da);
+	restore_env_list(backups, ARRAY_LEN(names));
 }
 
 TEST(TerseOpen, DetectsP1Profile_OnAppleTerminalEnv)
 {
-	env_backup_t term_program;
-	env_backup_t lc_terminal;
-	env_backup_t colorterm;
-	env_backup_t secondary_da;
-	backup_env(&term_program, "TERM_PROGRAM");
-	backup_env(&lc_terminal, "LC_TERMINAL");
-	backup_env(&colorterm, "COLORTERM");
-	backup_env(&secondary_da, "TERSE_SECONDARY_DA_HINT");
+	static const char *const names[] = {
+		"TERM",
+		"TERM_PROGRAM",
+		"LC_TERMINAL",
+		"COLORTERM",
+		"TERSE_SECONDARY_DA_HINT",
+		"KITTY_PID",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
 	clear_detection_environment();
 	setenv("TERM_PROGRAM", "Apple_Terminal", 1);
 	setenv("LC_TERMINAL", "Apple_Terminal", 1);
@@ -118,28 +137,23 @@ TEST(TerseOpen, DetectsP1Profile_OnAppleTerminalEnv)
 	EXPECT_EQ(caps.has_truecolor, 1);
 	EXPECT_EQ(caps.has_bracketed_paste, 0);
 	terse_close(handle);
-	restore_env(&term_program);
-	restore_env(&lc_terminal);
-	restore_env(&colorterm);
-	restore_env(&secondary_da);
+	restore_env_list(backups, ARRAY_LEN(names));
 }
 
 TEST(TerseOpen, DetectsP2Profile_OnVteSignatures)
 {
-	env_backup_t term_program;
-	env_backup_t lc_terminal;
-	env_backup_t colorterm;
-	env_backup_t gnome_screen;
-	env_backup_t gnome_service;
-	env_backup_t vte_version;
-	env_backup_t secondary_da;
-	backup_env(&term_program, "TERM_PROGRAM");
-	backup_env(&lc_terminal, "LC_TERMINAL");
-	backup_env(&colorterm, "COLORTERM");
-	backup_env(&gnome_screen, "GNOME_TERMINAL_SCREEN");
-	backup_env(&gnome_service, "GNOME_TERMINAL_SERVICE");
-	backup_env(&vte_version, "VTE_VERSION");
-	backup_env(&secondary_da, "TERSE_SECONDARY_DA_HINT");
+	static const char *const names[] = {
+		"TERM",
+		"TERM_PROGRAM",
+		"LC_TERMINAL",
+		"COLORTERM",
+		"GNOME_TERMINAL_SCREEN",
+		"GNOME_TERMINAL_SERVICE",
+		"VTE_VERSION",
+		"TERSE_SECONDARY_DA_HINT",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
 	clear_detection_environment();
 	setenv("COLORTERM", "truecolor", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>61;7800;1c", 1);
@@ -150,13 +164,120 @@ TEST(TerseOpen, DetectsP2Profile_OnVteSignatures)
 	EXPECT_EQ(caps.mouse, TERSE_MOUSE_SGR);
 	EXPECT_EQ(caps.has_bracketed_paste, 1);
 	terse_close(handle);
-	restore_env(&term_program);
-	restore_env(&lc_terminal);
-	restore_env(&colorterm);
-	restore_env(&gnome_screen);
-	restore_env(&gnome_service);
-	restore_env(&vte_version);
-	restore_env(&secondary_da);
+	restore_env_list(backups, ARRAY_LEN(names));
+}
+
+TEST(TerseOpen, DetectsP3Profile_OnITermEnv)
+{
+	static const char *const names[] = {
+		"TERM",
+		"TERM_PROGRAM",
+		"TERM_PROGRAM_VERSION",
+		"LC_TERMINAL",
+		"COLORTERM",
+		"TERSE_SECONDARY_DA_HINT",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
+	clear_detection_environment();
+	setenv("TERM", "xterm-256color", 1);
+	setenv("TERM_PROGRAM", "iTerm.app", 1);
+	setenv("TERM_PROGRAM_VERSION", "3.5.14", 1);
+	setenv("LC_TERMINAL", "iTerm2", 1);
+	setenv("COLORTERM", "truecolor", 1);
+	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>64;2500;0c", 1);
+	terse_handle_t handle = terse_open(TERSE_P3, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_EQ(caps.profile, TERSE_P3);
+	EXPECT_EQ(caps.images, TERSE_IMAGE_ITERM_INLINE);
+	EXPECT_EQ(caps.has_clipboard_write, 1);
+	EXPECT_EQ(caps.has_bracketed_paste, 1);
+	terse_close(handle);
+	restore_env_list(backups, ARRAY_LEN(names));
+}
+
+TEST(TerseOpen, DetectsP3Profile_OnWezTermEnv)
+{
+	static const char *const names[] = {
+		"TERM",
+		"TERM_PROGRAM",
+		"TERM_PROGRAM_VERSION",
+		"COLORTERM",
+		"WEZTERM_EXECUTABLE",
+		"TERSE_SECONDARY_DA_HINT",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
+	clear_detection_environment();
+	setenv("TERM", "xterm-256color", 1);
+	setenv("TERM_PROGRAM", "WezTerm", 1);
+	setenv("TERM_PROGRAM_VERSION", "20240203-110809-5046fc22", 1);
+	setenv("COLORTERM", "truecolor", 1);
+	setenv("WEZTERM_EXECUTABLE", "/Applications/WezTerm.app/Contents/MacOS/wezterm-gui", 1);
+	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;277;0c", 1);
+	terse_handle_t handle = terse_open(TERSE_P3, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_EQ(caps.profile, TERSE_P3);
+	EXPECT_EQ(caps.images, TERSE_IMAGE_ITERM_INLINE);
+	EXPECT_EQ(caps.has_clipboard_write, 1);
+	EXPECT_EQ(caps.mouse, TERSE_MOUSE_SGR);
+	terse_close(handle);
+	restore_env_list(backups, ARRAY_LEN(names));
+}
+
+TEST(TerseOpen, DetectsP3Profile_OnKittyEnv)
+{
+	static const char *const names[] = {
+		"TERM",
+		"COLORTERM",
+		"KITTY_PID",
+		"TERSE_SECONDARY_DA_HINT",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
+	clear_detection_environment();
+	setenv("TERM", "xterm-kitty", 1);
+	setenv("COLORTERM", "truecolor", 1);
+	setenv("KITTY_PID", "12345", 1);
+	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;4000;42c", 1);
+	terse_handle_t handle = terse_open(TERSE_P3, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_EQ(caps.profile, TERSE_P3);
+	EXPECT_EQ(caps.images, TERSE_IMAGE_NONE);
+	EXPECT_EQ(caps.has_clipboard_write, 1);
+	EXPECT_EQ(caps.has_bracketed_paste, 1);
+	terse_close(handle);
+	restore_env_list(backups, ARRAY_LEN(names));
+}
+
+TEST(TerseOpen, DetectsP3Profile_OnGhosttyEnv)
+{
+	static const char *const names[] = {
+		"TERM",
+		"TERM_PROGRAM",
+		"TERM_PROGRAM_VERSION",
+		"COLORTERM",
+		"TERSE_SECONDARY_DA_HINT",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
+	clear_detection_environment();
+	setenv("TERM", "xterm-ghostty", 1);
+	setenv("TERM_PROGRAM", "ghostty", 1);
+	setenv("TERM_PROGRAM_VERSION", "1.2.0", 1);
+	setenv("COLORTERM", "truecolor", 1);
+	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;10;0c", 1);
+	terse_handle_t handle = terse_open(TERSE_P3, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_EQ(caps.profile, TERSE_P3);
+	EXPECT_EQ(caps.has_clipboard_write, 1);
+	EXPECT_EQ(caps.has_bracketed_paste, 1);
+	terse_close(handle);
+	restore_env_list(backups, ARRAY_LEN(names));
 }
 
 int main()
