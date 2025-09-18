@@ -505,6 +505,31 @@ TEST(TerseSetStyle, EmitsSequences_WhenTextStylesEnabled)
 	close(fds[1]);
 }
 
+TEST(TerseSetStyle, EmitsFaintAndBlinkSequences)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES
+	};
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	terse_style_t style = make_effects_style(TERSE_STYLE_FAINT | TERSE_STYLE_BLINK);
+	EXPECT_EQ(0, terse_set_style(handle, &style));
+	char buf[64];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[0m") != NULL);
+	EXPECT_TRUE(strstr(buf, "\x1b[2;5m") != NULL);
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
 TEST(TerseSetStyle, NoOutput_WhenCapabilityDisabled)
 {
 	int fds[2];

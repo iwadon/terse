@@ -12,7 +12,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#define TERSE_STYLE_ALL_SUPPORTED (TERSE_STYLE_BOLD | TERSE_STYLE_ITALIC | TERSE_STYLE_UNDERLINE | TERSE_STYLE_INVERSE | TERSE_STYLE_STRIKE)
+#define TERSE_STYLE_ALL_SUPPORTED (TERSE_STYLE_BOLD | TERSE_STYLE_FAINT | TERSE_STYLE_ITALIC | TERSE_STYLE_UNDERLINE | TERSE_STYLE_INVERSE | TERSE_STYLE_BLINK | TERSE_STYLE_STRIKE)
 
 static const char TERSE_RESET_ALL_SEQ[] = "\x1b[0m";
 static const char TERSE_RESET_COLOR_SEQ[] = "\x1b[39;49m";
@@ -1041,6 +1041,12 @@ append_effects(char *seq, size_t size, size_t *pos, int *first, unsigned int eff
 			return rc;
 		}
 	}
+	if (effects & TERSE_STYLE_FAINT) {
+		int rc = append_param(seq, size, pos, first, *first ? "2" : ";2");
+		if (rc < 0) {
+			return rc;
+		}
+	}
 	if (effects & TERSE_STYLE_ITALIC) {
 		int rc = append_param(seq, size, pos, first, *first ? "3" : ";3");
 		if (rc < 0) {
@@ -1055,6 +1061,12 @@ append_effects(char *seq, size_t size, size_t *pos, int *first, unsigned int eff
 	}
 	if (effects & TERSE_STYLE_INVERSE) {
 		int rc = append_param(seq, size, pos, first, *first ? "7" : ";7");
+		if (rc < 0) {
+			return rc;
+		}
+	}
+	if (effects & TERSE_STYLE_BLINK) {
+		int rc = append_param(seq, size, pos, first, *first ? "5" : ";5");
 		if (rc < 0) {
 			return rc;
 		}

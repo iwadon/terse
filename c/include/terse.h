@@ -148,10 +148,12 @@ typedef struct terse_state {
 
 enum {
 	TERSE_STYLE_BOLD = 1u << 0,
-	TERSE_STYLE_ITALIC = 1u << 1,
-	TERSE_STYLE_UNDERLINE = 1u << 2,
-	TERSE_STYLE_INVERSE = 1u << 3,
-	TERSE_STYLE_STRIKE = 1u << 4
+	TERSE_STYLE_FAINT = 1u << 1,
+	TERSE_STYLE_ITALIC = 1u << 2,
+	TERSE_STYLE_UNDERLINE = 1u << 3,
+	TERSE_STYLE_INVERSE = 1u << 4,
+	TERSE_STYLE_BLINK = 1u << 5,
+	TERSE_STYLE_STRIKE = 1u << 6
 };
 
 typedef enum terse_error_category {
