@@ -72,6 +72,23 @@ cc -I../c/include -L../build/c -lterse p2_features_demo.c -o p2_features_demo
 ./p2_features_demo
 ```
 
+## P3 Notifications Demo
+
+`p3_notifications_demo.c` walks through the notification APIs (P3):
+
+- requests the bell, visual bell, and desktop notification capabilities
+- inspects negotiated notifications via `terse_get_capabilities`
+- provides a REPL (`b <msg>`, `v`, `g`) that calls `terse_notify` for each mode
+
+Build and run (make sure the library is built first):
+
+```sh
+cc -I../c/include -L../build/c -lterse p3_notifications_demo.c -o p3_notifications_demo
+./p3_notifications_demo
+```
+
+On macOS Terminal/iTerm2, `b Hello!` should surface a desktop notification if OSC 9 is allowed by the terminal. The command still succeeds silently when the capability is absent.
+
 ## Line Editing Demo
 
 `line_edit_demo.c` provides a minimal readline-style editor using only P0 APIs:
