@@ -34,8 +34,9 @@
 
 | Terminal | Expected Profile | Known Capabilities |
 | --- | --- | --- |
-| Terminal.app (macOS 14+) | P1 (colors/styles), partial P2 (title) | No mouse by default, no OSC 52 unless pref enabled, no OSC 9, no visual bell. |
-| iTerm2 3.5.x | P3 (images, clipboard, notifications) with opt-ins | Mouse (SGR), bracketed paste, OSC 52, OSC 1337, OSC 9, focus events. Notifications gated by prefs. |
+| Terminal.app (macOS 14+) | P1 (colors/styles), partial P2 (title) | No mouse by default, no OSC 52 unless pref enabled, no OSC 9, no visual bell. TrueColor advertised via `COLORTERM=truecolor` starting macOS 14. |
+| Terminal.app (macOS 15 / 26 Tahiti) | P1 (colors/styles), partial P2 (title) | Primary DA `ESC[?1;2c`, secondary DA `ESC[>1;95;0c`; no response to focus query `CSI ?1004$p`. `COLORTERM=truecolor` is present. |
+| iTerm2 3.5.x | P3 (images, clipboard, notifications) with opt-ins | Primary DA `ESC[?64;…c`, secondary DA `ESC[>64;2500;0c`, focus query echoes `?1004`, `?2004`, etc. Mouse (SGR), bracketed paste, OSC 52, OSC 1337, OSC 9, focus events. Notifications gated by prefs. |
 | kitty | P3 (images, keyboard, notifications) | kitty graphics, keyboard protocol, focus events, clipboard. |
 | Warp | P2? | Claims mouse, bracketed paste, but restricts raw control sequences. Needs validation. |
 | WezTerm | P3 | kitty keyboard protocol, notifications, clipboard, images. |
@@ -71,5 +72,6 @@
 ## Next Steps
 
 1. Build a detection utility that prints gathered env vars and DA responses for different terminals to populate a capability matrix.
+   - `tools/terse_inspect_terminal` provides this functionality; collect output across terminals to expand the matrix.
 2. Implement a helper in `terse_open` (macOS path) that fills `terse_capabilities` using the mapping above.
 3. Provide documentation/guidance for terminals requiring user opt-in (clipboard/notifications in iTerm2, etc.).
