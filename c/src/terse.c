@@ -17,6 +17,7 @@
 static const char TERSE_RESET_ALL_SEQ[] = "\x1b[0m";
 static const char TERSE_RESET_COLOR_SEQ[] = "\x1b[39;49m";
 static const char TERSE_RESET_EFFECTS_SEQ[] = "\x1b[22;23;24;27;29m";
+static const char BASE64_ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 typedef struct terse_rgb {
 	unsigned char r;
@@ -373,6 +374,52 @@ set_mouse_event(terse_event_t *event, terse_event_type_t type, terse_mouse_butto
 static int mouse_modifiers_from_param(int param);
 static void clear_error(terse_handle_t handle);
 
+static char *
+base64_encode(const unsigned char *data, size_t length, size_t *out_len)
+{
+	if (!data || length == 0) {
+		if (out_len) {
+			*out_len = 0;
+		}
+		return NULL;
+	}
+	size_t encoded = ((length + 2) / 3) * 4;
+	char *output = malloc(encoded + 1);
+	if (!output) {
+		if (out_len) {
+			*out_len = 0;
+		}
+		return NULL;
+	}
+	size_t out_index = 0;
+	for (size_t i = 0; i < length; i += 3) {
+		unsigned int triple = data[i] << 16;
+		if (i + 1 < length) {
+			triple |= data[i + 1] << 8;
+		}
+		if (i + 2 < length) {
+			triple |= data[i + 2];
+		}
+		output[out_index++] = BASE64_ALPHABET[(triple >> 18) & 0x3f];
+		output[out_index++] = BASE64_ALPHABET[(triple >> 12) & 0x3f];
+		if (i + 1 < length) {
+			output[out_index++] = BASE64_ALPHABET[(triple >> 6) & 0x3f];
+		} else {
+			output[out_index++] = '=';
+		}
+		if (i + 2 < length) {
+			output[out_index++] = BASE64_ALPHABET[triple & 0x3f];
+		} else {
+			output[out_index++] = '=';
+		}
+	}
+	output[out_index] = '\0';
+	if (out_len) {
+		*out_len = out_index;
+	}
+	return output;
+}
+
 static int
 handle_sgr_mouse_sequence(terse_handle_t handle, terse_event_t *out_event, const int *values, size_t value_count, char final)
 {
@@ -468,6 +515,7 @@ make_p0_capabilities(void)
 		.colors = TERSE_COLOR_NONE,
 		.effects = 0,
 		.has_clipboard_write = 0,
+		.images = TERSE_IMAGE_NONE,
 	};
 	return caps;
 }
@@ -622,6 +670,9 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	if (disabled & TERSE_CAP_DISABLE_CLIPBOARD_WRITE) {
 		handle->capabilities.has_clipboard_write = 0;
 	}
+	if (disabled & TERSE_CAP_DISABLE_IMAGE_INLINE) {
+		handle->capabilities.images = TERSE_IMAGE_NONE;
+	}
 	unsigned int enabled = handle->options.enabled_caps;
 	if (enabled & TERSE_CAP_ENABLE_SGR_BASIC) {
 		handle->capabilities.has_sgr_basic = 1;
@@ -652,6 +703,9 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	}
 	if (enabled & TERSE_CAP_ENABLE_CLIPBOARD_WRITE) {
 		handle->capabilities.has_clipboard_write = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_IMAGE_INLINE) {
+		handle->capabilities.images = TERSE_IMAGE_ITERM_INLINE;
 	}
 	if (handle->capabilities.has_truecolor) {
 		handle->capabilities.colors = TERSE_COLOR_TRUECOLOR;
@@ -1681,6 +1735,102 @@ int terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, in
 		return -EINVAL;
 	}
 	return write_literal(handle, seq);
+}
+
+int terse_set_clipboard(terse_handle_t handle, const char *data)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!data) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+		return -EINVAL;
+	}
+	if (!handle->capabilities.has_clipboard_write || !handle->capabilities.has_basic_output) {
+		clear_error(handle);
+		return 0;
+	}
+	size_t encoded_len = 0;
+	char *encoded = base64_encode((const unsigned char *)data, strlen(data), &encoded_len);
+	if (!encoded) {
+		errno = ENOMEM;
+		set_error(handle, TERSE_ERROR_RESOURCE, ENOMEM);
+		return -ENOMEM;
+	}
+	if (write_literal(handle, "\x1b]52;;") < 0) {
+		free(encoded);
+		return -handle->last_errno;
+	}
+	if (write_sequence(handle, encoded, encoded_len) < 0) {
+		free(encoded);
+		return -handle->last_errno;
+	}
+	free(encoded);
+	if (write_literal(handle, "\x07") < 0) {
+		return -handle->last_errno;
+	}
+	clear_error(handle);
+	return 0;
+}
+
+int terse_display_image_inline(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!data || size == 0) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+		return -EINVAL;
+	}
+	if (handle->capabilities.images != TERSE_IMAGE_ITERM_INLINE || !handle->capabilities.has_basic_output) {
+		clear_error(handle);
+		return 0;
+	}
+	if (!name) {
+		name = "image";
+	}
+	size_t name_len = 0;
+	char *name_encoded = base64_encode((const unsigned char *)name, strlen(name), &name_len);
+	size_t data_len = 0;
+	char *data_encoded = base64_encode(data, size, &data_len);
+	if (!name_encoded || !data_encoded) {
+		free(name_encoded);
+		free(data_encoded);
+		errno = ENOMEM;
+		set_error(handle, TERSE_ERROR_RESOURCE, ENOMEM);
+		return -ENOMEM;
+	}
+	char header[256];
+	int header_len = snprintf(header,
+	    sizeof(header),
+	    "\x1b]1337;File=name=%s;size=%zu;inline=1:",
+	    name_encoded,
+	    size);
+	free(name_encoded);
+	if (header_len <= 0 || (size_t)header_len >= sizeof(header)) {
+		free(data_encoded);
+		errno = EOVERFLOW;
+		set_error(handle, TERSE_ERROR_CONFIG, EOVERFLOW);
+		return -EOVERFLOW;
+	}
+	if (write_sequence(handle, header, (size_t)header_len) < 0) {
+		free(data_encoded);
+		return -handle->last_errno;
+	}
+	if (write_sequence(handle, data_encoded, data_len) < 0) {
+		free(data_encoded);
+		return -handle->last_errno;
+	}
+	free(data_encoded);
+	if (write_literal(handle, "\x07") < 0) {
+		return -handle->last_errno;
+	}
+	clear_error(handle);
+	return 0;
 }
 
 int terse_write_text(terse_handle_t handle, const char *graphemes)

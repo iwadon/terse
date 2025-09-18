@@ -45,3 +45,11 @@ add_test(NAME c.terse_title_test COMMAND terse_title_test)
 add_executable(terse_cursor_shape_test unit/terse_cursor_shape_test.c)
 target_link_libraries(terse_cursor_shape_test PRIVATE terse)
 add_test(NAME c.terse_cursor_shape_test COMMAND terse_cursor_shape_test)
+
+add_executable(terse_clipboard_test unit/terse_clipboard_test.c)
+target_link_libraries(terse_clipboard_test PRIVATE terse)
+add_test(NAME c.terse_clipboard_test COMMAND terse_clipboard_test)
+
+add_executable(terse_image_test unit/terse_image_test.c)
+target_link_libraries(terse_image_test PRIVATE terse)
+add_test(NAME c.terse_image_test COMMAND terse_image_test)

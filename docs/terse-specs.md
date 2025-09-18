@@ -980,6 +980,8 @@ try {
 
 - API候補：
   - `set_cursor_shape(shape)`（block, underline, barなど）
+  - `set_clipboard(data)`（OSC 52）
+  - `get_clipboard()`（応答を期待できる環境は限定的）
 - 縮退：
   - 非対応環境では無効果。
 
@@ -1042,6 +1044,7 @@ try {
   - **Sixel**（DEC/Sixel対応端末）
   - **iTerm2 Image Protocol**
   - **kitty Graphics Protocol**
+- ライブラリ実装では `terse_display_image_inline(handle, data, name)` が iTerm2 inline 形式を送出
 - 縮退：
   - 未対応時は**無効果**。必要なら代替として **代替テキスト** を `write_text` によって表示可能（アプリ判断）。
 - 能力：
@@ -1053,6 +1056,7 @@ try {
 - API：
   - `clipboard_write(handle, selection, data)`：`selection={clipboard, primary}` 等（端末依存）。
   - `clipboard_read(handle, selection)`（**読み出しは未対応の端末が多い**）
+  - ライブラリ実装では `terse_set_clipboard(handle, data)` が書き込みのみ対応
 - バックエンド写像：**OSC 52**（Base64）など。tmux/screen下ではブロックされることがある。
 - 縮退：
   - 未対応時は無効果。`clipboard_read` はエラーまたは未対応を返す。
