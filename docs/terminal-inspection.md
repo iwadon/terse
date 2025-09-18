@@ -17,12 +17,12 @@
 
 ## macOS 26.0 Terminal.app
 
-- **Host**: macOS 26.0 (25A354) on Apple Terminal
-- **Term Identifiers**: _pending inspection_
-- **TTY**: _pending inspection_
-- **Device Attributes**: _pending inspection_
-- **Focus Tracking**: _pending inspection_
-- **Notes**: sw_vers output captured; rerun `tools/terse_inspect_terminal` once hardware is available to confirm DA and focus behavior.
+- **Host**: macOS 26.0 (25A354)
+- **Term Identifiers**: `TERM=xterm-256color`, `TERM_PROGRAM=Apple_Terminal`, `TERM_PROGRAM_VERSION=464`, `COLORTERM=truecolor`
+- **TTY**: stdin/stdout report `isatty: yes`
+- **Device Attributes**: Primary `\x1B[?1;2c`, Secondary `\x1B[>1;95;0c`
+- **Focus Tracking**: No response to `\x1B[?1004$p`
+- **Notes**: Behavior matches Ventura/Sonoma Terminal.app—truecolor advertised, focus query silent, DA signature unchanged.
 
 ## Debian 12 GNOME Terminal
 
