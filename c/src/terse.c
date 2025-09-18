@@ -464,6 +464,7 @@ make_p0_capabilities(void)
 		.has_bracketed_paste = 0,
 		.has_title = 0,
 		.has_hyperlinks = 0,
+		.has_cursor_shape = 0,
 		.colors = TERSE_COLOR_NONE,
 		.effects = 0,
 	};
@@ -614,6 +615,9 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	if (disabled & TERSE_CAP_DISABLE_HYPERLINK) {
 		handle->capabilities.has_hyperlinks = 0;
 	}
+	if (disabled & TERSE_CAP_DISABLE_CURSOR_SHAPE) {
+		handle->capabilities.has_cursor_shape = 0;
+	}
 	unsigned int enabled = handle->options.enabled_caps;
 	if (enabled & TERSE_CAP_ENABLE_SGR_BASIC) {
 		handle->capabilities.has_sgr_basic = 1;
@@ -638,6 +642,9 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	}
 	if (enabled & TERSE_CAP_ENABLE_HYPERLINK) {
 		handle->capabilities.has_hyperlinks = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_CURSOR_SHAPE) {
+		handle->capabilities.has_cursor_shape = 1;
 	}
 	if (handle->capabilities.has_truecolor) {
 		handle->capabilities.colors = TERSE_COLOR_TRUECOLOR;
@@ -1624,6 +1631,49 @@ int terse_set_hyperlink(terse_handle_t handle, const char *url, const char *labe
 	}
 	clear_error(handle);
 	return 0;
+}
+
+int terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, int blinking)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (shape < TERSE_CURSOR_SHAPE_DEFAULT || shape > TERSE_CURSOR_SHAPE_BAR) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+		return -EINVAL;
+	}
+	if (!handle->capabilities.has_cursor_shape || !handle->capabilities.has_basic_output) {
+		clear_error(handle);
+		return 0;
+	}
+	int value = 0;
+	switch (shape) {
+	case TERSE_CURSOR_SHAPE_DEFAULT:
+		value = blinking ? 1 : 2;
+		break;
+	case TERSE_CURSOR_SHAPE_BLOCK:
+		value = blinking ? 1 : 2;
+		break;
+	case TERSE_CURSOR_SHAPE_UNDERLINE:
+		value = blinking ? 3 : 4;
+		break;
+	case TERSE_CURSOR_SHAPE_BAR:
+		value = blinking ? 5 : 6;
+		break;
+	default:
+		value = 1;
+		break;
+	}
+	char seq[16];
+	int len = snprintf(seq, sizeof(seq), "\x1b[%d q", value);
+	if (len <= 0 || len >= (int)sizeof(seq)) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+		return -EINVAL;
+	}
+	return write_literal(handle, seq);
 }
 
 int terse_write_text(terse_handle_t handle, const char *graphemes)

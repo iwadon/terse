@@ -911,6 +911,7 @@ try {
 - API:
   - `set_title(handle, string)`：端末ウィンドウ/タブタイトルを設定。
   - `set_hyperlink(handle, url, label)`：ハイパーリンク埋め込み（OSC 8準拠）。
+  - `set_cursor_shape(handle, shape, blinking)`：カーソル形状（ブロック/アンダーライン/バー）と点滅を切り替える。
 - 縮退：
   - `title=false` または `hyperlink=false` の場合は無効果。
 
@@ -920,6 +921,7 @@ try {
 - `capabilities.paste_bracketed`：{true,false}
 - `capabilities.title`：{true,false}
 - `capabilities.hyperlink`：{true,false}
+- `capabilities.cursor_shape`：{true,false}
 
 ### 縮退規則（P2追加）
 

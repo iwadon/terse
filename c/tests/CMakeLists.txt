@@ -41,3 +41,7 @@ add_test(NAME c.terse_paste_test COMMAND terse_paste_test)
 add_executable(terse_title_test unit/terse_title_test.c)
 target_link_libraries(terse_title_test PRIVATE terse)
 add_test(NAME c.terse_title_test COMMAND terse_title_test)
+
+add_executable(terse_cursor_shape_test unit/terse_cursor_shape_test.c)
+target_link_libraries(terse_cursor_shape_test PRIVATE terse)
+add_test(NAME c.terse_cursor_shape_test COMMAND terse_cursor_shape_test)

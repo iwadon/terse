@@ -50,6 +50,13 @@ typedef enum terse_mouse_mode {
 	TERSE_MOUSE_SGR
 } terse_mouse_mode_t;
 
+typedef enum terse_cursor_shape {
+	TERSE_CURSOR_SHAPE_DEFAULT = 0,
+	TERSE_CURSOR_SHAPE_BLOCK,
+	TERSE_CURSOR_SHAPE_UNDERLINE,
+	TERSE_CURSOR_SHAPE_BAR
+} terse_cursor_shape_t;
+
 typedef struct terse_color {
 	terse_color_kind_t kind;
 	union {
@@ -97,6 +104,7 @@ typedef struct terse_capabilities {
 	int has_bracketed_paste;
 	int has_title;
 	int has_hyperlinks;
+	int has_cursor_shape;
 	terse_color_support_t colors;
 	unsigned int effects;
 } terse_capabilities_t;
@@ -117,6 +125,7 @@ typedef enum terse_capability_flag {
 	TERSE_CAP_DISABLE_BRACKETED_PASTE = 1u << 12,
 	TERSE_CAP_DISABLE_TITLE = 1u << 13,
 	TERSE_CAP_DISABLE_HYPERLINK = 1u << 14,
+	TERSE_CAP_DISABLE_CURSOR_SHAPE = 1u << 15,
 } terse_capability_flag_t;
 
 typedef enum terse_capability_enable_flag {
@@ -127,7 +136,8 @@ typedef enum terse_capability_enable_flag {
 	TERSE_CAP_ENABLE_MOUSE = 1u << 4,
 	TERSE_CAP_ENABLE_BRACKETED_PASTE = 1u << 5,
 	TERSE_CAP_ENABLE_TITLE = 1u << 6,
-	TERSE_CAP_ENABLE_HYPERLINK = 1u << 7
+	TERSE_CAP_ENABLE_HYPERLINK = 1u << 7,
+	TERSE_CAP_ENABLE_CURSOR_SHAPE = 1u << 8
 } terse_capability_enable_flag_t;
 
 typedef struct terse_options {
@@ -279,5 +289,6 @@ int terse_enable_bracketed_paste(terse_handle_t handle);
 int terse_disable_bracketed_paste(terse_handle_t handle);
 int terse_set_title(terse_handle_t handle, const char *title);
 int terse_set_hyperlink(terse_handle_t handle, const char *url, const char *label);
+int terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, int blinking);
 
 #endif // TERSE_H_INCLUDED
