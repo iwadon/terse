@@ -18,6 +18,13 @@ typedef enum terse_clear_mode {
 	TERSE_CLEAR_ALL
 } terse_clear_mode_t;
 
+typedef enum terse_color_support {
+	TERSE_COLOR_NONE = 0,
+	TERSE_COLOR_BASIC16,
+	TERSE_COLOR_PALETTE256,
+	TERSE_COLOR_TRUECOLOR
+} terse_color_support_t;
+
 typedef struct terse_capabilities {
 	terse_profile_t profile;
 	int has_basic_output;
@@ -35,6 +42,8 @@ typedef struct terse_capabilities {
 	int has_bracketed_paste;
 	int has_title;
 	int has_hyperlinks;
+	terse_color_support_t colors;
+	unsigned int effects;
 } terse_capabilities_t;
 
 typedef enum terse_capability_flag {

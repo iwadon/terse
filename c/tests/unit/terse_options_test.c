@@ -96,6 +96,8 @@ TEST(TerseCapabilities, DefaultsMatchP0)
 	EXPECT_EQ(0, caps.has_bracketed_paste);
 	EXPECT_EQ(0, caps.has_title);
 	EXPECT_EQ(0, caps.has_hyperlinks);
+	EXPECT_EQ(TERSE_COLOR_NONE, caps.colors);
+	EXPECT_EQ(0u, caps.effects);
 	terse_close(handle);
 }
 
