@@ -277,5 +277,7 @@ int terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode);
 int terse_disable_mouse(terse_handle_t handle);
 int terse_enable_bracketed_paste(terse_handle_t handle);
 int terse_disable_bracketed_paste(terse_handle_t handle);
+int terse_set_title(terse_handle_t handle, const char *title);
+int terse_set_hyperlink(terse_handle_t handle, const char *url, const char *label);
 
 #endif // TERSE_H_INCLUDED

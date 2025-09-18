@@ -1565,6 +1565,67 @@ int terse_disable_bracketed_paste(terse_handle_t handle)
 	return 0;
 }
 
+int terse_set_title(terse_handle_t handle, const char *title)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!title) {
+		title = "";
+	}
+	if (!handle->capabilities.has_title || !handle->capabilities.has_basic_output) {
+		clear_error(handle);
+		return 0;
+	}
+	if (write_literal(handle, "\x1b]0;") < 0) {
+		return -handle->last_errno;
+	}
+	if (write_sequence(handle, title, strlen(title)) < 0) {
+		return -handle->last_errno;
+	}
+	if (write_literal(handle, "\x07") < 0) {
+		return -handle->last_errno;
+	}
+	clear_error(handle);
+	return 0;
+}
+
+int terse_set_hyperlink(terse_handle_t handle, const char *url, const char *label)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!url) {
+		url = "";
+	}
+	if (!label) {
+		label = "";
+	}
+	if (!handle->capabilities.has_hyperlinks || !handle->capabilities.has_basic_output) {
+		clear_error(handle);
+		return 0;
+	}
+	if (write_literal(handle, "\x1b]8;;") < 0) {
+		return -handle->last_errno;
+	}
+	if (write_sequence(handle, url, strlen(url)) < 0) {
+		return -handle->last_errno;
+	}
+	if (write_literal(handle, "\x07") < 0) {
+		return -handle->last_errno;
+	}
+	if (write_sequence(handle, label, strlen(label)) < 0) {
+		return -handle->last_errno;
+	}
+	if (write_literal(handle, "\x1b]8;;\x07") < 0) {
+		return -handle->last_errno;
+	}
+	clear_error(handle);
+	return 0;
+}
+
 int terse_write_text(terse_handle_t handle, const char *graphemes)
 {
 	int rc = ensure_handle(handle);
