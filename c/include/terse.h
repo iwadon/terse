@@ -107,6 +107,7 @@ typedef struct terse_capabilities {
 	int has_cursor_shape;
 	terse_color_support_t colors;
 	unsigned int effects;
+	int has_clipboard_write;
 } terse_capabilities_t;
 
 typedef enum terse_capability_flag {
@@ -126,6 +127,7 @@ typedef enum terse_capability_flag {
 	TERSE_CAP_DISABLE_TITLE = 1u << 13,
 	TERSE_CAP_DISABLE_HYPERLINK = 1u << 14,
 	TERSE_CAP_DISABLE_CURSOR_SHAPE = 1u << 15,
+	TERSE_CAP_DISABLE_CLIPBOARD_WRITE = 1u << 16,
 } terse_capability_flag_t;
 
 typedef enum terse_capability_enable_flag {
@@ -137,7 +139,8 @@ typedef enum terse_capability_enable_flag {
 	TERSE_CAP_ENABLE_BRACKETED_PASTE = 1u << 5,
 	TERSE_CAP_ENABLE_TITLE = 1u << 6,
 	TERSE_CAP_ENABLE_HYPERLINK = 1u << 7,
-	TERSE_CAP_ENABLE_CURSOR_SHAPE = 1u << 8
+	TERSE_CAP_ENABLE_CURSOR_SHAPE = 1u << 8,
+	TERSE_CAP_ENABLE_CLIPBOARD_WRITE = 1u << 9
 } terse_capability_enable_flag_t;
 
 typedef struct terse_options {
@@ -290,5 +293,6 @@ int terse_disable_bracketed_paste(terse_handle_t handle);
 int terse_set_title(terse_handle_t handle, const char *title);
 int terse_set_hyperlink(terse_handle_t handle, const char *url, const char *label);
 int terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, int blinking);
+int terse_set_clipboard(terse_handle_t handle, const char *data);
 
 #endif // TERSE_H_INCLUDED

@@ -467,6 +467,7 @@ make_p0_capabilities(void)
 		.has_cursor_shape = 0,
 		.colors = TERSE_COLOR_NONE,
 		.effects = 0,
+		.has_clipboard_write = 0,
 	};
 	return caps;
 }
@@ -618,6 +619,9 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	if (disabled & TERSE_CAP_DISABLE_CURSOR_SHAPE) {
 		handle->capabilities.has_cursor_shape = 0;
 	}
+	if (disabled & TERSE_CAP_DISABLE_CLIPBOARD_WRITE) {
+		handle->capabilities.has_clipboard_write = 0;
+	}
 	unsigned int enabled = handle->options.enabled_caps;
 	if (enabled & TERSE_CAP_ENABLE_SGR_BASIC) {
 		handle->capabilities.has_sgr_basic = 1;
@@ -645,6 +649,9 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	}
 	if (enabled & TERSE_CAP_ENABLE_CURSOR_SHAPE) {
 		handle->capabilities.has_cursor_shape = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_CLIPBOARD_WRITE) {
+		handle->capabilities.has_clipboard_write = 1;
 	}
 	if (handle->capabilities.has_truecolor) {
 		handle->capabilities.colors = TERSE_COLOR_TRUECOLOR;

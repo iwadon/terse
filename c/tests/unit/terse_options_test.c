@@ -97,6 +97,7 @@ TEST(TerseCapabilities, DefaultsMatchP0)
 	EXPECT_EQ(0, caps.has_title);
 	EXPECT_EQ(0, caps.has_hyperlinks);
 	EXPECT_EQ(0, caps.has_cursor_shape);
+	EXPECT_EQ(0, caps.has_clipboard_write);
 	EXPECT_EQ(TERSE_COLOR_NONE, caps.colors);
 	EXPECT_EQ(0u, caps.effects);
 	terse_close(handle);
