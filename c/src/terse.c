@@ -345,6 +345,9 @@ struct terse_handle {
 	terse_style_t style;
 	terse_style_t effective_style;
 	int style_known;
+	terse_mouse_mode_t mouse_mode;
+	int mouse_enabled;
+	terse_mouse_button_t mouse_button;
 	terse_error_category_t last_error;
 	int last_errno;
 };
@@ -354,6 +357,74 @@ update_effective_style(terse_handle_t handle)
 {
 	handle->effective_style = make_effective_style(&handle->capabilities, &handle->style);
 	handle->style_known = 1;
+}
+
+static void
+set_mouse_event(terse_event_t *event, terse_event_type_t type, terse_mouse_button_t button, int mods, int row, int col)
+{
+	event->type = type;
+	event->data.mouse.button = button;
+	event->data.mouse.mods = mods;
+	event->data.mouse.row = row;
+	event->data.mouse.col = col;
+}
+
+static int mouse_modifiers_from_param(int param);
+static void clear_error(terse_handle_t handle);
+
+static int
+handle_sgr_mouse_sequence(terse_handle_t handle, terse_event_t *out_event, const int *values, size_t value_count, char final)
+{
+	if (!handle || value_count < 3) {
+		return 0;
+	}
+	if (!handle->mouse_enabled || handle->mouse_mode == TERSE_MOUSE_NONE) {
+		return 0;
+	}
+	int raw_cb = values[0];
+	int col = values[1];
+	int row = values[2];
+	if (col < 0 || row < 0) {
+		return 0;
+	}
+	int mods = mouse_modifiers_from_param(raw_cb);
+	int cb = raw_cb & ~(4 | 8 | 16);
+	int is_motion = cb & 32;
+	int is_wheel = cb & 64;
+	int base = cb & 3;
+	terse_mouse_button_t button = TERSE_MOUSE_BUTTON_NONE;
+	terse_event_type_t type = TERSE_EVENT_MOUSE_MOVE;
+	if (is_wheel) {
+		button = (base == 0) ? TERSE_MOUSE_BUTTON_SCROLL_UP : TERSE_MOUSE_BUTTON_SCROLL_DOWN;
+		type = TERSE_EVENT_MOUSE_SCROLL;
+		handle->mouse_button = TERSE_MOUSE_BUTTON_NONE;
+	} else if (final == 'm') {
+		if (base <= 2) {
+			button = (base == 0) ? TERSE_MOUSE_BUTTON_LEFT : (base == 1 ? TERSE_MOUSE_BUTTON_MIDDLE : TERSE_MOUSE_BUTTON_RIGHT);
+		} else {
+			button = handle->mouse_button;
+		}
+		type = TERSE_EVENT_MOUSE_UP;
+		handle->mouse_button = TERSE_MOUSE_BUTTON_NONE;
+	} else if (is_motion) {
+		if (handle->mouse_button != TERSE_MOUSE_BUTTON_NONE) {
+			button = handle->mouse_button;
+		}
+		type = TERSE_EVENT_MOUSE_MOVE;
+	} else {
+		if (base == 0) {
+			button = TERSE_MOUSE_BUTTON_LEFT;
+		} else if (base == 1) {
+			button = TERSE_MOUSE_BUTTON_MIDDLE;
+		} else if (base == 2) {
+			button = TERSE_MOUSE_BUTTON_RIGHT;
+		}
+		type = TERSE_EVENT_MOUSE_DOWN;
+		handle->mouse_button = button;
+	}
+	set_mouse_event(out_event, type, button, mods, row, col);
+	clear_error(handle);
+	return 1;
 }
 
 static void
@@ -583,6 +654,9 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	handle->cursor_known = 0;
 	handle->style = terse_style_default();
 	update_effective_style(handle);
+	handle->mouse_mode = TERSE_MOUSE_NONE;
+	handle->mouse_enabled = 0;
+	handle->mouse_button = TERSE_MOUSE_BUTTON_NONE;
 	clear_error(handle);
 	refresh_size(handle);
 
@@ -687,6 +761,9 @@ emit_reset_sequences(terse_handle_t handle)
 	if (!handle->capabilities.has_basic_output) {
 		return;
 	}
+	if (handle->mouse_enabled) {
+		(void)terse_disable_mouse(handle);
+	}
 	static const char *const cursor_on_seq = "\x1b[?25h";
 	if (!handle->cursor_visible) {
 		if (write_sequence(handle, cursor_on_seq, strlen(cursor_on_seq)) == 0) {
@@ -788,6 +865,10 @@ parse_csi_sequence(const unsigned char *seq, size_t len, int *values, size_t max
 	size_t count = 0;
 	size_t index = 2;
 	while (index < len - 1) {
+		if (seq[index] == '<') {
+			++index;
+			continue;
+		}
 		int value = 0;
 		int has_digit = 0;
 		while (index < len - 1 && isdigit((unsigned char)seq[index])) {
@@ -1072,6 +1153,22 @@ append_param(char *seq, size_t size, size_t *pos, int *first, const char *fmt, .
 }
 
 static int
+mouse_modifiers_from_param(int param)
+{
+	int mods = 0;
+	if (param & 4) {
+		mods |= TERSE_MOD_SHIFT;
+	}
+	if (param & 8) {
+		mods |= TERSE_MOD_ALT;
+	}
+	if (param & 16) {
+		mods |= TERSE_MOD_CTRL;
+	}
+	return mods;
+}
+
+static int
 append_effects(char *seq, size_t size, size_t *pos, int *first, unsigned int effects)
 {
 	if (effects & TERSE_STYLE_BOLD) {
@@ -1307,6 +1404,112 @@ int terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope)
 	return result;
 }
 
+static int
+set_mouse_mode(terse_handle_t handle, terse_mouse_mode_t mode, int enable)
+{
+	static const char *const enable_seqs[][2] = {
+		{ "\x1b[?1000h", NULL },		  // X10
+		{ "\x1b[?1002h", NULL },		  // VT200
+		{ "\x1b[?1002h", "\x1b[?1006h" }, // SGR
+	};
+	static const char *const disable_seqs[][2] = {
+		{ "\x1b[?1000l", NULL },
+		{ "\x1b[?1002l", NULL },
+		{ "\x1b[?1002l", "\x1b[?1006l" },
+	};
+	int index = 0;
+	switch (mode) {
+	case TERSE_MOUSE_X10:
+		index = 0;
+		break;
+	case TERSE_MOUSE_VT200:
+		index = 1;
+		break;
+	case TERSE_MOUSE_SGR:
+		index = 2;
+		break;
+	default:
+		return 0;
+	}
+	const char *const *seqs = enable ? enable_seqs[index] : disable_seqs[index];
+	for (int i = 0; i < 2 && seqs[i]; ++i) {
+		if (write_literal(handle, seqs[i]) < 0) {
+			return -handle->last_errno;
+		}
+	}
+	return 0;
+}
+
+static terse_mouse_mode_t
+clamp_mouse_mode(terse_mouse_mode_t requested, terse_mouse_mode_t available)
+{
+	if (requested > available) {
+		return available;
+	}
+	return requested;
+}
+
+int terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (mode <= TERSE_MOUSE_NONE || mode > TERSE_MOUSE_SGR) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+		return -EINVAL;
+	}
+	if (handle->capabilities.mouse == TERSE_MOUSE_NONE || !handle->capabilities.has_basic_output) {
+		handle->mouse_mode = TERSE_MOUSE_NONE;
+		handle->mouse_enabled = 0;
+		handle->mouse_button = TERSE_MOUSE_BUTTON_NONE;
+		clear_error(handle);
+		return 0;
+	}
+	terse_mouse_mode_t actual = clamp_mouse_mode(mode, handle->capabilities.mouse);
+	if (handle->mouse_enabled && handle->mouse_mode == actual) {
+		clear_error(handle);
+		return 0;
+	}
+	if (handle->mouse_enabled) {
+		int disable_rc = terse_disable_mouse(handle);
+		if (disable_rc < 0) {
+			return disable_rc;
+		}
+	}
+	if (set_mouse_mode(handle, actual, 1) < 0) {
+		return -handle->last_errno;
+	}
+	handle->mouse_mode = actual;
+	handle->mouse_enabled = 1;
+	handle->mouse_button = TERSE_MOUSE_BUTTON_NONE;
+	clear_error(handle);
+	return 0;
+}
+
+int terse_disable_mouse(terse_handle_t handle)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!handle->mouse_enabled) {
+		clear_error(handle);
+		return 0;
+	}
+	if (handle->capabilities.has_basic_output) {
+		if (set_mouse_mode(handle, handle->mouse_mode, 0) < 0) {
+			return -handle->last_errno;
+		}
+	}
+	handle->mouse_enabled = 0;
+	handle->mouse_mode = TERSE_MOUSE_NONE;
+	handle->mouse_button = TERSE_MOUSE_BUTTON_NONE;
+	clear_error(handle);
+	return 0;
+}
+
 int terse_write_text(terse_handle_t handle, const char *graphemes)
 {
 	int rc = ensure_handle(handle);
@@ -1442,6 +1645,11 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 		size_t value_count = 0;
 		char final = 0;
 		if (parse_csi_sequence(seq, len, values, 8, &value_count, &final) == 0) {
+			if ((final == 'M' || final == 'm') && len > 2 && seq[2] == '<') {
+				if (handle_sgr_mouse_sequence(handle, out_event, values, value_count, final)) {
+					return TERSE_EVENT_OK;
+				}
+			}
 			if (final == 't' && value_count >= 3 && values[0] == 8) {
 				set_resize_event(out_event, values[1], values[2]);
 				handle->size.rows = values[1];

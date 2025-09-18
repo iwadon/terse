@@ -163,6 +163,15 @@ enum {
 	TERSE_STYLE_STRIKE = 1u << 6
 };
 
+typedef enum terse_mouse_button {
+	TERSE_MOUSE_BUTTON_NONE = 0,
+	TERSE_MOUSE_BUTTON_LEFT,
+	TERSE_MOUSE_BUTTON_MIDDLE,
+	TERSE_MOUSE_BUTTON_RIGHT,
+	TERSE_MOUSE_BUTTON_SCROLL_UP,
+	TERSE_MOUSE_BUTTON_SCROLL_DOWN
+} terse_mouse_button_t;
+
 typedef enum terse_error_category {
 	TERSE_ERROR_NONE = 0,
 	TERSE_ERROR_TRANSPORT,
@@ -193,6 +202,10 @@ typedef enum terse_event_type {
 	TERSE_EVENT_ARROW_DOWN,
 	TERSE_EVENT_ARROW_LEFT,
 	TERSE_EVENT_ARROW_RIGHT,
+	TERSE_EVENT_MOUSE_DOWN,
+	TERSE_EVENT_MOUSE_UP,
+	TERSE_EVENT_MOUSE_MOVE,
+	TERSE_EVENT_MOUSE_SCROLL,
 	TERSE_EVENT_RESIZE,
 	TERSE_EVENT_RAW_SEQUENCE
 } terse_event_type_t;
@@ -214,6 +227,12 @@ typedef struct terse_event {
 			int rows;
 			int cols;
 		} resize;
+		struct {
+			terse_mouse_button_t button;
+			int mods;
+			int row;
+			int col;
+		} mouse;
 		struct {
 			size_t length;
 			unsigned char bytes[TERSE_EVENT_RAW_MAX];
@@ -252,5 +271,7 @@ terse_color_t terse_color_palette(unsigned char index);
 terse_color_t terse_color_truecolor(unsigned char r, unsigned char g, unsigned char b);
 int terse_set_style(terse_handle_t handle, const terse_style_t *style);
 int terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope);
+int terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode);
+int terse_disable_mouse(terse_handle_t handle);
 
 #endif // TERSE_H_INCLUDED
