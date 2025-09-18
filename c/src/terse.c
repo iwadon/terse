@@ -127,7 +127,6 @@ refresh_size(terse_handle_t handle)
 {
 	if (handle->options.disabled_caps & TERSE_CAP_DISABLE_SIZE) {
 		handle->size = make_unknown_size();
-		handle->capabilities.has_size = 0;
 		return;
 	}
 	terse_size_t size = query_fd_size(handle->options.output_fd);
@@ -136,7 +135,6 @@ refresh_size(terse_handle_t handle)
 	}
 	if (size.known || !handle->size.known) {
 		handle->size = size;
-		handle->capabilities.has_size = size.known;
 	}
 }
 
@@ -996,6 +994,9 @@ terse_get_size(terse_handle_t handle)
 	}
 	if (!handle->size.known) {
 		refresh_size(handle);
+	}
+	if (!(handle->options.disabled_caps & TERSE_CAP_DISABLE_SIZE)) {
+		handle->capabilities.has_size = handle->size.known;
 	}
 	clear_error(handle);
 	return handle->size;
