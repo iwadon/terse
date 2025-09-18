@@ -25,6 +25,48 @@ typedef enum terse_color_support {
 	TERSE_COLOR_TRUECOLOR
 } terse_color_support_t;
 
+typedef enum terse_color_kind {
+	TERSE_COLOR_KIND_DEFAULT = 0,
+	TERSE_COLOR_KIND_BASIC16,
+	TERSE_COLOR_KIND_PALETTE256,
+	TERSE_COLOR_KIND_TRUECOLOR
+} terse_color_kind_t;
+
+typedef enum terse_basic_color {
+	TERSE_BASIC_COLOR_BLACK = 0,
+	TERSE_BASIC_COLOR_RED,
+	TERSE_BASIC_COLOR_GREEN,
+	TERSE_BASIC_COLOR_YELLOW,
+	TERSE_BASIC_COLOR_BLUE,
+	TERSE_BASIC_COLOR_MAGENTA,
+	TERSE_BASIC_COLOR_CYAN,
+	TERSE_BASIC_COLOR_WHITE
+} terse_basic_color_t;
+
+typedef struct terse_color {
+	terse_color_kind_t kind;
+	union {
+		struct {
+			unsigned char value;
+		} palette;
+		struct {
+			unsigned char r;
+			unsigned char g;
+			unsigned char b;
+		} truecolor;
+		struct {
+			terse_basic_color_t color;
+			int bright;
+		} basic16;
+	} data;
+} terse_color_t;
+
+typedef struct terse_style {
+	terse_color_t foreground;
+	terse_color_t background;
+	unsigned int effects;
+} terse_style_t;
+
 typedef struct terse_capabilities {
 	terse_profile_t profile;
 	int has_basic_output;
@@ -95,7 +137,7 @@ typedef struct terse_state {
 	int cursor_row;
 	int cursor_col;
 	int style_known;
-	unsigned int style_flags;
+	terse_style_t style;
 } terse_state_t;
 
 enum {
@@ -188,7 +230,8 @@ int terse_validate_options(const terse_options_t *options);
 terse_error_info_t terse_get_last_error(terse_handle_t handle);
 int terse_capture_state(terse_handle_t handle, terse_state_t *out_state);
 int terse_restore_state(terse_handle_t handle, const terse_state_t *state);
-int terse_set_style(terse_handle_t handle, unsigned int style_flags);
-
+terse_style_t terse_style_default(void);
+terse_color_t terse_color_default(void);
+int terse_set_style(terse_handle_t handle, const terse_style_t *style);
 
 #endif // TERSE_H_INCLUDED

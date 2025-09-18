@@ -211,12 +211,12 @@ function setup_mouse_if_supported() {
 
 ### スタイル・色制御（P0拡張）
 
-- **有効化**: スタイル関連を利用する場合は `terse_options_t.enabled_caps` に `TERSE_CAP_ENABLE_TEXT_STYLES` を指定する。追加で `TERSE_CAP_ENABLE_SGR_BASIC/EXTENDED/TRUECOLOR` を将来的に利用可能（P0では未使用）。
-- **スタイル設定**: `terse_set_style(handle, TERSE_STYLE_XXX)` で Bold/Italic/Underline/Inverse/Strike をまとめて指定。複数フラグはビットOR。再設定時は重複シーケンスを抑制。
-- **縮退動作**: 機能無効時はNo-opで成功（`TERSE_ERROR_NONE`）、`terse_get_last_error` に値が残ることはない。
+- **有効化**: スタイル関連を利用する場合は `terse_options_t.enabled_caps` に `TERSE_CAP_ENABLE_TEXT_STYLES` を指定する。色は `TERSE_CAP_ENABLE_SGR_BASIC` / `TERSE_CAP_ENABLE_SGR_EXTENDED` / `TERSE_CAP_ENABLE_TRUECOLOR` で段階的に有効化。
+- **スタイル設定**: `terse_style_t style = terse_style_default();` で初期化し、`style.effects` に `TERSE_STYLE_*` ビットを立てる。色を指定する場合は `style.foreground` / `style.background` に `kind={BASIC16,PALETTE256,TRUECOLOR}` を設定して `terse_set_style(handle, &style)` を呼ぶ。
+- **縮退動作**: 対応していない色/装飾は自動で下位互換に縮退（例: TrueColor→256→16→既定色）。機能無効時は No-op で成功し、`terse_get_last_error` に値が残ることはない。
 - **状態復元**: `terse_capture_state` / `terse_restore_state` でカーソル位置・表示と同時にスタイル状態を保存/復元できる。
   - スタイルが未知の場合は `restore` 時にリセット（`0m`）および指定スタイルを再適用。
-- **リセット**: `terse_set_style(handle, 0)` または `terse_close` のリセットシーケンスでスタイルを初期化。
+- **リセット**: `terse_style_t reset = terse_style_default(); terse_set_style(handle, &reset);` または `terse_close` のリセットシーケンスで初期化。
 
 ### 入力
 
@@ -1524,5 +1524,5 @@ benchmark_input() {
   を条件とする。
 
 この方針に沿い、本仕様書の関数シグネチャは「handle明示渡し」に統一して記述する。
-- **出力スタイル（SGR）**：`terse_set_style()` で `TERSE_STYLE_*` フラグを設定。対応機能が無効な場合は無効果。
+- **出力スタイル（SGR）**：`terse_style_t` に色・装飾を詰めて `terse_set_style()` を呼び出す。対応機能が無効な場合は無効果で成功扱い。
 - **状態キャプチャ/復元**：`terse_capture_state()` と `terse_restore_state()` でカーソル位置・表示・スタイルを保存/適用できる。

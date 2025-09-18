@@ -49,6 +49,40 @@ static void expect_no_bytes_available(int fd)
 	EXPECT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK);
 }
 
+static terse_style_t make_effects_style(unsigned int effects)
+{
+	terse_style_t style = terse_style_default();
+	style.effects = effects;
+	return style;
+}
+
+static terse_style_t make_basic_foreground_style(terse_basic_color_t color, int bright)
+{
+	terse_style_t style = terse_style_default();
+	style.foreground.kind = TERSE_COLOR_KIND_BASIC16;
+	style.foreground.data.basic16.color = color;
+	style.foreground.data.basic16.bright = bright;
+	return style;
+}
+
+static terse_style_t make_palette_foreground_style(unsigned char index)
+{
+	terse_style_t style = terse_style_default();
+	style.foreground.kind = TERSE_COLOR_KIND_PALETTE256;
+	style.foreground.data.palette.value = index;
+	return style;
+}
+
+static terse_style_t make_truecolor_style(unsigned char r, unsigned char g, unsigned char b)
+{
+	terse_style_t style = terse_style_default();
+	style.foreground.kind = TERSE_COLOR_KIND_TRUECOLOR;
+	style.foreground.data.truecolor.r = r;
+	style.foreground.data.truecolor.g = g;
+	style.foreground.data.truecolor.b = b;
+	return style;
+}
+
 TEST(TerseClearScreen, EmitsAfterSequence_OnAfter)
 {
 	int fds[2];
@@ -406,7 +440,8 @@ TEST(TerseStateCapture, RestoresCursorPositionAndVisibility)
 	EXPECT_TRUE(handle1 != NULL);
 	EXPECT_EQ(0, terse_move_to(handle1, 4, 7));
 	EXPECT_EQ(0, terse_show_cursor(handle1, 0));
-	EXPECT_EQ(0, terse_set_style(handle1, TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE));
+	terse_style_t capture_style = make_effects_style(TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE);
+	EXPECT_EQ(0, terse_set_style(handle1, &capture_style));
 	terse_state_t state;
 	EXPECT_EQ(0, terse_capture_state(handle1, &state));
 	terse_close(handle1);
@@ -450,15 +485,17 @@ TEST(TerseSetStyle, EmitsSequences_WhenTextStylesEnabled)
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
 	EXPECT_TRUE(handle != NULL);
-	EXPECT_EQ(0, terse_set_style(handle, TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE));
+	terse_style_t bold_underline = make_effects_style(TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE);
+	EXPECT_EQ(0, terse_set_style(handle, &bold_underline));
 	char buf[64];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
 	EXPECT_TRUE(strstr(buf, "\x1b[0m") != NULL);
 	EXPECT_TRUE(strstr(buf, "\x1b[1;4m") != NULL);
-	EXPECT_EQ(0, terse_set_style(handle, TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE));
+	EXPECT_EQ(0, terse_set_style(handle, &bold_underline));
 	expect_no_bytes_available(fds[0]);
-	EXPECT_EQ(0, terse_set_style(handle, 0));
+	terse_style_t reset_style = terse_style_default();
+	EXPECT_EQ(0, terse_set_style(handle, &reset_style));
 	char buf2[32];
 	ssize_t n2 = read_pipe(fds[0], buf2, sizeof(buf2));
 	EXPECT_TRUE(n2 > 0);
@@ -473,11 +510,112 @@ TEST(TerseSetStyle, NoOutput_WhenCapabilityDisabled)
 	int fds[2];
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
-	EXPECT_EQ(0, terse_set_style(handle, TERSE_STYLE_BOLD));
+	terse_style_t bold_only = make_effects_style(TERSE_STYLE_BOLD);
+	EXPECT_EQ(0, terse_set_style(handle, &bold_only));
 	expect_no_bytes_available(fds[0]);
 	terse_error_info_t err = terse_get_last_error(handle);
 	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
 	EXPECT_EQ(0, err.code);
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseSetStyle, EmitsBasicColorSequence)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = TERSE_CAP_ENABLE_SGR_BASIC
+	};
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	terse_style_t red = make_basic_foreground_style(TERSE_BASIC_COLOR_RED, 0);
+	EXPECT_EQ(0, terse_set_style(handle, &red));
+	char buf[64];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[0m") != NULL);
+	EXPECT_TRUE(strstr(buf, "\x1b[31m") != NULL);
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseSetStyle, DegradesPaletteToBasicWhenOnlyBasicSupported)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = TERSE_CAP_ENABLE_SGR_BASIC
+	};
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	terse_style_t palette_red = make_palette_foreground_style(196);
+	EXPECT_EQ(0, terse_set_style(handle, &palette_red));
+	char buf[64];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[0m") != NULL);
+	EXPECT_TRUE(strstr(buf, "\x1b[91m") != NULL);
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseSetStyle, EmitsPaletteColorSequence)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = TERSE_CAP_ENABLE_SGR_EXTENDED
+	};
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	terse_style_t palette = make_palette_foreground_style(82);
+	EXPECT_EQ(0, terse_set_style(handle, &palette));
+	char buf[64];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[0m") != NULL);
+	EXPECT_TRUE(strstr(buf, "\x1b[38;5;82m") != NULL);
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseSetStyle, EmitsTruecolorSequence)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = TERSE_CAP_ENABLE_TRUECOLOR
+	};
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle != NULL);
+	terse_style_t truecolor = make_truecolor_style(12, 34, 200);
+	EXPECT_EQ(0, terse_set_style(handle, &truecolor));
+	char buf[96];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[0m") != NULL);
+	EXPECT_TRUE(strstr(buf, "\x1b[38;2;12;34;200m") != NULL);
 	terse_close(handle);
 	close(fds[0]);
 	close(fds[1]);

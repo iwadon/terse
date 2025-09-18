@@ -55,13 +55,16 @@ static void render_line(terse_handle_t handle, int row, const char *prompt, cons
 	if (terse_clear_line(handle, TERSE_CLEAR_AFTER) < 0) {
 		print_error(handle, "clear_line");
 	}
-	if (terse_set_style(handle, TERSE_STYLE_BOLD) < 0) {
+	terse_style_t bold = terse_style_default();
+	bold.effects = TERSE_STYLE_BOLD;
+	if (terse_set_style(handle, &bold) < 0) {
 		print_error(handle, "set_style");
 	}
 	if (terse_write_text(handle, prompt) < 0) {
 		print_error(handle, "write_text");
 	}
-	if (terse_set_style(handle, 0) < 0) {
+	terse_style_t reset = terse_style_default();
+	if (terse_set_style(handle, &reset) < 0) {
 		print_error(handle, "reset_style");
 	}
 	if (terse_write_text(handle, buffer) < 0) {

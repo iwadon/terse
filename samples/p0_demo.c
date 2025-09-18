@@ -16,13 +16,15 @@ static void print_error(const char *label, terse_handle_t handle)
 	}
 }
 
-static void write_line(terse_handle_t handle, int row, int col, unsigned int style, const char *text)
+static void write_line(terse_handle_t handle, int row, int col, unsigned int effects, const char *text)
 {
 	if (terse_move_to(handle, row, col) < 0) {
 		print_error("move_to", handle);
 		return;
 	}
-	if (terse_set_style(handle, style) < 0) {
+	terse_style_t style = terse_style_default();
+	style.effects = effects;
+	if (terse_set_style(handle, &style) < 0) {
 		print_error("set_style", handle);
 	}
 	if (terse_write_text(handle, text) < 0) {
@@ -39,7 +41,8 @@ static void demo_output(terse_handle_t handle)
 	write_line(handle, 5, 1, TERSE_STYLE_ITALIC | TERSE_STYLE_STRIKE, "Italic + Strike");
 	wait_briefly();
 	write_line(handle, 7, 1, 0, "Back to normal");
-	if (terse_set_style(handle, 0) < 0) {
+	terse_style_t reset = terse_style_default();
+	if (terse_set_style(handle, &reset) < 0) {
 		print_error("reset_style", handle);
 	}
 }
