@@ -53,3 +53,7 @@ add_test(NAME c.terse_clipboard_test COMMAND terse_clipboard_test)
 add_executable(terse_image_test unit/terse_image_test.c)
 target_link_libraries(terse_image_test PRIVATE terse)
 add_test(NAME c.terse_image_test COMMAND terse_image_test)
+
+add_executable(terse_notification_test unit/terse_notification_test.c)
+target_link_libraries(terse_notification_test PRIVATE terse)
+add_test(NAME c.terse_notification_test COMMAND terse_notification_test)

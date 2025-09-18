@@ -62,6 +62,18 @@ typedef enum terse_image_support {
 	TERSE_IMAGE_ITERM_INLINE
 } terse_image_support_t;
 
+typedef enum terse_notification_kind {
+	TERSE_NOTIFICATION_KIND_BELL = 0,
+	TERSE_NOTIFICATION_KIND_VISUAL,
+	TERSE_NOTIFICATION_KIND_DESKTOP
+} terse_notification_kind_t;
+
+enum {
+	TERSE_NOTIFICATION_SUPPORT_BELL = 1u << 0,
+	TERSE_NOTIFICATION_SUPPORT_VISUAL = 1u << 1,
+	TERSE_NOTIFICATION_SUPPORT_DESKTOP = 1u << 2
+};
+
 typedef struct terse_color {
 	terse_color_kind_t kind;
 	union {
@@ -114,6 +126,7 @@ typedef struct terse_capabilities {
 	unsigned int effects;
 	int has_clipboard_write;
 	terse_image_support_t images;
+	unsigned int notifications;
 } terse_capabilities_t;
 
 typedef enum terse_capability_flag {
@@ -135,6 +148,9 @@ typedef enum terse_capability_flag {
 	TERSE_CAP_DISABLE_CURSOR_SHAPE = 1u << 15,
 	TERSE_CAP_DISABLE_CLIPBOARD_WRITE = 1u << 16,
 	TERSE_CAP_DISABLE_IMAGE_INLINE = 1u << 17,
+	TERSE_CAP_DISABLE_NOTIFICATION_BELL = 1u << 18,
+	TERSE_CAP_DISABLE_NOTIFICATION_VISUAL = 1u << 19,
+	TERSE_CAP_DISABLE_NOTIFICATION_DESKTOP = 1u << 20,
 } terse_capability_flag_t;
 
 typedef enum terse_capability_enable_flag {
@@ -148,7 +164,10 @@ typedef enum terse_capability_enable_flag {
 	TERSE_CAP_ENABLE_HYPERLINK = 1u << 7,
 	TERSE_CAP_ENABLE_CURSOR_SHAPE = 1u << 8,
 	TERSE_CAP_ENABLE_CLIPBOARD_WRITE = 1u << 9,
-	TERSE_CAP_ENABLE_IMAGE_INLINE = 1u << 10
+	TERSE_CAP_ENABLE_IMAGE_INLINE = 1u << 10,
+	TERSE_CAP_ENABLE_NOTIFICATION_BELL = 1u << 11,
+	TERSE_CAP_ENABLE_NOTIFICATION_VISUAL = 1u << 12,
+	TERSE_CAP_ENABLE_NOTIFICATION_DESKTOP = 1u << 13
 } terse_capability_enable_flag_t;
 
 typedef struct terse_options {
@@ -303,5 +322,6 @@ int terse_set_hyperlink(terse_handle_t handle, const char *url, const char *labe
 int terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, int blinking);
 int terse_set_clipboard(terse_handle_t handle, const char *data);
 int terse_display_image_inline(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
+int terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const char *payload);
 
 #endif // TERSE_H_INCLUDED

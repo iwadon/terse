@@ -1092,6 +1092,12 @@ try {
   - `kind={bell, visual_bell, desktop_notification}`（対応端末・統合環境でのみ有効）
 - 縮退：未対応時は無効果。
 - 能力：`capabilities.notifications`：`{none, bell, visual, desktop}`（複合可）
+- 実装想定（macOS）：
+  - `bell` は BEL (`\x07`) 送出。
+  - `visual_bell` は `CSI ?5h` → `CSI ?5l` で画面反転フラッシュを誘発。
+  - `desktop_notification` は `OSC 9;1;{payload}` + BEL で通知センター連携を狙う。
+- ペイロードは BEL (`\x07`)・ESC (`\x1b`) を含めないこと（制御列崩壊防止）。
+- macOS版ライブラリは P3 の通知系オプションを明示オプトイン (`TERSE_CAP_ENABLE_NOTIFICATION_*`) した場合に限り上記制御列を送出する。
 
 ### tmux/screen 等の多重化対策
 

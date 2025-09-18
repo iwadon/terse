@@ -516,6 +516,7 @@ make_p0_capabilities(void)
 		.effects = 0,
 		.has_clipboard_write = 0,
 		.images = TERSE_IMAGE_NONE,
+		.notifications = 0,
 	};
 	return caps;
 }
@@ -673,6 +674,15 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	if (disabled & TERSE_CAP_DISABLE_IMAGE_INLINE) {
 		handle->capabilities.images = TERSE_IMAGE_NONE;
 	}
+	if (disabled & TERSE_CAP_DISABLE_NOTIFICATION_BELL) {
+		handle->capabilities.notifications &= ~TERSE_NOTIFICATION_SUPPORT_BELL;
+	}
+	if (disabled & TERSE_CAP_DISABLE_NOTIFICATION_VISUAL) {
+		handle->capabilities.notifications &= ~TERSE_NOTIFICATION_SUPPORT_VISUAL;
+	}
+	if (disabled & TERSE_CAP_DISABLE_NOTIFICATION_DESKTOP) {
+		handle->capabilities.notifications &= ~TERSE_NOTIFICATION_SUPPORT_DESKTOP;
+	}
 	unsigned int enabled = handle->options.enabled_caps;
 	if (enabled & TERSE_CAP_ENABLE_SGR_BASIC) {
 		handle->capabilities.has_sgr_basic = 1;
@@ -706,6 +716,15 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	}
 	if (enabled & TERSE_CAP_ENABLE_IMAGE_INLINE) {
 		handle->capabilities.images = TERSE_IMAGE_ITERM_INLINE;
+	}
+	if (enabled & TERSE_CAP_ENABLE_NOTIFICATION_BELL) {
+		handle->capabilities.notifications |= TERSE_NOTIFICATION_SUPPORT_BELL;
+	}
+	if (enabled & TERSE_CAP_ENABLE_NOTIFICATION_VISUAL) {
+		handle->capabilities.notifications |= TERSE_NOTIFICATION_SUPPORT_VISUAL;
+	}
+	if (enabled & TERSE_CAP_ENABLE_NOTIFICATION_DESKTOP) {
+		handle->capabilities.notifications |= TERSE_NOTIFICATION_SUPPORT_DESKTOP;
 	}
 	if (handle->capabilities.has_truecolor) {
 		handle->capabilities.colors = TERSE_COLOR_TRUECOLOR;
@@ -820,6 +839,20 @@ write_sequence(terse_handle_t handle, const char *sequence, size_t length)
 		clear_error(handle);
 	}
 	return out;
+}
+
+static int
+payload_has_disallowed_chars(const char *payload)
+{
+	if (!payload) {
+		return 0;
+	}
+	for (const unsigned char *p = (const unsigned char *)payload; *p; ++p) {
+		if (*p == 0x07 || *p == 0x1b) {
+			return 1;
+		}
+	}
+	return 0;
 }
 
 static void
@@ -1806,10 +1839,10 @@ int terse_display_image_inline(terse_handle_t handle, const unsigned char *data,
 	}
 	char header[256];
 	int header_len = snprintf(header,
-	    sizeof(header),
-	    "\x1b]1337;File=name=%s;size=%zu;inline=1:",
-	    name_encoded,
-	    size);
+		sizeof(header),
+		"\x1b]1337;File=name=%s;size=%zu;inline=1:",
+		name_encoded,
+		size);
 	free(name_encoded);
 	if (header_len <= 0 || (size_t)header_len >= sizeof(header)) {
 		free(data_encoded);
@@ -1826,6 +1859,64 @@ int terse_display_image_inline(terse_handle_t handle, const unsigned char *data,
 		return -handle->last_errno;
 	}
 	free(data_encoded);
+	if (write_literal(handle, "\x07") < 0) {
+		return -handle->last_errno;
+	}
+	clear_error(handle);
+	return 0;
+}
+
+int terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const char *payload)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	unsigned int required = 0;
+	switch (kind) {
+	case TERSE_NOTIFICATION_KIND_BELL:
+		required = TERSE_NOTIFICATION_SUPPORT_BELL;
+		break;
+	case TERSE_NOTIFICATION_KIND_VISUAL:
+		required = TERSE_NOTIFICATION_SUPPORT_VISUAL;
+		break;
+	case TERSE_NOTIFICATION_KIND_DESKTOP:
+		required = TERSE_NOTIFICATION_SUPPORT_DESKTOP;
+		break;
+	default:
+		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+		return -EINVAL;
+	}
+	if (!handle->capabilities.has_basic_output || (handle->capabilities.notifications & required) == 0) {
+		clear_error(handle);
+		return 0;
+	}
+	if (kind == TERSE_NOTIFICATION_KIND_DESKTOP) {
+		if (!payload || payload_has_disallowed_chars(payload)) {
+			errno = EINVAL;
+			set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+			return -EINVAL;
+		}
+		if (write_literal(handle, "\x1b]9;1;") < 0) {
+			return -handle->last_errno;
+		}
+		if (write_sequence(handle, payload, strlen(payload)) < 0) {
+			return -handle->last_errno;
+		}
+		if (write_literal(handle, "\x07") < 0) {
+			return -handle->last_errno;
+		}
+		clear_error(handle);
+		return 0;
+	}
+	if (kind == TERSE_NOTIFICATION_KIND_VISUAL) {
+		if (write_literal(handle, "\x1b[?5h\x1b[?5l") < 0) {
+			return -handle->last_errno;
+		}
+		clear_error(handle);
+		return 0;
+	}
 	if (write_literal(handle, "\x07") < 0) {
 		return -handle->last_errno;
 	}
