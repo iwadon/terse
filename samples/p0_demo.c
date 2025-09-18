@@ -3,6 +3,17 @@
 #include <stdio.h>
 #include <unistd.h>
 
+static const char *const k_basic_names[8] = {
+	"Blk",
+	"Red",
+	"Grn",
+	"Yel",
+	"Blu",
+	"Mag",
+	"Cyn",
+	"Wht",
+};
+
 static void wait_briefly(void)
 {
 	usleep(200000); // 200ms for visual effect
@@ -43,6 +54,54 @@ static void demo_output(terse_handle_t handle)
 	write_line(handle, 7, 1, 0, "Back to normal");
 	if (terse_reset_style(handle, TERSE_RESET_ALL) < 0) {
 		print_error("reset_style", handle);
+	}
+}
+
+static void demo_color_grid(terse_handle_t handle)
+{
+	const int row_start = 11;
+	if (terse_move_to(handle, row_start, 1) < 0) {
+		print_error("move_to", handle);
+		return;
+	}
+	if (terse_write_text(handle, "Basic16 foreground/background combinations") < 0) {
+		print_error("write_text", handle);
+	}
+	for (int bg_bright = 0; bg_bright < 2; ++bg_bright) {
+		for (int bg = 0; bg < 8; ++bg) {
+			int row = row_start + 2 + bg + (bg_bright * 9);
+			if (terse_move_to(handle, row, 1) < 0) {
+				print_error("move_to", handle);
+				continue;
+			}
+			if (terse_reset_style(handle, TERSE_RESET_ALL) < 0) {
+				print_error("reset_style", handle);
+			}
+			char label[32];
+			snprintf(label, sizeof(label), "BG %s%s ", bg_bright ? "Hi" : "Lo", k_basic_names[bg]);
+			if (terse_write_text(handle, label) < 0) {
+				print_error("write_text", handle);
+			}
+			for (int fg_bright = 0; fg_bright < 2; ++fg_bright) {
+				for (int fg = 0; fg < 8; ++fg) {
+					terse_style_t style = terse_style_default();
+					style.foreground = terse_color_basic((terse_basic_color_t)fg, fg_bright);
+					style.background = terse_color_basic((terse_basic_color_t)bg, bg_bright);
+					if (terse_set_style(handle, &style) < 0) {
+						print_error("set_style", handle);
+						continue;
+					}
+					char cell[16];
+					snprintf(cell, sizeof(cell), " %s%s ", fg_bright ? "Hi" : "Lo", k_basic_names[fg]);
+					if (terse_write_text(handle, cell) < 0) {
+						print_error("write_text", handle);
+					}
+				}
+			}
+			if (terse_reset_style(handle, TERSE_RESET_ALL) < 0) {
+				print_error("reset_style", handle);
+			}
+		}
 	}
 }
 
@@ -97,7 +156,7 @@ int main(void)
 		.output_fd = STDOUT_FILENO,
 		.codec_name = "UTF-8",
 		.disabled_caps = 0,
-		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES
+		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES | TERSE_CAP_ENABLE_SGR_BASIC
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
@@ -114,6 +173,7 @@ int main(void)
 	}
 
 	demo_output(handle);
+	demo_color_grid(handle);
 	demo_restore(handle);
 	demo_read_events(handle);
 

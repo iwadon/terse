@@ -213,6 +213,7 @@ function setup_mouse_if_supported() {
 
 - **有効化**: スタイル関連を利用する場合は `terse_options_t.enabled_caps` に `TERSE_CAP_ENABLE_TEXT_STYLES` を指定する。色は `TERSE_CAP_ENABLE_SGR_BASIC` / `TERSE_CAP_ENABLE_SGR_EXTENDED` / `TERSE_CAP_ENABLE_TRUECOLOR` で段階的に有効化。
 - **スタイル設定**: `terse_style_t style = terse_style_default();` で初期化し、`style.effects` に `TERSE_STYLE_*` ビットを立てる。色を指定する場合は `style.foreground` / `style.background` に `kind={BASIC16,PALETTE256,TRUECOLOR}` を設定して `terse_set_style(handle, &style)` を呼ぶ。
+- **色ヘルパ**: `terse_color_basic(color, bright)` / `terse_color_palette(index)` / `terse_color_truecolor(r,g,b)` を使うと `terse_color_t` を安全に構築できる。
 - **縮退動作**: 対応していない色/装飾は自動で下位互換に縮退（例: TrueColor→256→16→既定色）。機能無効時は No-op で成功し、`terse_get_last_error` に値が残ることはない。
 - **状態復元**: `terse_capture_state` / `terse_restore_state` でカーソル位置・表示と同時にスタイル状態を保存/復元できる。
   - スタイルが未知の場合は `restore` 時にリセット（`0m`）および指定スタイルを再適用。

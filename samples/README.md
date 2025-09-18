@@ -4,6 +4,7 @@
 
 - opens a handle with text-styles enabled via `enabled_caps`
 - moves the cursor, writes text, and toggles styles by building `terse_style_t` values for `terse_set_style`
+- renders a basic-16 foreground/background grid using `terse_color_basic`
 - resets styling with `terse_reset_style(handle, TERSE_RESET_ALL)` when returning to defaults
 - captures and restores state (cursor position/visibility + styles)
 - reads events in a simple loop, illustrating `TERSE_EVENT_NONE` and character events
@@ -24,6 +25,7 @@ cc -I../c/include -L../build/c -lterse p0_demo.c -o p0_demo
 
 - enable text styles via `TERSE_CAP_ENABLE_TEXT_STYLES`
 - construct `terse_style_t` (set `effects` / colors) and pass it to `terse_set_style`
+- explore color combinations with `terse_color_basic`
 - call `terse_reset_style` with an appropriate scope when restoring defaults
 - capture/restore style state together with cursor position
 

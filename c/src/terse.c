@@ -167,6 +167,45 @@ terse_color_default(void)
 	return color;
 }
 
+terse_color_t
+terse_color_basic(terse_basic_color_t color, int bright)
+{
+	terse_color_t result = {
+		.kind = TERSE_COLOR_KIND_BASIC16,
+		.data.basic16 = {
+			.color = color,
+			.bright = bright ? 1 : 0,
+		},
+	};
+	return result;
+}
+
+terse_color_t
+terse_color_palette(unsigned char index)
+{
+	terse_color_t result = {
+		.kind = TERSE_COLOR_KIND_PALETTE256,
+		.data.palette = {
+			.value = index,
+		},
+	};
+	return result;
+}
+
+terse_color_t
+terse_color_truecolor(unsigned char r, unsigned char g, unsigned char b)
+{
+	terse_color_t result = {
+		.kind = TERSE_COLOR_KIND_TRUECOLOR,
+		.data.truecolor = {
+			.r = r,
+			.g = g,
+			.b = b,
+		},
+	};
+	return result;
+}
+
 terse_style_t
 terse_style_default(void)
 {

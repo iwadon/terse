@@ -59,27 +59,21 @@ static terse_style_t make_effects_style(unsigned int effects)
 static terse_style_t make_basic_foreground_style(terse_basic_color_t color, int bright)
 {
 	terse_style_t style = terse_style_default();
-	style.foreground.kind = TERSE_COLOR_KIND_BASIC16;
-	style.foreground.data.basic16.color = color;
-	style.foreground.data.basic16.bright = bright;
+	style.foreground = terse_color_basic(color, bright);
 	return style;
 }
 
 static terse_style_t make_palette_foreground_style(unsigned char index)
 {
 	terse_style_t style = terse_style_default();
-	style.foreground.kind = TERSE_COLOR_KIND_PALETTE256;
-	style.foreground.data.palette.value = index;
+	style.foreground = terse_color_palette(index);
 	return style;
 }
 
 static terse_style_t make_truecolor_style(unsigned char r, unsigned char g, unsigned char b)
 {
 	terse_style_t style = terse_style_default();
-	style.foreground.kind = TERSE_COLOR_KIND_TRUECOLOR;
-	style.foreground.data.truecolor.r = r;
-	style.foreground.data.truecolor.g = g;
-	style.foreground.data.truecolor.b = b;
+	style.foreground = terse_color_truecolor(r, g, b);
 	return style;
 }
 

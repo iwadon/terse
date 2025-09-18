@@ -240,6 +240,9 @@ int terse_capture_state(terse_handle_t handle, terse_state_t *out_state);
 int terse_restore_state(terse_handle_t handle, const terse_state_t *state);
 terse_style_t terse_style_default(void);
 terse_color_t terse_color_default(void);
+terse_color_t terse_color_basic(terse_basic_color_t color, int bright);
+terse_color_t terse_color_palette(unsigned char index);
+terse_color_t terse_color_truecolor(unsigned char r, unsigned char g, unsigned char b);
 int terse_set_style(terse_handle_t handle, const terse_style_t *style);
 int terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope);
 
