@@ -388,7 +388,7 @@ make_p0_capabilities(void)
 		.has_sgr_extended = 0,
 		.has_truecolor = 0,
 		.has_text_styles = 0,
-		.has_mouse_tracking = 0,
+		.mouse = TERSE_MOUSE_NONE,
 		.has_bracketed_paste = 0,
 		.has_title = 0,
 		.has_hyperlinks = 0,
@@ -531,7 +531,7 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 		handle->capabilities.has_text_styles = 0;
 	}
 	if (disabled & TERSE_CAP_DISABLE_MOUSE) {
-		handle->capabilities.has_mouse_tracking = 0;
+		handle->capabilities.mouse = TERSE_MOUSE_NONE;
 	}
 	if (disabled & TERSE_CAP_DISABLE_BRACKETED_PASTE) {
 		handle->capabilities.has_bracketed_paste = 0;
@@ -556,7 +556,7 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 		handle->capabilities.has_truecolor = 1;
 	}
 	if (enabled & TERSE_CAP_ENABLE_MOUSE) {
-		handle->capabilities.has_mouse_tracking = 1;
+		handle->capabilities.mouse = TERSE_MOUSE_SGR;
 	}
 	if (enabled & TERSE_CAP_ENABLE_BRACKETED_PASTE) {
 		handle->capabilities.has_bracketed_paste = 1;

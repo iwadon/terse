@@ -92,7 +92,7 @@ TEST(TerseCapabilities, DefaultsMatchP0)
 	EXPECT_EQ(0, caps.has_sgr_extended);
 	EXPECT_EQ(0, caps.has_truecolor);
 	EXPECT_EQ(0, caps.has_text_styles);
-	EXPECT_EQ(0, caps.has_mouse_tracking);
+	EXPECT_EQ(TERSE_MOUSE_NONE, caps.mouse);
 	EXPECT_EQ(0, caps.has_bracketed_paste);
 	EXPECT_EQ(0, caps.has_title);
 	EXPECT_EQ(0, caps.has_hyperlinks);

@@ -43,6 +43,13 @@ typedef enum terse_basic_color {
 	TERSE_BASIC_COLOR_WHITE
 } terse_basic_color_t;
 
+typedef enum terse_mouse_mode {
+	TERSE_MOUSE_NONE = 0,
+	TERSE_MOUSE_X10,
+	TERSE_MOUSE_VT200,
+	TERSE_MOUSE_SGR
+} terse_mouse_mode_t;
+
 typedef struct terse_color {
 	terse_color_kind_t kind;
 	union {
@@ -86,7 +93,7 @@ typedef struct terse_capabilities {
 	int has_sgr_extended;
 	int has_truecolor;
 	int has_text_styles;
-	int has_mouse_tracking;
+	terse_mouse_mode_t mouse;
 	int has_bracketed_paste;
 	int has_title;
 	int has_hyperlinks;
