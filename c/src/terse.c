@@ -9,7 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/ioctl.h>
+#include <termios.h>
 #include <unistd.h>
 
 #define TERSE_STYLE_ALL_SUPPORTED (TERSE_STYLE_BOLD | TERSE_STYLE_FAINT | TERSE_STYLE_ITALIC | TERSE_STYLE_UNDERLINE | TERSE_STYLE_INVERSE | TERSE_STYLE_BLINK | TERSE_STYLE_STRIKE)
@@ -44,6 +46,8 @@ static const terse_rgb_t basic16_rgb[16] = {
 	{ 255, 255, 255 },
 };
 
+static terse_capabilities_t make_p0_capabilities(void);
+
 static int
 color_kind_rank(terse_color_kind_t kind)
 {
@@ -59,6 +63,208 @@ color_kind_rank(terse_color_kind_t kind)
 	default:
 		return 0;
 	}
+}
+
+static size_t
+read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int timeout_ms)
+{
+	size_t total = 0;
+	int remaining = timeout_ms;
+	struct pollfd pfd = {
+		.fd = fd,
+		.events = POLLIN,
+	};
+	while (remaining >= 0 && total < capacity) {
+		int wait = remaining < 25 ? remaining : 25;
+		if (wait < 0) {
+			wait = 0;
+		}
+		int ready = poll(&pfd, 1, wait);
+		if (ready < 0) {
+			if (errno == EINTR) {
+				continue;
+			}
+			break;
+		}
+		if (ready == 0) {
+			remaining -= wait;
+			continue;
+		}
+		ssize_t n = read(fd, buffer + total, capacity - total);
+		if (n <= 0) {
+			break;
+		}
+		total += (size_t)n;
+		remaining -= wait;
+	}
+	return total;
+}
+
+static size_t
+probe_secondary_da(int input_fd, int output_fd, unsigned char *buffer, size_t capacity)
+{
+	if (!buffer || capacity == 0) {
+		return 0;
+	}
+	if (input_fd < 0 || output_fd < 0) {
+		return 0;
+	}
+	if (!isatty(input_fd) || !isatty(output_fd)) {
+		return 0;
+	}
+	struct termios original;
+	if (tcgetattr(input_fd, &original) != 0) {
+		return 0;
+	}
+	struct termios raw = original;
+	raw.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+	raw.c_oflag &= ~(OPOST);
+	raw.c_cflag |= CS8;
+	raw.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+	raw.c_cc[VMIN] = 0;
+	raw.c_cc[VTIME] = 0;
+	if (tcsetattr(input_fd, TCSANOW, &raw) != 0) {
+		return 0;
+	}
+	const char request[] = "\x1b[>0c";
+	if (write(output_fd, request, sizeof(request) - 1) < 0) {
+		(void)tcsetattr(input_fd, TCSANOW, &original);
+		return 0;
+	}
+	unsigned char local[128];
+	if (!buffer) {
+		buffer = local;
+	}
+	size_t length = read_bytes_with_timeout(input_fd, buffer, capacity, 200);
+	(void)tcsetattr(input_fd, TCSANOW, &original);
+	return length;
+}
+
+static int
+matches_da_prefix(const unsigned char *buffer, size_t length, const char *prefix)
+{
+	if (!buffer || length == 0 || !prefix) {
+		return 0;
+	}
+	size_t prefix_len = strlen(prefix);
+	if (prefix_len == 0 || length < prefix_len) {
+		return 0;
+	}
+	return memcmp(buffer, prefix, prefix_len) == 0;
+}
+
+static terse_capabilities_t
+make_terminal_app_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_p0_capabilities();
+	caps.profile = TERSE_P1;
+	caps.has_sgr_basic = 1;
+	caps.has_sgr_extended = 1;
+	caps.has_truecolor = has_truecolor ? 1 : 0;
+	caps.has_text_styles = 1;
+	caps.has_title = 1;
+	caps.notifications |= TERSE_NOTIFICATION_SUPPORT_BELL;
+	return caps;
+}
+
+static terse_capabilities_t
+make_vte_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_terminal_app_capabilities(has_truecolor);
+	caps.profile = TERSE_P2;
+	caps.mouse = TERSE_MOUSE_SGR;
+	caps.has_bracketed_paste = 1;
+	caps.has_hyperlinks = 1;
+	caps.has_cursor_shape = 1;
+	return caps;
+}
+
+static void
+clamp_capabilities_to_request(terse_capabilities_t *caps, terse_profile_t requested)
+{
+	if (!caps) {
+		return;
+	}
+	if (requested <= TERSE_P0) {
+		*caps = make_p0_capabilities();
+		return;
+	}
+	if (requested == TERSE_P1 && caps->profile > TERSE_P1) {
+		caps->profile = TERSE_P1;
+		caps->mouse = TERSE_MOUSE_NONE;
+		caps->has_bracketed_paste = 0;
+		caps->has_hyperlinks = 0;
+		caps->has_clipboard_write = 0;
+		caps->images = TERSE_IMAGE_NONE;
+		caps->notifications &= TERSE_NOTIFICATION_SUPPORT_BELL;
+	}
+	if (requested == TERSE_P2 && caps->profile > TERSE_P2) {
+		caps->profile = TERSE_P2;
+		caps->images = TERSE_IMAGE_NONE;
+		caps->notifications &= ~(TERSE_NOTIFICATION_SUPPORT_DESKTOP);
+	}
+}
+
+static terse_capabilities_t
+detect_environment_capabilities(terse_profile_t requested_profile, const terse_options_t *options)
+{
+	terse_capabilities_t caps = make_p0_capabilities();
+	if (requested_profile == TERSE_P0) {
+		return caps;
+	}
+	const char *term_program = getenv("TERM_PROGRAM");
+	const char *lc_terminal = getenv("LC_TERMINAL");
+	const char *colorterm = getenv("COLORTERM");
+	const char *gnome_screen = getenv("GNOME_TERMINAL_SCREEN");
+	const char *gnome_service = getenv("GNOME_TERMINAL_SERVICE");
+	const char *vte_version = getenv("VTE_VERSION");
+	const char *secondary_hint = getenv("TERSE_SECONDARY_DA_HINT");
+	unsigned char secondary[128];
+	memset(secondary, 0, sizeof(secondary));
+	size_t secondary_len = 0;
+	if (secondary_hint && *secondary_hint) {
+		size_t hint_len = strlen(secondary_hint);
+		if (hint_len > sizeof(secondary)) {
+			hint_len = sizeof(secondary);
+		}
+		memcpy(secondary, secondary_hint, hint_len);
+		secondary_len = hint_len;
+	} else if (options) {
+		secondary_len = probe_secondary_da(options->input_fd, options->output_fd, secondary, sizeof(secondary));
+	}
+	int has_truecolor = (colorterm && strcasecmp(colorterm, "truecolor") == 0) ? 1 : 0;
+	int is_terminal_app = 0;
+	if (term_program && strcmp(term_program, "Apple_Terminal") == 0) {
+		is_terminal_app = 1;
+	}
+	if (!is_terminal_app && lc_terminal && strcmp(lc_terminal, "Apple_Terminal") == 0) {
+		is_terminal_app = 1;
+	}
+	if (!is_terminal_app && matches_da_prefix(secondary, secondary_len, "\x1b[>1;95;0c")) {
+		is_terminal_app = 1;
+	}
+	if (is_terminal_app) {
+		caps = make_terminal_app_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_vte = 0;
+	if ((gnome_screen && *gnome_screen) || (gnome_service && *gnome_service) || (vte_version && *vte_version)) {
+		is_vte = 1;
+	}
+	if (!is_vte && matches_da_prefix(secondary, secondary_len, "\x1b[>61;")) {
+		is_vte = 1;
+	}
+	if (!is_vte && matches_da_prefix(secondary, secondary_len, "\x1b[>65;")) {
+		is_vte = 1;
+	}
+	if (is_vte) {
+		caps = make_vte_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	clamp_capabilities_to_request(&caps, requested_profile);
+	return caps;
 }
 
 static int
@@ -618,6 +824,7 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 		handle->options = default_options();
 	}
 	handle->size = make_unknown_size();
+	handle->capabilities = detect_environment_capabilities(handle->requested_profile, &handle->options);
 
 	unsigned int disabled = handle->options.disabled_caps;
 	if (disabled & TERSE_CAP_DISABLE_BASIC_OUTPUT) {
