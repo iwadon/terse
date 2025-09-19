@@ -69,17 +69,27 @@ static size_t
 read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int timeout_ms)
 {
 	size_t total = 0;
-	int remaining = timeout_ms;
 	struct pollfd pfd = {
 		.fd = fd,
 		.events = POLLIN,
 	};
-	while (remaining >= 0 && total < capacity) {
-		int wait = remaining < 25 ? remaining : 25;
-		if (wait < 0) {
-			wait = 0;
+	const int slice = 25;
+	int remaining = timeout_ms;
+	while (total < capacity) {
+		int poll_timeout;
+		int wait = slice;
+		if (timeout_ms < 0) {
+			poll_timeout = -1;
+		} else {
+			if (remaining <= 0) {
+				break;
+			}
+			if (remaining < slice) {
+				wait = remaining;
+			}
+			poll_timeout = wait;
 		}
-		int ready = poll(&pfd, 1, wait);
+		int ready = poll(&pfd, 1, poll_timeout);
 		if (ready < 0) {
 			if (errno == EINTR) {
 				continue;
@@ -87,7 +97,9 @@ read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int time
 			break;
 		}
 		if (ready == 0) {
-			remaining -= wait;
+			if (timeout_ms >= 0) {
+				remaining -= wait;
+			}
 			continue;
 		}
 		ssize_t n = read(fd, buffer + total, capacity - total);
@@ -95,7 +107,9 @@ read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int time
 			break;
 		}
 		total += (size_t)n;
-		remaining -= wait;
+		if (timeout_ms >= 0) {
+			remaining -= wait;
+		}
 	}
 	return total;
 }
@@ -225,6 +239,9 @@ clamp_capabilities_to_request(terse_capabilities_t *caps, terse_profile_t reques
 	if (!caps) {
 		return;
 	}
+	if (requested == TERSE_PROFILE_AUTO) {
+		return;
+	}
 	if (requested <= TERSE_P0) {
 		*caps = make_p0_capabilities();
 		return;
@@ -249,7 +266,8 @@ static terse_capabilities_t
 detect_environment_capabilities(terse_profile_t requested_profile, const terse_options_t *options)
 {
 	terse_capabilities_t caps = make_p0_capabilities();
-	if (requested_profile == TERSE_P0) {
+	int auto_requested = requested_profile == TERSE_PROFILE_AUTO;
+	if (!auto_requested && requested_profile == TERSE_P0) {
 		return caps;
 	}
 	const char *term = getenv("TERM");
@@ -907,7 +925,7 @@ refresh_size(terse_handle_t handle)
 terse_handle_t
 terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 {
-	if (requested_profile < TERSE_P0 || requested_profile > TERSE_P3) {
+	if (requested_profile != TERSE_PROFILE_AUTO && (requested_profile < TERSE_P0 || requested_profile > TERSE_P3)) {
 		return NULL;
 	}
 	if (terse_validate_options(options) < 0) {
