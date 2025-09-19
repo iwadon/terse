@@ -55,6 +55,13 @@ static void __test_fail_msg(const char *file, int line, const char *what)
 		}                                                                                   \
 	} while (0)
 
+#define EXPECT_NE(expected, actual)                                                                \
+	do {                                                                                           \
+		if ((expected) == (actual)) {                                                              \
+			__test_fail_msg(__FILE__, __LINE__, "expected " #expected " to differ from " #actual); \
+		}                                                                                          \
+	} while (0)
+
 static inline int RunAllTests(void)
 {
 	int total_tests = 0;

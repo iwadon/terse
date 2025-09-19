@@ -6,6 +6,7 @@
 typedef struct terse_handle *terse_handle_t;
 
 typedef enum terse_profile {
+	TERSE_PROFILE_AUTO = -1,
 	TERSE_P0 = 0,
 	TERSE_P1,
 	TERSE_P2,
@@ -203,6 +204,8 @@ enum {
 	TERSE_STYLE_STRIKE = 1u << 6
 };
 
+#define TERSE_STYLE_ALL_SUPPORTED (TERSE_STYLE_BOLD | TERSE_STYLE_FAINT | TERSE_STYLE_ITALIC | TERSE_STYLE_UNDERLINE | TERSE_STYLE_INVERSE | TERSE_STYLE_BLINK | TERSE_STYLE_STRIKE)
+
 typedef enum terse_mouse_button {
 	TERSE_MOUSE_BUTTON_NONE = 0,
 	TERSE_MOUSE_BUTTON_LEFT,
@@ -218,7 +221,10 @@ typedef enum terse_error_category {
 	TERSE_ERROR_PROTOCOL,
 	TERSE_ERROR_RESOURCE,
 	TERSE_ERROR_CONFIG,
-	TERSE_ERROR_STATE
+	TERSE_ERROR_STATE,
+	/* State history stack overflow/underflow */
+	TERSE_ERROR_STACK_OVERFLOW,
+	TERSE_ERROR_STACK_UNDERFLOW
 } terse_error_category_t;
 
 typedef struct terse_error_info {
@@ -291,6 +297,14 @@ terse_handle_t terse_open(terse_profile_t requested_profile, const terse_options
 void terse_close(terse_handle_t handle);
 
 terse_capabilities_t terse_get_capabilities(terse_handle_t handle);
+int terse_capabilities_enable(terse_handle_t handle, unsigned int enable_mask);
+int terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask);
+int terse_capabilities_reset_overrides(terse_handle_t handle);
+int terse_state_override(terse_handle_t handle, const terse_state_t *state);
+int terse_state_clear(terse_handle_t handle);
+// Stack helpers for temporary state snapshots.
+int terse_push_state(terse_handle_t handle);
+int terse_pop_state(terse_handle_t handle);
 
 int terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
 int terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);

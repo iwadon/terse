@@ -1,5 +1,10 @@
 #include "terse.h"
 
+/* State history stack depth macro.  Small for sanity, yet enough for
+ * typical nested UI layers.
+ */
+#define TERSE_STATE_STACK_MAX 8
+
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
@@ -13,8 +18,6 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
-
-#define TERSE_STYLE_ALL_SUPPORTED (TERSE_STYLE_BOLD | TERSE_STYLE_FAINT | TERSE_STYLE_ITALIC | TERSE_STYLE_UNDERLINE | TERSE_STYLE_INVERSE | TERSE_STYLE_BLINK | TERSE_STYLE_STRIKE)
 
 static const char TERSE_RESET_ALL_SEQ[] = "\x1b[0m";
 static const char TERSE_RESET_COLOR_SEQ[] = "\x1b[39;49m";
@@ -69,17 +72,27 @@ static size_t
 read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int timeout_ms)
 {
 	size_t total = 0;
-	int remaining = timeout_ms;
 	struct pollfd pfd = {
 		.fd = fd,
 		.events = POLLIN,
 	};
-	while (remaining >= 0 && total < capacity) {
-		int wait = remaining < 25 ? remaining : 25;
-		if (wait < 0) {
-			wait = 0;
+	const int slice = 25;
+	int remaining = timeout_ms;
+	while (total < capacity) {
+		int poll_timeout;
+		int wait = slice;
+		if (timeout_ms < 0) {
+			poll_timeout = -1;
+		} else {
+			if (remaining <= 0) {
+				break;
+			}
+			if (remaining < slice) {
+				wait = remaining;
+			}
+			poll_timeout = wait;
 		}
-		int ready = poll(&pfd, 1, wait);
+		int ready = poll(&pfd, 1, poll_timeout);
 		if (ready < 0) {
 			if (errno == EINTR) {
 				continue;
@@ -87,7 +100,9 @@ read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int time
 			break;
 		}
 		if (ready == 0) {
-			remaining -= wait;
+			if (timeout_ms >= 0) {
+				remaining -= wait;
+			}
 			continue;
 		}
 		ssize_t n = read(fd, buffer + total, capacity - total);
@@ -95,7 +110,9 @@ read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int time
 			break;
 		}
 		total += (size_t)n;
-		remaining -= wait;
+		if (timeout_ms >= 0) {
+			remaining -= wait;
+		}
 	}
 	return total;
 }
@@ -179,10 +196,61 @@ make_vte_capabilities(int has_truecolor)
 	return caps;
 }
 
+static terse_capabilities_t
+make_iterm_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.has_clipboard_write = 1;
+	caps.images = TERSE_IMAGE_ITERM_INLINE;
+	caps.notifications |= TERSE_NOTIFICATION_SUPPORT_DESKTOP;
+	return caps;
+}
+
+static terse_capabilities_t
+make_wezterm_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.has_clipboard_write = 1;
+	caps.images = TERSE_IMAGE_ITERM_INLINE;
+	caps.notifications |= TERSE_NOTIFICATION_SUPPORT_DESKTOP;
+	return caps;
+}
+
+static terse_capabilities_t
+make_kitty_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.has_clipboard_write = 1;
+	return caps;
+}
+
+static terse_capabilities_t
+make_ghostty_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.has_clipboard_write = 1;
+	return caps;
+}
+
+static terse_capabilities_t
+make_warp_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_terminal_app_capabilities(has_truecolor);
+	caps.profile = TERSE_P1;
+	return caps;
+}
+
 static void
 clamp_capabilities_to_request(terse_capabilities_t *caps, terse_profile_t requested)
 {
 	if (!caps) {
+		return;
+	}
+	if (requested == TERSE_PROFILE_AUTO) {
 		return;
 	}
 	if (requested <= TERSE_P0) {
@@ -209,9 +277,11 @@ static terse_capabilities_t
 detect_environment_capabilities(terse_profile_t requested_profile, const terse_options_t *options)
 {
 	terse_capabilities_t caps = make_p0_capabilities();
-	if (requested_profile == TERSE_P0) {
+	int auto_requested = requested_profile == TERSE_PROFILE_AUTO;
+	if (!auto_requested && requested_profile == TERSE_P0) {
 		return caps;
 	}
+	const char *term = getenv("TERM");
 	const char *term_program = getenv("TERM_PROGRAM");
 	const char *lc_terminal = getenv("LC_TERMINAL");
 	const char *colorterm = getenv("COLORTERM");
@@ -248,6 +318,33 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
+	int is_warp = 0;
+	if (term_program && strcmp(term_program, "WarpTerminal") == 0) {
+		is_warp = 1;
+	}
+	if (!is_warp && matches_da_prefix(secondary, secondary_len, "\x1b[>0;95;0c")) {
+		is_warp = 1;
+	}
+	if (is_warp) {
+		caps = make_warp_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_iterm = 0;
+	if (term_program && strcmp(term_program, "iTerm.app") == 0) {
+		is_iterm = 1;
+	}
+	if (!is_iterm && lc_terminal && strcmp(lc_terminal, "iTerm2") == 0) {
+		is_iterm = 1;
+	}
+	if (!is_iterm && matches_da_prefix(secondary, secondary_len, "\x1b[>64;")) {
+		is_iterm = 1;
+	}
+	if (is_iterm) {
+		caps = make_iterm_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
 	int is_vte = 0;
 	if ((gnome_screen && *gnome_screen) || (gnome_service && *gnome_service) || (vte_version && *vte_version)) {
 		is_vte = 1;
@@ -260,6 +357,57 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	}
 	if (is_vte) {
 		caps = make_vte_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_wezterm = 0;
+	if (term_program && strcmp(term_program, "WezTerm") == 0) {
+		is_wezterm = 1;
+	}
+	if (!is_wezterm) {
+		const char *wezexec = getenv("WEZTERM_EXECUTABLE");
+		if (wezexec && *wezexec) {
+			is_wezterm = 1;
+		}
+	}
+	if (!is_wezterm && matches_da_prefix(secondary, secondary_len, "\x1b[>1;277;")) {
+		is_wezterm = 1;
+	}
+	if (is_wezterm) {
+		caps = make_wezterm_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_kitty = 0;
+	if (term && strcmp(term, "xterm-kitty") == 0) {
+		is_kitty = 1;
+	}
+	if (!is_kitty) {
+		const char *kitty_pid = getenv("KITTY_PID");
+		if (kitty_pid && *kitty_pid) {
+			is_kitty = 1;
+		}
+	}
+	if (!is_kitty && matches_da_prefix(secondary, secondary_len, "\x1b[>1;4000;")) {
+		is_kitty = 1;
+	}
+	if (is_kitty) {
+		caps = make_kitty_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_ghostty = 0;
+	if (term && strcmp(term, "xterm-ghostty") == 0) {
+		is_ghostty = 1;
+	}
+	if (!is_ghostty && term_program && strcmp(term_program, "ghostty") == 0) {
+		is_ghostty = 1;
+	}
+	if (!is_ghostty && matches_da_prefix(secondary, secondary_len, "\x1b[>1;10;")) {
+		is_ghostty = 1;
+	}
+	if (is_ghostty) {
+		caps = make_ghostty_capabilities(has_truecolor);
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
@@ -543,6 +691,7 @@ make_effective_style(const terse_capabilities_t *caps, const terse_style_t *requ
 struct terse_handle {
 	terse_profile_t requested_profile;
 	terse_capabilities_t capabilities;
+	terse_capabilities_t detected_capabilities;
 	terse_options_t options;
 	terse_size_t size;
 	int cursor_visible;
@@ -558,6 +707,11 @@ struct terse_handle {
 	int paste_enabled;
 	terse_error_category_t last_error;
 	int last_errno;
+	unsigned int runtime_enabled;
+	unsigned int runtime_disabled;
+    // State history
+    terse_state_t state_stack[TERSE_STATE_STACK_MAX];
+    int state_stack_top; // -1 when empty
 };
 
 static void
@@ -565,6 +719,236 @@ update_effective_style(terse_handle_t handle)
 {
 	handle->effective_style = make_effective_style(&handle->capabilities, &handle->style);
 	handle->style_known = 1;
+}
+
+static unsigned int
+disable_mask_from_enable(unsigned int enable_mask)
+{
+	unsigned int mask = 0;
+	if (enable_mask & TERSE_CAP_ENABLE_SGR_BASIC) {
+		mask |= TERSE_CAP_DISABLE_SGR_BASIC;
+	}
+	if (enable_mask & TERSE_CAP_ENABLE_TEXT_STYLES) {
+		mask |= TERSE_CAP_DISABLE_TEXT_STYLES;
+	}
+	if (enable_mask & TERSE_CAP_ENABLE_SGR_EXTENDED) {
+		mask |= TERSE_CAP_DISABLE_SGR_EXTENDED;
+	}
+	if (enable_mask & TERSE_CAP_ENABLE_TRUECOLOR) {
+		mask |= TERSE_CAP_DISABLE_TRUECOLOR;
+	}
+	if (enable_mask & TERSE_CAP_ENABLE_MOUSE) {
+		mask |= TERSE_CAP_DISABLE_MOUSE;
+	}
+	if (enable_mask & TERSE_CAP_ENABLE_BRACKETED_PASTE) {
+		mask |= TERSE_CAP_DISABLE_BRACKETED_PASTE;
+	}
+	if (enable_mask & TERSE_CAP_ENABLE_TITLE) {
+		mask |= TERSE_CAP_DISABLE_TITLE;
+	}
+	if (enable_mask & TERSE_CAP_ENABLE_HYPERLINK) {
+		mask |= TERSE_CAP_DISABLE_HYPERLINK;
+	}
+	if (enable_mask & TERSE_CAP_ENABLE_CURSOR_SHAPE) {
+		mask |= TERSE_CAP_DISABLE_CURSOR_SHAPE;
+	}
+	if (enable_mask & TERSE_CAP_ENABLE_CLIPBOARD_WRITE) {
+		mask |= TERSE_CAP_DISABLE_CLIPBOARD_WRITE;
+	}
+	if (enable_mask & TERSE_CAP_ENABLE_IMAGE_INLINE) {
+		mask |= TERSE_CAP_DISABLE_IMAGE_INLINE;
+	}
+	if (enable_mask & TERSE_CAP_ENABLE_NOTIFICATION_BELL) {
+		mask |= TERSE_CAP_DISABLE_NOTIFICATION_BELL;
+	}
+	if (enable_mask & TERSE_CAP_ENABLE_NOTIFICATION_VISUAL) {
+		mask |= TERSE_CAP_DISABLE_NOTIFICATION_VISUAL;
+	}
+	if (enable_mask & TERSE_CAP_ENABLE_NOTIFICATION_DESKTOP) {
+		mask |= TERSE_CAP_DISABLE_NOTIFICATION_DESKTOP;
+	}
+	return mask;
+}
+
+static unsigned int
+enable_mask_from_disable(unsigned int disable_mask)
+{
+	unsigned int mask = 0;
+	if (disable_mask & TERSE_CAP_DISABLE_SGR_BASIC) {
+		mask |= TERSE_CAP_ENABLE_SGR_BASIC;
+	}
+	if (disable_mask & TERSE_CAP_DISABLE_TEXT_STYLES) {
+		mask |= TERSE_CAP_ENABLE_TEXT_STYLES;
+	}
+	if (disable_mask & TERSE_CAP_DISABLE_SGR_EXTENDED) {
+		mask |= TERSE_CAP_ENABLE_SGR_EXTENDED;
+	}
+	if (disable_mask & TERSE_CAP_DISABLE_TRUECOLOR) {
+		mask |= TERSE_CAP_ENABLE_TRUECOLOR;
+	}
+	if (disable_mask & TERSE_CAP_DISABLE_MOUSE) {
+		mask |= TERSE_CAP_ENABLE_MOUSE;
+	}
+	if (disable_mask & TERSE_CAP_DISABLE_BRACKETED_PASTE) {
+		mask |= TERSE_CAP_ENABLE_BRACKETED_PASTE;
+	}
+	if (disable_mask & TERSE_CAP_DISABLE_TITLE) {
+		mask |= TERSE_CAP_ENABLE_TITLE;
+	}
+	if (disable_mask & TERSE_CAP_DISABLE_HYPERLINK) {
+		mask |= TERSE_CAP_ENABLE_HYPERLINK;
+	}
+	if (disable_mask & TERSE_CAP_DISABLE_CURSOR_SHAPE) {
+		mask |= TERSE_CAP_ENABLE_CURSOR_SHAPE;
+	}
+	if (disable_mask & TERSE_CAP_DISABLE_CLIPBOARD_WRITE) {
+		mask |= TERSE_CAP_ENABLE_CLIPBOARD_WRITE;
+	}
+	if (disable_mask & TERSE_CAP_DISABLE_IMAGE_INLINE) {
+		mask |= TERSE_CAP_ENABLE_IMAGE_INLINE;
+	}
+	if (disable_mask & TERSE_CAP_DISABLE_NOTIFICATION_BELL) {
+		mask |= TERSE_CAP_ENABLE_NOTIFICATION_BELL;
+	}
+	if (disable_mask & TERSE_CAP_DISABLE_NOTIFICATION_VISUAL) {
+		mask |= TERSE_CAP_ENABLE_NOTIFICATION_VISUAL;
+	}
+	if (disable_mask & TERSE_CAP_DISABLE_NOTIFICATION_DESKTOP) {
+		mask |= TERSE_CAP_ENABLE_NOTIFICATION_DESKTOP;
+	}
+	return mask;
+}
+
+static void
+recompute_capabilities(terse_handle_t handle)
+{
+	if (!handle) {
+		return;
+	}
+	handle->capabilities = handle->detected_capabilities;
+
+	unsigned int disabled = handle->options.disabled_caps | handle->runtime_disabled;
+	if (disabled & TERSE_CAP_DISABLE_BASIC_OUTPUT) {
+		handle->capabilities.has_basic_output = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_CURSOR_VISIBILITY) {
+		handle->capabilities.has_cursor_visibility = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_MOVE_ABSOLUTE) {
+		handle->capabilities.has_move_absolute = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_MOVE_RELATIVE) {
+		handle->capabilities.has_move_relative = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_CLEAR_LINE) {
+		handle->capabilities.has_clear_line = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_CLEAR_SCREEN) {
+		handle->capabilities.has_clear_screen = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_SIZE) {
+		handle->capabilities.has_size = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_SGR_BASIC) {
+		handle->capabilities.has_sgr_basic = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_SGR_EXTENDED) {
+		handle->capabilities.has_sgr_extended = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_TRUECOLOR) {
+		handle->capabilities.has_truecolor = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_TEXT_STYLES) {
+		handle->capabilities.has_text_styles = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_MOUSE) {
+		handle->capabilities.mouse = TERSE_MOUSE_NONE;
+	}
+	if (disabled & TERSE_CAP_DISABLE_BRACKETED_PASTE) {
+		handle->capabilities.has_bracketed_paste = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_TITLE) {
+		handle->capabilities.has_title = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_HYPERLINK) {
+		handle->capabilities.has_hyperlinks = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_CURSOR_SHAPE) {
+		handle->capabilities.has_cursor_shape = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_CLIPBOARD_WRITE) {
+		handle->capabilities.has_clipboard_write = 0;
+	}
+	if (disabled & TERSE_CAP_DISABLE_IMAGE_INLINE) {
+		handle->capabilities.images = TERSE_IMAGE_NONE;
+	}
+	if (disabled & TERSE_CAP_DISABLE_NOTIFICATION_BELL) {
+		handle->capabilities.notifications &= ~TERSE_NOTIFICATION_SUPPORT_BELL;
+	}
+	if (disabled & TERSE_CAP_DISABLE_NOTIFICATION_VISUAL) {
+		handle->capabilities.notifications &= ~TERSE_NOTIFICATION_SUPPORT_VISUAL;
+	}
+	if (disabled & TERSE_CAP_DISABLE_NOTIFICATION_DESKTOP) {
+		handle->capabilities.notifications &= ~TERSE_NOTIFICATION_SUPPORT_DESKTOP;
+	}
+
+	unsigned int enabled = handle->options.enabled_caps | handle->runtime_enabled;
+	if (enabled & TERSE_CAP_ENABLE_SGR_BASIC) {
+		handle->capabilities.has_sgr_basic = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_TEXT_STYLES) {
+		handle->capabilities.has_text_styles = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_SGR_EXTENDED) {
+		handle->capabilities.has_sgr_extended = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_TRUECOLOR) {
+		handle->capabilities.has_truecolor = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_MOUSE) {
+		handle->capabilities.mouse = TERSE_MOUSE_SGR;
+	}
+	if (enabled & TERSE_CAP_ENABLE_BRACKETED_PASTE) {
+		handle->capabilities.has_bracketed_paste = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_TITLE) {
+		handle->capabilities.has_title = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_HYPERLINK) {
+		handle->capabilities.has_hyperlinks = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_CURSOR_SHAPE) {
+		handle->capabilities.has_cursor_shape = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_CLIPBOARD_WRITE) {
+		handle->capabilities.has_clipboard_write = 1;
+	}
+	if (enabled & TERSE_CAP_ENABLE_IMAGE_INLINE) {
+		handle->capabilities.images = TERSE_IMAGE_ITERM_INLINE;
+	}
+	if (enabled & TERSE_CAP_ENABLE_NOTIFICATION_BELL) {
+		handle->capabilities.notifications |= TERSE_NOTIFICATION_SUPPORT_BELL;
+	}
+	if (enabled & TERSE_CAP_ENABLE_NOTIFICATION_VISUAL) {
+		handle->capabilities.notifications |= TERSE_NOTIFICATION_SUPPORT_VISUAL;
+	}
+	if (enabled & TERSE_CAP_ENABLE_NOTIFICATION_DESKTOP) {
+		handle->capabilities.notifications |= TERSE_NOTIFICATION_SUPPORT_DESKTOP;
+	}
+
+	if (handle->capabilities.has_truecolor) {
+		handle->capabilities.colors = TERSE_COLOR_TRUECOLOR;
+	} else if (handle->capabilities.has_sgr_extended) {
+		handle->capabilities.colors = TERSE_COLOR_PALETTE256;
+	} else if (handle->capabilities.has_sgr_basic) {
+		handle->capabilities.colors = TERSE_COLOR_BASIC16;
+	} else {
+		handle->capabilities.colors = TERSE_COLOR_NONE;
+	}
+	handle->capabilities.effects = handle->capabilities.has_text_styles ? TERSE_STYLE_ALL_SUPPORTED : 0;
+	if (handle->style_known) {
+		handle->effective_style = make_effective_style(&handle->capabilities, &handle->style);
+	}
 }
 
 static void
@@ -800,7 +1184,7 @@ refresh_size(terse_handle_t handle)
 terse_handle_t
 terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 {
-	if (requested_profile < TERSE_P0 || requested_profile > TERSE_P3) {
+	if (requested_profile != TERSE_PROFILE_AUTO && (requested_profile < TERSE_P0 || requested_profile > TERSE_P3)) {
 		return NULL;
 	}
 	if (terse_validate_options(options) < 0) {
@@ -811,6 +1195,10 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	if (!handle) {
 		return NULL;
 	}
+	memset(handle, 0, sizeof(*handle));
+
+    // Initialize state stack
+    handle->state_stack_top = -1;
 
 	handle->requested_profile = requested_profile;
 	handle->capabilities = make_p0_capabilities();
@@ -825,124 +1213,10 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	}
 	handle->size = make_unknown_size();
 	handle->capabilities = detect_environment_capabilities(handle->requested_profile, &handle->options);
-
-	unsigned int disabled = handle->options.disabled_caps;
-	if (disabled & TERSE_CAP_DISABLE_BASIC_OUTPUT) {
-		handle->capabilities.has_basic_output = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_CURSOR_VISIBILITY) {
-		handle->capabilities.has_cursor_visibility = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_MOVE_ABSOLUTE) {
-		handle->capabilities.has_move_absolute = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_MOVE_RELATIVE) {
-		handle->capabilities.has_move_relative = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_CLEAR_LINE) {
-		handle->capabilities.has_clear_line = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_CLEAR_SCREEN) {
-		handle->capabilities.has_clear_screen = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_SIZE) {
-		handle->capabilities.has_size = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_SGR_BASIC) {
-		handle->capabilities.has_sgr_basic = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_SGR_EXTENDED) {
-		handle->capabilities.has_sgr_extended = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_TRUECOLOR) {
-		handle->capabilities.has_truecolor = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_TEXT_STYLES) {
-		handle->capabilities.has_text_styles = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_MOUSE) {
-		handle->capabilities.mouse = TERSE_MOUSE_NONE;
-	}
-	if (disabled & TERSE_CAP_DISABLE_BRACKETED_PASTE) {
-		handle->capabilities.has_bracketed_paste = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_TITLE) {
-		handle->capabilities.has_title = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_HYPERLINK) {
-		handle->capabilities.has_hyperlinks = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_CURSOR_SHAPE) {
-		handle->capabilities.has_cursor_shape = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_CLIPBOARD_WRITE) {
-		handle->capabilities.has_clipboard_write = 0;
-	}
-	if (disabled & TERSE_CAP_DISABLE_IMAGE_INLINE) {
-		handle->capabilities.images = TERSE_IMAGE_NONE;
-	}
-	if (disabled & TERSE_CAP_DISABLE_NOTIFICATION_BELL) {
-		handle->capabilities.notifications &= ~TERSE_NOTIFICATION_SUPPORT_BELL;
-	}
-	if (disabled & TERSE_CAP_DISABLE_NOTIFICATION_VISUAL) {
-		handle->capabilities.notifications &= ~TERSE_NOTIFICATION_SUPPORT_VISUAL;
-	}
-	if (disabled & TERSE_CAP_DISABLE_NOTIFICATION_DESKTOP) {
-		handle->capabilities.notifications &= ~TERSE_NOTIFICATION_SUPPORT_DESKTOP;
-	}
-	unsigned int enabled = handle->options.enabled_caps;
-	if (enabled & TERSE_CAP_ENABLE_SGR_BASIC) {
-		handle->capabilities.has_sgr_basic = 1;
-	}
-	if (enabled & TERSE_CAP_ENABLE_TEXT_STYLES) {
-		handle->capabilities.has_text_styles = 1;
-	}
-	if (enabled & TERSE_CAP_ENABLE_SGR_EXTENDED) {
-		handle->capabilities.has_sgr_extended = 1;
-	}
-	if (enabled & TERSE_CAP_ENABLE_TRUECOLOR) {
-		handle->capabilities.has_truecolor = 1;
-	}
-	if (enabled & TERSE_CAP_ENABLE_MOUSE) {
-		handle->capabilities.mouse = TERSE_MOUSE_SGR;
-	}
-	if (enabled & TERSE_CAP_ENABLE_BRACKETED_PASTE) {
-		handle->capabilities.has_bracketed_paste = 1;
-	}
-	if (enabled & TERSE_CAP_ENABLE_TITLE) {
-		handle->capabilities.has_title = 1;
-	}
-	if (enabled & TERSE_CAP_ENABLE_HYPERLINK) {
-		handle->capabilities.has_hyperlinks = 1;
-	}
-	if (enabled & TERSE_CAP_ENABLE_CURSOR_SHAPE) {
-		handle->capabilities.has_cursor_shape = 1;
-	}
-	if (enabled & TERSE_CAP_ENABLE_CLIPBOARD_WRITE) {
-		handle->capabilities.has_clipboard_write = 1;
-	}
-	if (enabled & TERSE_CAP_ENABLE_IMAGE_INLINE) {
-		handle->capabilities.images = TERSE_IMAGE_ITERM_INLINE;
-	}
-	if (enabled & TERSE_CAP_ENABLE_NOTIFICATION_BELL) {
-		handle->capabilities.notifications |= TERSE_NOTIFICATION_SUPPORT_BELL;
-	}
-	if (enabled & TERSE_CAP_ENABLE_NOTIFICATION_VISUAL) {
-		handle->capabilities.notifications |= TERSE_NOTIFICATION_SUPPORT_VISUAL;
-	}
-	if (enabled & TERSE_CAP_ENABLE_NOTIFICATION_DESKTOP) {
-		handle->capabilities.notifications |= TERSE_NOTIFICATION_SUPPORT_DESKTOP;
-	}
-	if (handle->capabilities.has_truecolor) {
-		handle->capabilities.colors = TERSE_COLOR_TRUECOLOR;
-	} else if (handle->capabilities.has_sgr_extended) {
-		handle->capabilities.colors = TERSE_COLOR_PALETTE256;
-	} else if (handle->capabilities.has_sgr_basic) {
-		handle->capabilities.colors = TERSE_COLOR_BASIC16;
-	} else {
-		handle->capabilities.colors = TERSE_COLOR_NONE;
-	}
-	handle->capabilities.effects = handle->capabilities.has_text_styles ? TERSE_STYLE_ALL_SUPPORTED : 0;
+	handle->detected_capabilities = handle->capabilities;
+	handle->runtime_enabled = 0;
+	handle->runtime_disabled = 0;
+	recompute_capabilities(handle);
 	handle->cursor_visible = 1;
 	handle->cursor_row = 0;
 	handle->cursor_col = 0;
@@ -986,6 +1260,155 @@ ensure_handle(terse_handle_t handle)
 		return -EINVAL;
 	}
 	return 0;
+}
+
+static void
+apply_runtime_overrides(terse_handle_t handle)
+{
+	recompute_capabilities(handle);
+	clear_error(handle);
+}
+
+int terse_capabilities_enable(terse_handle_t handle, unsigned int enable_mask)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (enable_mask == 0) {
+		clear_error(handle);
+		return 0;
+	}
+	handle->runtime_enabled |= enable_mask;
+	handle->runtime_disabled &= ~disable_mask_from_enable(enable_mask);
+	apply_runtime_overrides(handle);
+	return 0;
+}
+
+int terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (disable_mask == 0) {
+		clear_error(handle);
+		return 0;
+	}
+	handle->runtime_disabled |= disable_mask;
+	handle->runtime_enabled &= ~enable_mask_from_disable(disable_mask);
+	apply_runtime_overrides(handle);
+	return 0;
+}
+
+int terse_capabilities_reset_overrides(terse_handle_t handle)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	handle->runtime_enabled = 0;
+	handle->runtime_disabled = 0;
+	apply_runtime_overrides(handle);
+	return 0;
+}
+
+int terse_state_override(terse_handle_t handle, const terse_state_t *state)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!state) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+		return -EINVAL;
+	}
+	if (state->cursor_known) {
+		handle->cursor_known = 1;
+		handle->cursor_row = state->cursor_row > 0 ? state->cursor_row : 1;
+		handle->cursor_col = state->cursor_col > 0 ? state->cursor_col : 1;
+	} else {
+		handle->cursor_known = 0;
+		if (state->cursor_row > 0) {
+			handle->cursor_row = state->cursor_row;
+		}
+		if (state->cursor_col > 0) {
+			handle->cursor_col = state->cursor_col;
+		}
+	}
+	handle->cursor_visible = state->cursor_visible ? 1 : 0;
+	if (state->style_known) {
+		terse_style_t sanitized = sanitize_style_request(&state->style);
+		handle->style = sanitized;
+		handle->effective_style = make_effective_style(&handle->capabilities, &sanitized);
+		handle->style_known = 1;
+	} else {
+		handle->style_known = 0;
+	}
+	clear_error(handle);
+	return 0;
+}
+
+int terse_state_clear(terse_handle_t handle)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	handle->cursor_known = 0;
+	handle->cursor_row = 0;
+	handle->cursor_col = 0;
+	handle->cursor_visible = 1;
+	handle->style = terse_style_default();
+	handle->effective_style = make_effective_style(&handle->capabilities, &handle->style);
+	handle->style_known = 0;
+	clear_error(handle);
+    return 0;
+}
+
+// ---------- State history helpers ----------
+int terse_push_state(terse_handle_t handle)
+{
+    if (!handle) {
+        return -EINVAL;
+    }
+    if (handle->state_stack_top >= TERSE_STATE_STACK_MAX - 1) {
+        set_error(handle, TERSE_ERROR_STACK_OVERFLOW, EINVAL);
+        return -EINVAL;
+    }
+    terse_state_t *stack_state = &handle->state_stack[handle->state_stack_top + 1];
+    stack_state->cursor_known = handle->cursor_known;
+    stack_state->cursor_visible = handle->cursor_visible;
+    stack_state->cursor_row = handle->cursor_row;
+    stack_state->cursor_col = handle->cursor_col;
+    stack_state->style_known = handle->style_known;
+    stack_state->style = handle->style;
+    handle->state_stack_top++;
+    return 0;
+}
+
+int terse_pop_state(terse_handle_t handle)
+{
+    if (!handle) {
+        return -EINVAL;
+    }
+    if (handle->state_stack_top < 0) {
+        set_error(handle, TERSE_ERROR_STACK_UNDERFLOW, EINVAL);
+        return -EINVAL;
+    }
+    const terse_state_t *state = &handle->state_stack[handle->state_stack_top];
+    handle->cursor_known = state->cursor_known;
+    handle->cursor_visible = state->cursor_visible;
+    handle->cursor_row = state->cursor_row;
+    handle->cursor_col = state->cursor_col;
+    handle->style_known = state->style_known;
+    handle->style = state->style;
+    if (state->style_known) {
+        handle->effective_style = make_effective_style(&handle->capabilities, &state->style);
+    }
+    handle->state_stack_top--;
+    return 0;
 }
 
 static int
@@ -2419,24 +2842,35 @@ int terse_restore_state(terse_handle_t handle, const terse_state_t *state)
 		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
 		return -EINVAL;
 	}
+	terse_state_t local = *state;
+	if (local.cursor_known) {
+		if (local.cursor_row < 1) {
+			local.cursor_row = 1;
+		}
+		if (local.cursor_col < 1) {
+			local.cursor_col = 1;
+		}
+	}
+	local.cursor_visible = state->cursor_visible ? 1 : 0;
+	if (local.style_known) {
+		local.style = sanitize_style_request(&state->style);
+	}
+	(void)terse_state_override(handle, &local);
 	int result = 0;
-	if (state->cursor_known) {
-		if (handle->capabilities.has_move_absolute && state->cursor_row > 0 && state->cursor_col > 0) {
-			int move_rc = terse_move_to(handle, state->cursor_row, state->cursor_col);
-			if (move_rc < 0 && result == 0) {
-				result = move_rc;
-			}
+	if (local.cursor_known && handle->capabilities.has_move_absolute && local.cursor_row > 0 && local.cursor_col > 0) {
+		int move_rc = terse_move_to(handle, local.cursor_row, local.cursor_col);
+		if (move_rc < 0 && result == 0) {
+			result = move_rc;
 		}
 	}
 	if (handle->capabilities.has_cursor_visibility) {
-		int want_visible = state->cursor_known ? state->cursor_visible : 1;
-		int vis_rc = terse_show_cursor(handle, want_visible);
+		int vis_rc = terse_show_cursor(handle, local.cursor_visible);
 		if (vis_rc < 0 && result == 0) {
 			result = vis_rc;
 		}
 	}
-	if (state->style_known) {
-		int style_rc = terse_set_style(handle, &state->style);
+	if (local.style_known) {
+		int style_rc = terse_set_style(handle, &local.style);
 		if (style_rc < 0 && result == 0) {
 			result = style_rc;
 		}

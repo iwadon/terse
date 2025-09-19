@@ -79,6 +79,7 @@ cc -I../c/include -L../build/c -lterse p2_features_demo.c -o p2_features_demo
 - requests the bell, visual bell, and desktop notification capabilities
 - inspects negotiated notifications via `terse_get_capabilities`
 - provides a REPL (`b <msg>`, `v`, `g`) that calls `terse_notify` for each mode
+- opens the handle with `TERSE_PROFILE_AUTO` so terminal detection chooses the highest supported profile
 
 Build and run (make sure the library is built first):
 
