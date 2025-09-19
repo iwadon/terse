@@ -221,7 +221,7 @@ typedef enum terse_error_category {
 	TERSE_ERROR_PROTOCOL,
 	TERSE_ERROR_RESOURCE,
 	TERSE_ERROR_CONFIG,
-,	TERSE_ERROR_STATE,
+	TERSE_ERROR_STATE,
 	/* State history stack overflow/underflow */
 	TERSE_ERROR_STACK_OVERFLOW,
 	TERSE_ERROR_STACK_UNDERFLOW
