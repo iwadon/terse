@@ -204,6 +204,8 @@ enum {
 	TERSE_STYLE_STRIKE = 1u << 6
 };
 
+#define TERSE_STYLE_ALL_SUPPORTED (TERSE_STYLE_BOLD | TERSE_STYLE_FAINT | TERSE_STYLE_ITALIC | TERSE_STYLE_UNDERLINE | TERSE_STYLE_INVERSE | TERSE_STYLE_BLINK | TERSE_STYLE_STRIKE)
+
 typedef enum terse_mouse_button {
 	TERSE_MOUSE_BUTTON_NONE = 0,
 	TERSE_MOUSE_BUTTON_LEFT,
@@ -292,6 +294,9 @@ terse_handle_t terse_open(terse_profile_t requested_profile, const terse_options
 void terse_close(terse_handle_t handle);
 
 terse_capabilities_t terse_get_capabilities(terse_handle_t handle);
+int terse_capabilities_enable(terse_handle_t handle, unsigned int enable_mask);
+int terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask);
+int terse_capabilities_reset_overrides(terse_handle_t handle);
 
 int terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
 int terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);

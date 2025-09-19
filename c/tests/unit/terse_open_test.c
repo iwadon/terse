@@ -334,6 +334,82 @@ TEST(TerseOpen, DetectsP3Profile_OnGhosttyEnv)
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
+TEST(TerseCapabilitiesOverride, EnablesFeaturesOnP0Baseline)
+{
+	static const char *const names[] = {
+		"TERM",
+		"TERM_PROGRAM",
+		"COLORTERM",
+		"TERSE_SECONDARY_DA_HINT",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
+	clear_detection_environment();
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_EQ(caps.profile, TERSE_P0);
+	EXPECT_EQ(caps.has_sgr_basic, 0);
+	EXPECT_EQ(caps.has_truecolor, 0);
+	EXPECT_EQ(caps.has_text_styles, 0);
+	EXPECT_EQ(caps.has_bracketed_paste, 0);
+	EXPECT_EQ(terse_capabilities_enable(handle,
+				  TERSE_CAP_ENABLE_SGR_BASIC | TERSE_CAP_ENABLE_TEXT_STYLES | TERSE_CAP_ENABLE_SGR_EXTENDED | TERSE_CAP_ENABLE_TRUECOLOR | TERSE_CAP_ENABLE_BRACKETED_PASTE),
+		0);
+	caps = terse_get_capabilities(handle);
+	EXPECT_EQ(caps.has_sgr_basic, 1);
+	EXPECT_EQ(caps.has_sgr_extended, 1);
+	EXPECT_EQ(caps.has_truecolor, 1);
+	EXPECT_EQ(caps.colors, TERSE_COLOR_TRUECOLOR);
+	EXPECT_EQ(caps.has_text_styles, 1);
+	EXPECT_EQ(caps.effects, TERSE_STYLE_ALL_SUPPORTED);
+	EXPECT_EQ(caps.has_bracketed_paste, 1);
+	terse_close(handle);
+	restore_env_list(backups, ARRAY_LEN(names));
+}
+
+TEST(TerseCapabilitiesOverride, DisablesAndResetsOnP3Baseline)
+{
+	static const char *const names[] = {
+		"TERM",
+		"TERM_PROGRAM",
+		"TERM_PROGRAM_VERSION",
+		"LC_TERMINAL",
+		"COLORTERM",
+		"TERSE_SECONDARY_DA_HINT",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
+	clear_detection_environment();
+	setenv("TERM", "xterm-256color", 1);
+	setenv("TERM_PROGRAM", "iTerm.app", 1);
+	setenv("TERM_PROGRAM_VERSION", "3.5.14", 1);
+	setenv("LC_TERMINAL", "iTerm2", 1);
+	setenv("COLORTERM", "truecolor", 1);
+	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>64;2500;0c", 1);
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_EQ(caps.profile, TERSE_P3);
+	EXPECT_EQ(caps.images, TERSE_IMAGE_ITERM_INLINE);
+	EXPECT_EQ(caps.has_clipboard_write, 1);
+	EXPECT_NE(caps.notifications & TERSE_NOTIFICATION_SUPPORT_DESKTOP, 0);
+	EXPECT_EQ(terse_capabilities_disable(handle,
+				  TERSE_CAP_DISABLE_IMAGE_INLINE | TERSE_CAP_DISABLE_CLIPBOARD_WRITE | TERSE_CAP_DISABLE_NOTIFICATION_DESKTOP),
+		0);
+	caps = terse_get_capabilities(handle);
+	EXPECT_EQ(caps.images, TERSE_IMAGE_NONE);
+	EXPECT_EQ(caps.has_clipboard_write, 0);
+	EXPECT_EQ(caps.notifications & TERSE_NOTIFICATION_SUPPORT_DESKTOP, 0u);
+	EXPECT_EQ(terse_capabilities_reset_overrides(handle), 0);
+	caps = terse_get_capabilities(handle);
+	EXPECT_EQ(caps.images, TERSE_IMAGE_ITERM_INLINE);
+	EXPECT_EQ(caps.has_clipboard_write, 1);
+	EXPECT_NE(caps.notifications & TERSE_NOTIFICATION_SUPPORT_DESKTOP, 0);
+	terse_close(handle);
+	restore_env_list(backups, ARRAY_LEN(names));
+}
+
 int main()
 {
 	return RunAllTests();
