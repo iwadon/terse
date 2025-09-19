@@ -221,7 +221,10 @@ typedef enum terse_error_category {
 	TERSE_ERROR_PROTOCOL,
 	TERSE_ERROR_RESOURCE,
 	TERSE_ERROR_CONFIG,
-	TERSE_ERROR_STATE
+,	TERSE_ERROR_STATE,
+	/* State history stack overflow/underflow */
+	TERSE_ERROR_STACK_OVERFLOW,
+	TERSE_ERROR_STACK_UNDERFLOW
 } terse_error_category_t;
 
 typedef struct terse_error_info {
@@ -299,6 +302,9 @@ int terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask)
 int terse_capabilities_reset_overrides(terse_handle_t handle);
 int terse_state_override(terse_handle_t handle, const terse_state_t *state);
 int terse_state_clear(terse_handle_t handle);
+// Stack helpers for temporary state snapshots.
+int terse_push_state(terse_handle_t handle);
+int terse_pop_state(terse_handle_t handle);
 
 int terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
 int terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);

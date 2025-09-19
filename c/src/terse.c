@@ -1,5 +1,10 @@
 #include "terse.h"
 
+/* State history stack depth macro.  Small for sanity, yet enough for
+ * typical nested UI layers.
+ */
+#define TERSE_STATE_STACK_MAX 8
+
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
@@ -704,6 +709,9 @@ struct terse_handle {
 	int last_errno;
 	unsigned int runtime_enabled;
 	unsigned int runtime_disabled;
+    // State history
+    terse_state_t state_stack[TERSE_STATE_STACK_MAX];
+    int state_stack_top; // -1 when empty
 };
 
 static void
@@ -1189,6 +1197,9 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	}
 	memset(handle, 0, sizeof(*handle));
 
+    // Initialize state stack
+    handle->state_stack_top = -1;
+
 	handle->requested_profile = requested_profile;
 	handle->capabilities = make_p0_capabilities();
 
@@ -1353,7 +1364,51 @@ int terse_state_clear(terse_handle_t handle)
 	handle->effective_style = make_effective_style(&handle->capabilities, &handle->style);
 	handle->style_known = 0;
 	clear_error(handle);
-	return 0;
+    return 0;
+}
+
+// ---------- State history helpers ----------
+int terse_push_state(terse_handle_t handle)
+{
+    if (!handle) {
+        return -EINVAL;
+    }
+    if (handle->state_stack_top >= TERSE_STATE_STACK_MAX - 1) {
+        set_error(handle, TERSE_ERROR_STACK_OVERFLOW, EINVAL);
+        return -EINVAL;
+    }
+    terse_state_t *stack_state = &handle->state_stack[handle->state_stack_top + 1];
+    stack_state->cursor_known = handle->cursor_known;
+    stack_state->cursor_visible = handle->cursor_visible;
+    stack_state->cursor_row = handle->cursor_row;
+    stack_state->cursor_col = handle->cursor_col;
+    stack_state->style_known = handle->style_known;
+    stack_state->style = handle->style;
+    handle->state_stack_top++;
+    return 0;
+}
+
+int terse_pop_state(terse_handle_t handle)
+{
+    if (!handle) {
+        return -EINVAL;
+    }
+    if (handle->state_stack_top < 0) {
+        set_error(handle, TERSE_ERROR_STACK_UNDERFLOW, EINVAL);
+        return -EINVAL;
+    }
+    const terse_state_t *state = &handle->state_stack[handle->state_stack_top];
+    handle->cursor_known = state->cursor_known;
+    handle->cursor_visible = state->cursor_visible;
+    handle->cursor_row = state->cursor_row;
+    handle->cursor_col = state->cursor_col;
+    handle->style_known = state->style_known;
+    handle->style = state->style;
+    if (state->style_known) {
+        handle->effective_style = make_effective_style(&handle->capabilities, &state->style);
+    }
+    handle->state_stack_top--;
+    return 0;
 }
 
 static int
