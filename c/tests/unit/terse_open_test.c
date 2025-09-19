@@ -410,6 +410,111 @@ TEST(TerseCapabilitiesOverride, DisablesAndResetsOnP3Baseline)
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
+TEST(TerseStateOverride, OverridesAndCapture)
+{
+	static const char *const names[] = {
+		"TERM",
+		"TERM_PROGRAM",
+		"COLORTERM",
+		"TERSE_SECONDARY_DA_HINT",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
+	clear_detection_environment();
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_state_t override_state = {
+		.cursor_known = 1,
+		.cursor_visible = 0,
+		.cursor_row = 5,
+		.cursor_col = 3,
+		.style_known = 1,
+		.style = terse_style_default(),
+	};
+	override_state.style.effects = TERSE_STYLE_BOLD;
+	override_state.style.foreground = terse_color_basic(TERSE_BASIC_COLOR_RED, 0);
+	EXPECT_EQ(terse_state_override(handle, &override_state), 0);
+	terse_state_t captured;
+	EXPECT_EQ(terse_capture_state(handle, &captured), 0);
+	EXPECT_EQ(captured.cursor_known, 1);
+	EXPECT_EQ(captured.cursor_row, 5);
+	EXPECT_EQ(captured.cursor_col, 3);
+	EXPECT_EQ(captured.cursor_visible, 0);
+	EXPECT_EQ(captured.style_known, 1);
+	EXPECT_NE(captured.style.effects & TERSE_STYLE_BOLD, 0u);
+	EXPECT_EQ(captured.style.foreground.kind, TERSE_COLOR_KIND_BASIC16);
+	terse_close(handle);
+	restore_env_list(backups, ARRAY_LEN(names));
+}
+
+TEST(TerseStateOverride, ClearResetsState)
+{
+	static const char *const names[] = {
+		"TERM",
+		"TERM_PROGRAM",
+		"COLORTERM",
+		"TERSE_SECONDARY_DA_HINT",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
+	clear_detection_environment();
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_state_t override_state = {
+		.cursor_known = 1,
+		.cursor_visible = 0,
+		.cursor_row = 7,
+		.cursor_col = 2,
+		.style_known = 1,
+		.style = terse_style_default(),
+	};
+	override_state.style.effects = TERSE_STYLE_ITALIC;
+	EXPECT_EQ(terse_state_override(handle, &override_state), 0);
+	EXPECT_EQ(terse_state_clear(handle), 0);
+	terse_state_t captured;
+	EXPECT_EQ(terse_capture_state(handle, &captured), 0);
+	EXPECT_EQ(captured.cursor_known, 0);
+	EXPECT_EQ(captured.cursor_visible, 1);
+	EXPECT_EQ(captured.style_known, 0);
+	terse_close(handle);
+	restore_env_list(backups, ARRAY_LEN(names));
+}
+
+TEST(TerseRestoreState, UpdatesWhenCapabilitiesMissing)
+{
+	static const char *const names[] = {
+		"TERM",
+		"TERM_PROGRAM",
+		"COLORTERM",
+		"TERSE_SECONDARY_DA_HINT",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
+	clear_detection_environment();
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_state_t restore_state = {
+		.cursor_known = 1,
+		.cursor_visible = 0,
+		.cursor_row = 4,
+		.cursor_col = 2,
+		.style_known = 1,
+		.style = terse_style_default(),
+	};
+	restore_state.style.effects = TERSE_STYLE_UNDERLINE;
+	restore_state.style.foreground = terse_color_basic(TERSE_BASIC_COLOR_BLUE, 0);
+	EXPECT_EQ(terse_restore_state(handle, &restore_state), 0);
+	terse_state_t captured;
+	EXPECT_EQ(terse_capture_state(handle, &captured), 0);
+	EXPECT_EQ(captured.cursor_known, 1);
+	EXPECT_EQ(captured.cursor_row, 4);
+	EXPECT_EQ(captured.cursor_col, 2);
+	EXPECT_EQ(captured.cursor_visible, 0);
+	EXPECT_EQ(captured.style_known, 1);
+	EXPECT_NE(captured.style.effects & TERSE_STYLE_UNDERLINE, 0u);
+	terse_close(handle);
+	restore_env_list(backups, ARRAY_LEN(names));
+}
 int main()
 {
 	return RunAllTests();

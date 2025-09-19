@@ -297,6 +297,8 @@ terse_capabilities_t terse_get_capabilities(terse_handle_t handle);
 int terse_capabilities_enable(terse_handle_t handle, unsigned int enable_mask);
 int terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask);
 int terse_capabilities_reset_overrides(terse_handle_t handle);
+int terse_state_override(terse_handle_t handle, const terse_state_t *state);
+int terse_state_clear(terse_handle_t handle);
 
 int terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
 int terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);

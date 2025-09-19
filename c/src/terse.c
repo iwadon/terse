@@ -1302,6 +1302,60 @@ int terse_capabilities_reset_overrides(terse_handle_t handle)
 	return 0;
 }
 
+int terse_state_override(terse_handle_t handle, const terse_state_t *state)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (!state) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+		return -EINVAL;
+	}
+	if (state->cursor_known) {
+		handle->cursor_known = 1;
+		handle->cursor_row = state->cursor_row > 0 ? state->cursor_row : 1;
+		handle->cursor_col = state->cursor_col > 0 ? state->cursor_col : 1;
+	} else {
+		handle->cursor_known = 0;
+		if (state->cursor_row > 0) {
+			handle->cursor_row = state->cursor_row;
+		}
+		if (state->cursor_col > 0) {
+			handle->cursor_col = state->cursor_col;
+		}
+	}
+	handle->cursor_visible = state->cursor_visible ? 1 : 0;
+	if (state->style_known) {
+		terse_style_t sanitized = sanitize_style_request(&state->style);
+		handle->style = sanitized;
+		handle->effective_style = make_effective_style(&handle->capabilities, &sanitized);
+		handle->style_known = 1;
+	} else {
+		handle->style_known = 0;
+	}
+	clear_error(handle);
+	return 0;
+}
+
+int terse_state_clear(terse_handle_t handle)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	handle->cursor_known = 0;
+	handle->cursor_row = 0;
+	handle->cursor_col = 0;
+	handle->cursor_visible = 1;
+	handle->style = terse_style_default();
+	handle->effective_style = make_effective_style(&handle->capabilities, &handle->style);
+	handle->style_known = 0;
+	clear_error(handle);
+	return 0;
+}
+
 static int
 write_bytes(int fd, const char *bytes, size_t len)
 {
@@ -2733,24 +2787,35 @@ int terse_restore_state(terse_handle_t handle, const terse_state_t *state)
 		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
 		return -EINVAL;
 	}
+	terse_state_t local = *state;
+	if (local.cursor_known) {
+		if (local.cursor_row < 1) {
+			local.cursor_row = 1;
+		}
+		if (local.cursor_col < 1) {
+			local.cursor_col = 1;
+		}
+	}
+	local.cursor_visible = state->cursor_visible ? 1 : 0;
+	if (local.style_known) {
+		local.style = sanitize_style_request(&state->style);
+	}
+	(void)terse_state_override(handle, &local);
 	int result = 0;
-	if (state->cursor_known) {
-		if (handle->capabilities.has_move_absolute && state->cursor_row > 0 && state->cursor_col > 0) {
-			int move_rc = terse_move_to(handle, state->cursor_row, state->cursor_col);
-			if (move_rc < 0 && result == 0) {
-				result = move_rc;
-			}
+	if (local.cursor_known && handle->capabilities.has_move_absolute && local.cursor_row > 0 && local.cursor_col > 0) {
+		int move_rc = terse_move_to(handle, local.cursor_row, local.cursor_col);
+		if (move_rc < 0 && result == 0) {
+			result = move_rc;
 		}
 	}
 	if (handle->capabilities.has_cursor_visibility) {
-		int want_visible = state->cursor_known ? state->cursor_visible : 1;
-		int vis_rc = terse_show_cursor(handle, want_visible);
+		int vis_rc = terse_show_cursor(handle, local.cursor_visible);
 		if (vis_rc < 0 && result == 0) {
 			result = vis_rc;
 		}
 	}
-	if (state->style_known) {
-		int style_rc = terse_set_style(handle, &state->style);
+	if (local.style_known) {
+		int style_rc = terse_set_style(handle, &local.style);
 		if (style_rc < 0 && result == 0) {
 			result = style_rc;
 		}
