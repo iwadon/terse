@@ -56,7 +56,7 @@ int main(void)
 		.enabled_caps = TERSE_CAP_ENABLE_NOTIFICATION_BELL | TERSE_CAP_ENABLE_NOTIFICATION_VISUAL | TERSE_CAP_ENABLE_NOTIFICATION_DESKTOP,
 	};
 
-	terse_handle_t handle = terse_open(TERSE_P3, &options);
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
 	if (!handle) {
 		perror("terse_open");
 		return EXIT_FAILURE;

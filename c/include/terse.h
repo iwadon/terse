@@ -6,6 +6,7 @@
 typedef struct terse_handle *terse_handle_t;
 
 typedef enum terse_profile {
+	TERSE_PROFILE_AUTO = -1,
 	TERSE_P0 = 0,
 	TERSE_P1,
 	TERSE_P2,

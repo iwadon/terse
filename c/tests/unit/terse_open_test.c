@@ -87,7 +87,7 @@ TEST(TerseOpen, ReturnsNull_OnInvalidProfile)
 	EXPECT_TRUE(handle == NULL);
 }
 
-TEST(TerseOpen, ReturnsP0Profile_OnRequestAboveP0)
+TEST(TerseOpen, ReturnsP0Profile_OnExplicitP3WithoutHints)
 {
 	static const char *const names[] = {
 		"TERM",
@@ -114,6 +114,33 @@ TEST(TerseOpen, ReturnsP0Profile_OnRequestAboveP0)
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
+TEST(TerseOpen, ReturnsP0Profile_OnAutoWithoutHints)
+{
+	static const char *const names[] = {
+		"TERM",
+		"TERM_PROGRAM",
+		"TERM_PROGRAM_VERSION",
+		"LC_TERMINAL",
+		"LC_TERMINAL_VERSION",
+		"COLORTERM",
+		"GNOME_TERMINAL_SCREEN",
+		"GNOME_TERMINAL_SERVICE",
+		"VTE_VERSION",
+		"TERSE_SECONDARY_DA_HINT",
+		"WEZTERM_EXECUTABLE",
+		"KITTY_PID",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
+	clear_detection_environment();
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_EQ(caps.profile, TERSE_P0);
+	terse_close(handle);
+	restore_env_list(backups, ARRAY_LEN(names));
+}
+
 TEST(TerseOpen, DetectsP1Profile_OnAppleTerminalEnv)
 {
 	static const char *const names[] = {
@@ -130,7 +157,7 @@ TEST(TerseOpen, DetectsP1Profile_OnAppleTerminalEnv)
 	setenv("TERM_PROGRAM", "Apple_Terminal", 1);
 	setenv("LC_TERMINAL", "Apple_Terminal", 1);
 	setenv("COLORTERM", "truecolor", 1);
-	terse_handle_t handle = terse_open(TERSE_P3, NULL);
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
 	EXPECT_TRUE(handle != NULL);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P1);
@@ -157,7 +184,7 @@ TEST(TerseOpen, DetectsP2Profile_OnVteSignatures)
 	clear_detection_environment();
 	setenv("COLORTERM", "truecolor", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>61;7800;1c", 1);
-	terse_handle_t handle = terse_open(TERSE_P3, NULL);
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
 	EXPECT_TRUE(handle != NULL);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P2);
@@ -186,7 +213,7 @@ TEST(TerseOpen, DetectsP3Profile_OnITermEnv)
 	setenv("LC_TERMINAL", "iTerm2", 1);
 	setenv("COLORTERM", "truecolor", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>64;2500;0c", 1);
-	terse_handle_t handle = terse_open(TERSE_P3, NULL);
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
 	EXPECT_TRUE(handle != NULL);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P3);
@@ -216,7 +243,7 @@ TEST(TerseOpen, DetectsP3Profile_OnWezTermEnv)
 	setenv("COLORTERM", "truecolor", 1);
 	setenv("WEZTERM_EXECUTABLE", "/Applications/WezTerm.app/Contents/MacOS/wezterm-gui", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;277;0c", 1);
-	terse_handle_t handle = terse_open(TERSE_P3, NULL);
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
 	EXPECT_TRUE(handle != NULL);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P3);
@@ -242,7 +269,7 @@ TEST(TerseOpen, DetectsP3Profile_OnKittyEnv)
 	setenv("COLORTERM", "truecolor", 1);
 	setenv("KITTY_PID", "12345", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;4000;42c", 1);
-	terse_handle_t handle = terse_open(TERSE_P3, NULL);
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
 	EXPECT_TRUE(handle != NULL);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P3);
@@ -270,7 +297,7 @@ TEST(TerseOpen, DetectsP3Profile_OnGhosttyEnv)
 	setenv("TERM_PROGRAM_VERSION", "1.2.0", 1);
 	setenv("COLORTERM", "truecolor", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;10;0c", 1);
-	terse_handle_t handle = terse_open(TERSE_P3, NULL);
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
 	EXPECT_TRUE(handle != NULL);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P3);
