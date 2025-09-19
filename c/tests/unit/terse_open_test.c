@@ -167,6 +167,33 @@ TEST(TerseOpen, DetectsP1Profile_OnAppleTerminalEnv)
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
+TEST(TerseOpen, DetectsP1Profile_OnWarpTerminal)
+{
+	static const char *const names[] = {
+		"TERM",
+		"TERM_PROGRAM",
+		"TERM_PROGRAM_VERSION",
+		"COLORTERM",
+		"TERSE_SECONDARY_DA_HINT",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
+	clear_detection_environment();
+	setenv("TERM", "xterm-256color", 1);
+	setenv("TERM_PROGRAM", "WarpTerminal", 1);
+	setenv("TERM_PROGRAM_VERSION", "v0.2025.09.10.08.11.stable_01", 1);
+	setenv("COLORTERM", "truecolor", 1);
+	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>0;95;0c", 1);
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_EQ(caps.profile, TERSE_P1);
+	EXPECT_EQ(caps.has_truecolor, 1);
+	EXPECT_EQ(caps.has_bracketed_paste, 0);
+	terse_close(handle);
+	restore_env_list(backups, ARRAY_LEN(names));
+}
+
 TEST(TerseOpen, DetectsP2Profile_OnVteSignatures)
 {
 	static const char *const names[] = {

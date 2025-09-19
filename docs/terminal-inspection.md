@@ -60,6 +60,15 @@
 - **Focus Tracking**: Responds `\x1B[?1004;2$y`
 - **Notes**: Ghostty uses unique `TERM` and DA vendor code `>1;10;0` for discrimination.
 
+## Warp 2025.09.10
+
+- **Host**: macOS 26.0 (25A354)
+- **Term Identifiers**: `TERM=xterm-256color`, `TERM_PROGRAM=WarpTerminal`, `TERM_PROGRAM_VERSION=v0.2025.09.10.08.11.stable_01`
+- **TTY**: stdin/stdout report `isatty: yes`
+- **Device Attributes**: Primary `\x1B[?62c`, Secondary `\x1B[>0;95;0c`
+- **Focus Tracking**: No response to `\x1B[?1004$p`
+- **Notes**: Warp shares the `>0;95;0` vendor code with Apple Terminal but sets `TERM_PROGRAM=WarpTerminal`; focus events disabled by default.
+
 ## Debian 12 GNOME Terminal
 
 - **Host**: Debian GNU/Linux 12 (bookworm), kernel `6.1.0-37-arm64 #1 SMP Debian 6.1.140-1 (2025-05-22)`

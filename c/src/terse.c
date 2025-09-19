@@ -233,6 +233,14 @@ make_ghostty_capabilities(int has_truecolor)
 	return caps;
 }
 
+static terse_capabilities_t
+make_warp_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_terminal_app_capabilities(has_truecolor);
+	caps.profile = TERSE_P1;
+	return caps;
+}
+
 static void
 clamp_capabilities_to_request(terse_capabilities_t *caps, terse_profile_t requested)
 {
@@ -304,6 +312,18 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	}
 	if (is_terminal_app) {
 		caps = make_terminal_app_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_warp = 0;
+	if (term_program && strcmp(term_program, "WarpTerminal") == 0) {
+		is_warp = 1;
+	}
+	if (!is_warp && matches_da_prefix(secondary, secondary_len, "\x1b[>0;95;0c")) {
+		is_warp = 1;
+	}
+	if (is_warp) {
+		caps = make_warp_capabilities(has_truecolor);
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
