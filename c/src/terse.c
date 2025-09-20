@@ -2855,8 +2855,10 @@ int terse_restore_state(terse_handle_t handle, const terse_state_t *state)
 	if (local.style_known) {
 		local.style = sanitize_style_request(&state->style);
 	}
-	(void)terse_state_override(handle, &local);
+
 	int result = 0;
+
+	// Apply outputs BEFORE updating internal state to avoid duplicate skipping
 	if (local.cursor_known && handle->capabilities.has_move_absolute && local.cursor_row > 0 && local.cursor_col > 0) {
 		int move_rc = terse_move_to(handle, local.cursor_row, local.cursor_col);
 		if (move_rc < 0 && result == 0) {
@@ -2875,5 +2877,9 @@ int terse_restore_state(terse_handle_t handle, const terse_state_t *state)
 			result = style_rc;
 		}
 	}
+
+	// Update internal state after outputs to keep state synchronized
+	(void)terse_state_override(handle, &local);
+
 	return result;
 }
