@@ -1,9 +1,9 @@
 #include "terse.h"
+#include "terse_internal.h"
 
 /* State history stack depth macro.  Small for sanity, yet enough for
  * typical nested UI layers.
  */
-#define TERSE_STATE_STACK_MAX 8
 
 #include <ctype.h>
 #include <errno.h>
@@ -19,18 +19,12 @@
 #include <termios.h>
 #include <unistd.h>
 
-static const char TERSE_RESET_ALL_SEQ[] = "\x1b[0m";
-static const char TERSE_RESET_COLOR_SEQ[] = "\x1b[39;49m";
-static const char TERSE_RESET_EFFECTS_SEQ[] = "\x1b[22;23;24;27;29m";
-static const char BASE64_ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const char TERSE_RESET_ALL_SEQ[] = "\x1b[0m";
+const char TERSE_RESET_COLOR_SEQ[] = "\x1b[39;49m";
+const char TERSE_RESET_EFFECTS_SEQ[] = "\x1b[22;23;24;27;29m";
+const char BASE64_ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-typedef struct terse_rgb {
-	unsigned char r;
-	unsigned char g;
-	unsigned char b;
-} terse_rgb_t;
-
-static const terse_rgb_t basic16_rgb[16] = {
+const terse_rgb_t basic16_rgb[16] = {
 	{ 0, 0, 0 },
 	{ 205, 0, 0 },
 	{ 0, 205, 0 },
@@ -50,23 +44,6 @@ static const terse_rgb_t basic16_rgb[16] = {
 };
 
 static terse_capabilities_t make_p0_capabilities(void);
-
-static int
-color_kind_rank(terse_color_kind_t kind)
-{
-	switch (kind) {
-	case TERSE_COLOR_KIND_DEFAULT:
-		return 0;
-	case TERSE_COLOR_KIND_BASIC16:
-		return 1;
-	case TERSE_COLOR_KIND_PALETTE256:
-		return 2;
-	case TERSE_COLOR_KIND_TRUECOLOR:
-		return 3;
-	default:
-		return 0;
-	}
-}
 
 static size_t
 read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int timeout_ms)
@@ -688,39 +665,6 @@ make_effective_style(const terse_capabilities_t *caps, const terse_style_t *requ
 	return effective;
 }
 
-struct terse_handle {
-	terse_profile_t requested_profile;
-	terse_capabilities_t capabilities;
-	terse_capabilities_t detected_capabilities;
-	terse_options_t options;
-	terse_size_t size;
-	int cursor_visible;
-	int cursor_row;
-	int cursor_col;
-	int cursor_known;
-	terse_style_t style;
-	terse_style_t effective_style;
-	int style_known;
-	terse_mouse_mode_t mouse_mode;
-	int mouse_enabled;
-	terse_mouse_button_t mouse_button;
-	int paste_enabled;
-	terse_error_category_t last_error;
-	int last_errno;
-	unsigned int runtime_enabled;
-	unsigned int runtime_disabled;
-	// State history
-	terse_state_t state_stack[TERSE_STATE_STACK_MAX];
-	int state_stack_top; // -1 when empty
-};
-
-static void
-update_effective_style(terse_handle_t handle)
-{
-	handle->effective_style = make_effective_style(&handle->capabilities, &handle->style);
-	handle->style_known = 1;
-}
-
 static unsigned int
 disable_mask_from_enable(unsigned int enable_mask)
 {
@@ -819,7 +763,7 @@ enable_mask_from_disable(unsigned int disable_mask)
 	return mask;
 }
 
-static void
+void
 recompute_capabilities(terse_handle_t handle)
 {
 	if (!handle) {
@@ -962,7 +906,6 @@ set_mouse_event(terse_event_t *event, terse_event_type_t type, terse_mouse_butto
 }
 
 static int mouse_modifiers_from_param(int param);
-static void clear_error(terse_handle_t handle);
 
 static char *
 base64_encode(const unsigned char *data, size_t length, size_t *out_len)
@@ -1065,7 +1008,7 @@ handle_sgr_mouse_sequence(terse_handle_t handle, terse_event_t *out_event, const
 	return 1;
 }
 
-static void
+void
 set_error(terse_handle_t handle, terse_error_category_t category, int code)
 {
 	if (!handle) {
@@ -1075,7 +1018,7 @@ set_error(terse_handle_t handle, terse_error_category_t category, int code)
 	handle->last_errno = code;
 }
 
-static void
+void
 clear_error(terse_handle_t handle)
 {
 	set_error(handle, TERSE_ERROR_NONE, 0);
@@ -1165,7 +1108,7 @@ query_fd_size(int fd)
 	return size;
 }
 
-static void
+void
 refresh_size(terse_handle_t handle)
 {
 	if (handle->options.disabled_caps & TERSE_CAP_DISABLE_SIZE) {
@@ -1252,7 +1195,7 @@ terse_get_capabilities(terse_handle_t handle)
 	return handle->capabilities;
 }
 
-static int
+int
 ensure_handle(terse_handle_t handle)
 {
 	if (!handle) {
@@ -1262,7 +1205,7 @@ ensure_handle(terse_handle_t handle)
 	return 0;
 }
 
-static void
+void
 apply_runtime_overrides(terse_handle_t handle)
 {
 	recompute_capabilities(handle);
@@ -1411,7 +1354,7 @@ int terse_pop_state(terse_handle_t handle)
 	return 0;
 }
 
-static int
+int
 write_bytes(int fd, const char *bytes, size_t len)
 {
 	if (!bytes) {
@@ -1438,7 +1381,7 @@ write_bytes(int fd, const char *bytes, size_t len)
 	return 0;
 }
 
-static int
+int
 write_literal(terse_handle_t handle, const char *literal)
 {
 	int rc = ensure_handle(handle);
@@ -1459,7 +1402,7 @@ write_literal(terse_handle_t handle, const char *literal)
 	return out;
 }
 
-static int
+int
 write_sequence(terse_handle_t handle, const char *sequence, size_t length)
 {
 	int out = write_bytes(handle->options.output_fd, sequence, length);
