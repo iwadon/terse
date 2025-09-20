@@ -54,6 +54,10 @@ struct terse_handle {
 	int state_stack_top; // -1 when empty
 };
 
+/* Capability detection (in terse_capabilities.c) */
+terse_capabilities_t detect_environment_capabilities(terse_profile_t requested_profile, const terse_options_t *options);
+terse_capabilities_t make_p0_capabilities(void);
+
 /* Error handling */
 void set_error(terse_handle_t handle, terse_error_category_t category, int code);
 void clear_error(terse_handle_t handle);
