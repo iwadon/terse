@@ -1,28 +1,37 @@
 # Terse Implementation Progress Overview
 
 ## Summary
-P0のライフサイクル・出力・入力が一通り整い、ANSIシーケンス送出・イベント正規化・`-errno`返却・`get_size` まで実装済み。オプションでは機能無効化フラグとアクセサを備え、縮退パスも確認済み。最新版では Apple Terminal / GNOME Terminal / iTerm2 / WezTerm / kitty / Ghostty / Warp を環境シグネチャで判別し、`TERSE_PROFILE_AUTO` によって対応プロファイルへ自動移行できるようになった。さらに `terse_capabilities_enable/disable/reset_overrides` で検出結果を後から上書き可能。残作業は状態保持や上位プロファイル機能の実装拡張。以下の表で仕様領域ごとの状態を俯瞰できます。
+P0のライフサイクル・出力・入力・サイズ取得・エラー返却は実装済み。環境検出により Apple Terminal / GNOME Terminal (VTE) / iTerm2 / WezTerm / kitty / Ghostty / Warp を判別し、`TERSE_PROFILE_AUTO` で適切なプロファイル能力へ自動縮退/上限クリップ。ランタイムでも `terse_capabilities_enable/disable/reset_overrides` により能力の明示上書きが可能。さらにP1（色・装飾）、P2（マウス/ブランケットペースト/タイトル・リンク）、P3（クリップボード/画像/カーソル形状/通知）の主要APIを実装し、ユニットテストとサンプルで検証済み。
+
+一方で、仕様の「Codec選択/多バイト復号/セル幅推定（East Asian Width）」は未着手（`codec_name` は現時点で未使用）。入力正規化はASCII/制御/矢印/Resize/一部修飾に限定され、機能キー群や複合グラフェムは今後対応予定。
 
 ## Progress Matrix
 
 | 機能領域 | 対応プロファイル | ステータス | 現状メモ |
 | --- | --- | --- | --- |
-| ライフサイクル (`open`/`close`) | P0 | ✅ 実装済み | オプション受け取りとP0縮退を含む。リソース開放のみ。 |
-| 能力取得 (`get_capabilities`) | P0 | ✅ 実装済み | P0能力に加え、P1以降向けフィールド（SGR/マウス等）をプレースホルダーとして公開。 |
-| 出力制御 (`clear_*`, `move_*`, `show_cursor`, `write_text`, `flush`) | P0 | ✅ 実装済み | ANSI/UTF-8送出・`-errno`返却・機能無効化時のノーオペ対応済み。`flush` はハンドル検証のみ。 |
-| 入力 (`read_event`) | P0 | ✅ 実装済み | ASCII/改行/矢印/リサイズ・修飾キーを正規化。タイムアウトは `TERSE_EVENT_NONE`。 |
-| 端末サイズ (`get_size`) | P0 | ✅ 実装済み | `TIOCGWINSZ` と Resize イベントを同期。無効化フラグで Unknown を強制可能。 |
-| 環境検出・プロファイル自動判定 | P0-P3 | ⚠️ 部分 | Apple Terminal, VTE (GNOME Terminal), iTerm2, WezTerm, kitty, Ghostty, Warp を判別し `TERSE_PROFILE_AUTO` から P1〜P3 capability に自動移行。API での後付け enable/disable をサポートしたので細かな上書きが可能。Warp 以外の未対応端末や追加検証が残課題。 |
-| エラー分類と縮退ハンドリング | P0 | ⚠️ 部分 | `-errno` 返却と機能フラグによる縮退は完了。状態復旧や詳細エラー分類は今後。 |
-| 内部状態管理 (カーソル/スタイル保持) | P0 | ⚠️ 部分 | `terse_state_override` / `terse_state_clear` を追加し、能力が無い環境でもカーソル位置・表示・スタイルを追跡可能に。今後は履歴保持や更なる状態復元を検討。 |
-| オプション/設定拡張 | 全般 | ✅ 実装済み | `disabled_caps` とバリデーション/アクセサを提供。追加設定は今後検討。 |
-| テスト: ライフサイクル | P0 | ✅ 実装済み | オープン成功/失敗と縮退挙動を確認。 |
-| テスト: 出力 | P0 | ✅ 実装済み | パイプでシーケンスと異常系を検証。 |
-| テスト: 入力/エラー | P0 | ✅ 実装済み | 文字/修飾/リサイズ/EOF/引数エラーをカバー。 |
-| 上位プロファイル (P1-P3) | P1-P3 | ⏳ 未着手 | 仕様定義のみ。実装/テストともに未着手。 |
+| ライフサイクル (`open`/`close`) | P0 | ✅ 実装済み | オプション検証・初期状態（カーソル表示/SGRリセット）・終了時の安全復帰（マウス/ペースト解除, カーソル表示, SGR 0）。|
+| 能力検出/取得 (`get_capabilities`) | P0-P3 | ✅ 実装済み | 環境検出＋リクエストでクリップ（P0〜P3）。ランタイム enable/disable/リセットで上書き可。色/Effetcs/マウス/ペースト/タイトル/リンク/画像/通知/カーソル形状などを包含。|
+| 出力制御 (`clear_*`, `move_*`, `show_cursor`, `write_text`, `flush`) | P0 | ✅ 実装済み | ANSI送出・ノーオペ縮退・重複出力抑止（同位置 `move_to`/同可視状態 `show_cursor`）。`flush` はNo-op。|
+| 入力 (`read_event`) | P0 | ✅ 実装済み（部分） | ASCII/Enter/Backspace/Tab/矢印（修飾付）/Resize/ブランケットペースト/SGRマウスを正規化。未対応：多バイト復号・機能キー全面。|
+| 端末サイズ (`get_size`) | P0 | ✅ 実装済み | `TIOCGWINSZ` ベース。`CSI 8 ; r ; c t` 受信で内部サイズ更新。無効化時は Unknown を返却。|
+| 状態管理（キャプチャ/復元・一時保存） | P0 | ✅ 実装済み | `capture/restore_state` と `push/pop_state` を提供。カーソル位置/可視/スタイルを安全に復元。|
+| 環境検出・プロファイル自動判定 | P0-P3 | ✅ 実装済み | Apple Terminal / VTE / iTerm2 / WezTerm / kitty / Ghostty / Warp を判別（環境変数＋Secondary DA）。|
+| エラー分類/返却 | P0 | ✅ 実装済み（基本） | `-errno` 返却と `terse_get_last_error()`。Transport/Config/State/Resourceを区別。詳細復旧戦略は今後拡充。|
+| P1: 色・装飾（SGR） | P1 | ✅ 実装済み | `set_style/reset_style` 完了。TrueColor→256→16→既定色への縮退ロジックと効果ビット（Bold/Italic/Underline/…）。|
+| P2: マウス追跡 | P2 | ✅ 実装済み | `enable/disable_mouse`（X10/VT200/SGR）。SGRマウスの Down/Move/Up/Scroll と修飾を正規化。|
+| P2: ブランケットペースト | P2 | ✅ 実装済み | `enable/disable_bracketed_paste` と `PasteBegin/End` イベント。|
+| P2: タイトル/リンク | P2 | ✅ 実装済み | `OSC 0` タイトル、`OSC 8` ハイパーリンク。妥当性最低限チェック。|
+| P3: クリップボード書込 | P3 | ✅ 実装済み | `OSC 52` Base64。能力無効時はノーオペ。|
+| P3: 画像（iTerm inline） | P3 | ✅ 実装済み | `OSC 1337;File=...;inline=1:` 送出。名称/データBase64化。|
+| P3: カーソル形状 | P3 | ✅ 実装済み | `DECSCUSR`（ブロック/下線/バー＋点滅）切替。|
+| P3: 通知 | P3 | ✅ 実装済み | ベル（BEL）/視覚（DECSCNMトグル）/デスクトップ（`OSC 9;1;...`）。環境検出でBELL/デスクトップを付与。|
+| サンプル | P0-P3 | ✅ 実装済み | `samples/` に P0〜P3 デモ（色/スタイル/拡張機能/通知等）。|
+| Codec/セル幅 | P0 | ⏳ 未着手 | `codec_name` は未使用。UTF-8/Shift_JIS 復号と East Asian Width に基づく `width` 推定は今後。|
+| 拡張キーレポート | P2+ | ⏳ 未着手 | `Shift+Enter` などの詳細修飾検出（xterm MOK, kitty 等）の検出/抽象化は今後。|
 
 ## Next Steps Snapshot
-- 状態保持API（カーソル位置・スタイル・他の復帰処理）をP0仕様に沿って設計実装。
-- 拡張エラー分類（Transport/Protocol等）と状態復旧フローをコード／ドキュメント化。
-- P1以降に向けた能力フィールドの拡張とサンプルアプリ／ドキュメントの整備。
-- 追加端末（Warp、tmux 内座標差分など）の DA 収集とマッピング拡張。
+- 入出力Codec（UTF-8/Shift_JIS）と多バイト復号、East Asian Width に基づくセル幅推定を実装（入力`Char.width`/出力エンコード）。
+- 入力正規化の拡充：機能キー/Home/End/Page/Function(n) ほか、修飾一貫性の強化、タイムアウト/合成のチューニング。
+- 環境検出の強化：tmux/screen配下や追加端末のSecondary DAマッピング、VISUAL通知サポート検出の拡充。
+- 画像/クリップボードの互換拡大（kitty graphics等の追加）と能力表の詳細化。
+- ドキュメントの仕様整備とサンプルの拡充（P2/P3機能別の最小コード例）。
