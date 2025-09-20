@@ -181,7 +181,7 @@ mask_effects(unsigned int effects)
 	return effects & TERSE_STYLE_ALL_SUPPORTED;
 }
 
-int
+static int
 colors_equal(const terse_color_t *a, const terse_color_t *b)
 {
 	if (a->kind != b->kind) {

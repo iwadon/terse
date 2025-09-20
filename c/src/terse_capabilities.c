@@ -13,7 +13,7 @@ probe_secondary_da(int input_fd, int output_fd, unsigned char *buffer, size_t ca
 	if (input_fd < 0 || output_fd < 0) {
 		return 0;
 	}
-	const char *da_query = "\x1b[>c";
+	const char *da_query = "\x1b[>0c";
 	ssize_t written = write(output_fd, da_query, strlen(da_query));
 	if (written < 0) {
 		return 0;
@@ -145,7 +145,7 @@ clamp_capabilities_to_request(terse_capabilities_t *caps, terse_profile_t reques
 		if (caps->profile > TERSE_P2) {
 			caps->profile = TERSE_P2;
 			if (caps->images == TERSE_IMAGE_ITERM_INLINE) {
-				caps->images = TERSE_IMAGE_ITERM_INLINE; // Keep same for now
+				// No action needed; already set to TERSE_IMAGE_ITERM_INLINE
 			}
 		}
 		break;
