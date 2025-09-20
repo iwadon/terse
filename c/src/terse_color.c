@@ -175,13 +175,13 @@ terse_style_default(void)
 	return style;
 }
 
-static unsigned int
+unsigned int
 mask_effects(unsigned int effects)
 {
 	return effects & TERSE_STYLE_ALL_SUPPORTED;
 }
 
-static int
+int
 colors_equal(const terse_color_t *a, const terse_color_t *b)
 {
 	if (a->kind != b->kind) {
@@ -204,7 +204,7 @@ colors_equal(const terse_color_t *a, const terse_color_t *b)
 	}
 }
 
-static int
+int
 styles_equal(const terse_style_t *a, const terse_style_t *b)
 {
 	if (a->effects != b->effects) {

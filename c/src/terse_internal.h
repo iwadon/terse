@@ -73,6 +73,10 @@ terse_color_t terse_color_palette(unsigned char index);
 terse_color_t terse_color_truecolor(unsigned char r, unsigned char g, unsigned char b);
 terse_style_t terse_style_default(void);
 
+/* Color/Style helper functions (in terse_color.c) */
+int styles_equal(const terse_style_t *a, const terse_style_t *b);
+unsigned int mask_effects(unsigned int effects);
+
 /* Style helpers */
 void update_effective_style(terse_handle_t handle);
 terse_style_t sanitize_style_request(const terse_style_t *style);
