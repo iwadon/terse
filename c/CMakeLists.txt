@@ -1,7 +1,5 @@
 add_library(terse
   src/terse.c
-  src/terse_color.c
-  src/terse_capabilities.c
 )
 
 target_include_directories(terse

@@ -1,9 +1,9 @@
 #include "terse.h"
-#include "terse_internal.h"
 
 /* State history stack depth macro.  Small for sanity, yet enough for
  * typical nested UI layers.
  */
+#define TERSE_STATE_STACK_MAX 8
 
 #include <ctype.h>
 #include <errno.h>
@@ -19,12 +19,18 @@
 #include <termios.h>
 #include <unistd.h>
 
-const char TERSE_RESET_ALL_SEQ[] = "\x1b[0m";
-const char TERSE_RESET_COLOR_SEQ[] = "\x1b[39;49m";
-const char TERSE_RESET_EFFECTS_SEQ[] = "\x1b[22;23;24;27;29m";
-const char BASE64_ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static const char TERSE_RESET_ALL_SEQ[] = "\x1b[0m";
+static const char TERSE_RESET_COLOR_SEQ[] = "\x1b[39;49m";
+static const char TERSE_RESET_EFFECTS_SEQ[] = "\x1b[22;23;24;27;29m";
+static const char BASE64_ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-const terse_rgb_t basic16_rgb[16] = {
+typedef struct terse_rgb {
+	unsigned char r;
+	unsigned char g;
+	unsigned char b;
+} terse_rgb_t;
+
+static const terse_rgb_t basic16_rgb[16] = {
 	{ 0, 0, 0 },
 	{ 205, 0, 0 },
 	{ 0, 205, 0 },
@@ -42,6 +48,25 @@ const terse_rgb_t basic16_rgb[16] = {
 	{ 0, 255, 255 },
 	{ 255, 255, 255 },
 };
+
+static terse_capabilities_t make_p0_capabilities(void);
+
+static int
+color_kind_rank(terse_color_kind_t kind)
+{
+	switch (kind) {
+	case TERSE_COLOR_KIND_DEFAULT:
+		return 0;
+	case TERSE_COLOR_KIND_BASIC16:
+		return 1;
+	case TERSE_COLOR_KIND_PALETTE256:
+		return 2;
+	case TERSE_COLOR_KIND_TRUECOLOR:
+		return 3;
+	default:
+		return 0;
+	}
+}
 
 static size_t
 read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int timeout_ms)
@@ -92,7 +117,609 @@ read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int time
 	return total;
 }
 
+static size_t
+probe_secondary_da(int input_fd, int output_fd, unsigned char *buffer, size_t capacity)
+{
+	if (!buffer || capacity == 0) {
+		return 0;
+	}
+	if (input_fd < 0 || output_fd < 0) {
+		return 0;
+	}
+	if (!isatty(input_fd) || !isatty(output_fd)) {
+		return 0;
+	}
+	struct termios original;
+	if (tcgetattr(input_fd, &original) != 0) {
+		return 0;
+	}
+	struct termios raw = original;
+	raw.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+	raw.c_oflag &= ~(OPOST);
+	raw.c_cflag |= CS8;
+	raw.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+	raw.c_cc[VMIN] = 0;
+	raw.c_cc[VTIME] = 0;
+	if (tcsetattr(input_fd, TCSANOW, &raw) != 0) {
+		return 0;
+	}
+	const char request[] = "\x1b[>0c";
+	if (write(output_fd, request, sizeof(request) - 1) < 0) {
+		(void)tcsetattr(input_fd, TCSANOW, &original);
+		return 0;
+	}
+	unsigned char local[128];
+	if (!buffer) {
+		buffer = local;
+	}
+	size_t length = read_bytes_with_timeout(input_fd, buffer, capacity, 200);
+	(void)tcsetattr(input_fd, TCSANOW, &original);
+	return length;
+}
 
+static int
+matches_da_prefix(const unsigned char *buffer, size_t length, const char *prefix)
+{
+	if (!buffer || length == 0 || !prefix) {
+		return 0;
+	}
+	size_t prefix_len = strlen(prefix);
+	if (prefix_len == 0 || length < prefix_len) {
+		return 0;
+	}
+	return memcmp(buffer, prefix, prefix_len) == 0;
+}
+
+static terse_capabilities_t
+make_terminal_app_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_p0_capabilities();
+	caps.profile = TERSE_P1;
+	caps.has_sgr_basic = 1;
+	caps.has_sgr_extended = 1;
+	caps.has_truecolor = has_truecolor ? 1 : 0;
+	caps.has_text_styles = 1;
+	caps.has_title = 1;
+	caps.notifications |= TERSE_NOTIFICATION_SUPPORT_BELL;
+	return caps;
+}
+
+static terse_capabilities_t
+make_vte_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_terminal_app_capabilities(has_truecolor);
+	caps.profile = TERSE_P2;
+	caps.mouse = TERSE_MOUSE_SGR;
+	caps.has_bracketed_paste = 1;
+	caps.has_hyperlinks = 1;
+	caps.has_cursor_shape = 1;
+	return caps;
+}
+
+static terse_capabilities_t
+make_iterm_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.has_clipboard_write = 1;
+	caps.images = TERSE_IMAGE_ITERM_INLINE;
+	caps.notifications |= TERSE_NOTIFICATION_SUPPORT_DESKTOP;
+	return caps;
+}
+
+static terse_capabilities_t
+make_wezterm_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.has_clipboard_write = 1;
+	caps.images = TERSE_IMAGE_ITERM_INLINE;
+	caps.notifications |= TERSE_NOTIFICATION_SUPPORT_DESKTOP;
+	return caps;
+}
+
+static terse_capabilities_t
+make_kitty_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.has_clipboard_write = 1;
+	return caps;
+}
+
+static terse_capabilities_t
+make_ghostty_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.has_clipboard_write = 1;
+	return caps;
+}
+
+static terse_capabilities_t
+make_warp_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_terminal_app_capabilities(has_truecolor);
+	caps.profile = TERSE_P1;
+	return caps;
+}
+
+static void
+clamp_capabilities_to_request(terse_capabilities_t *caps, terse_profile_t requested)
+{
+	if (!caps) {
+		return;
+	}
+	if (requested == TERSE_PROFILE_AUTO) {
+		return;
+	}
+	if (requested <= TERSE_P0) {
+		*caps = make_p0_capabilities();
+		return;
+	}
+	if (requested == TERSE_P1 && caps->profile > TERSE_P1) {
+		caps->profile = TERSE_P1;
+		caps->mouse = TERSE_MOUSE_NONE;
+		caps->has_bracketed_paste = 0;
+		caps->has_hyperlinks = 0;
+		caps->has_clipboard_write = 0;
+		caps->images = TERSE_IMAGE_NONE;
+		caps->notifications &= TERSE_NOTIFICATION_SUPPORT_BELL;
+	}
+	if (requested == TERSE_P2 && caps->profile > TERSE_P2) {
+		caps->profile = TERSE_P2;
+		caps->images = TERSE_IMAGE_NONE;
+		caps->notifications &= ~(TERSE_NOTIFICATION_SUPPORT_DESKTOP);
+	}
+}
+
+static terse_capabilities_t
+detect_environment_capabilities(terse_profile_t requested_profile, const terse_options_t *options)
+{
+	terse_capabilities_t caps = make_p0_capabilities();
+	int auto_requested = requested_profile == TERSE_PROFILE_AUTO;
+	if (!auto_requested && requested_profile == TERSE_P0) {
+		return caps;
+	}
+	const char *term = getenv("TERM");
+	const char *term_program = getenv("TERM_PROGRAM");
+	const char *lc_terminal = getenv("LC_TERMINAL");
+	const char *colorterm = getenv("COLORTERM");
+	const char *gnome_screen = getenv("GNOME_TERMINAL_SCREEN");
+	const char *gnome_service = getenv("GNOME_TERMINAL_SERVICE");
+	const char *vte_version = getenv("VTE_VERSION");
+	const char *secondary_hint = getenv("TERSE_SECONDARY_DA_HINT");
+	unsigned char secondary[128];
+	memset(secondary, 0, sizeof(secondary));
+	size_t secondary_len = 0;
+	if (secondary_hint && *secondary_hint) {
+		size_t hint_len = strlen(secondary_hint);
+		if (hint_len > sizeof(secondary)) {
+			hint_len = sizeof(secondary);
+		}
+		memcpy(secondary, secondary_hint, hint_len);
+		secondary_len = hint_len;
+	} else if (options) {
+		secondary_len = probe_secondary_da(options->input_fd, options->output_fd, secondary, sizeof(secondary));
+	}
+	int has_truecolor = (colorterm && strcasecmp(colorterm, "truecolor") == 0) ? 1 : 0;
+	int is_terminal_app = 0;
+	if (term_program && strcmp(term_program, "Apple_Terminal") == 0) {
+		is_terminal_app = 1;
+	}
+	if (!is_terminal_app && lc_terminal && strcmp(lc_terminal, "Apple_Terminal") == 0) {
+		is_terminal_app = 1;
+	}
+	if (!is_terminal_app && matches_da_prefix(secondary, secondary_len, "\x1b[>1;95;0c")) {
+		is_terminal_app = 1;
+	}
+	if (is_terminal_app) {
+		caps = make_terminal_app_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_warp = 0;
+	if (term_program && strcmp(term_program, "WarpTerminal") == 0) {
+		is_warp = 1;
+	}
+	if (!is_warp && matches_da_prefix(secondary, secondary_len, "\x1b[>0;95;0c")) {
+		is_warp = 1;
+	}
+	if (is_warp) {
+		caps = make_warp_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_iterm = 0;
+	if (term_program && strcmp(term_program, "iTerm.app") == 0) {
+		is_iterm = 1;
+	}
+	if (!is_iterm && lc_terminal && strcmp(lc_terminal, "iTerm2") == 0) {
+		is_iterm = 1;
+	}
+	if (!is_iterm && matches_da_prefix(secondary, secondary_len, "\x1b[>64;")) {
+		is_iterm = 1;
+	}
+	if (is_iterm) {
+		caps = make_iterm_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_vte = 0;
+	if ((gnome_screen && *gnome_screen) || (gnome_service && *gnome_service) || (vte_version && *vte_version)) {
+		is_vte = 1;
+	}
+	if (!is_vte && matches_da_prefix(secondary, secondary_len, "\x1b[>61;")) {
+		is_vte = 1;
+	}
+	if (!is_vte && matches_da_prefix(secondary, secondary_len, "\x1b[>65;")) {
+		is_vte = 1;
+	}
+	if (is_vte) {
+		caps = make_vte_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_wezterm = 0;
+	if (term_program && strcmp(term_program, "WezTerm") == 0) {
+		is_wezterm = 1;
+	}
+	if (!is_wezterm) {
+		const char *wezexec = getenv("WEZTERM_EXECUTABLE");
+		if (wezexec && *wezexec) {
+			is_wezterm = 1;
+		}
+	}
+	if (!is_wezterm && matches_da_prefix(secondary, secondary_len, "\x1b[>1;277;")) {
+		is_wezterm = 1;
+	}
+	if (is_wezterm) {
+		caps = make_wezterm_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_kitty = 0;
+	if (term && strcmp(term, "xterm-kitty") == 0) {
+		is_kitty = 1;
+	}
+	if (!is_kitty) {
+		const char *kitty_pid = getenv("KITTY_PID");
+		if (kitty_pid && *kitty_pid) {
+			is_kitty = 1;
+		}
+	}
+	if (!is_kitty && matches_da_prefix(secondary, secondary_len, "\x1b[>1;4000;")) {
+		is_kitty = 1;
+	}
+	if (is_kitty) {
+		caps = make_kitty_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_ghostty = 0;
+	if (term && strcmp(term, "xterm-ghostty") == 0) {
+		is_ghostty = 1;
+	}
+	if (!is_ghostty && term_program && strcmp(term_program, "ghostty") == 0) {
+		is_ghostty = 1;
+	}
+	if (!is_ghostty && matches_da_prefix(secondary, secondary_len, "\x1b[>1;10;")) {
+		is_ghostty = 1;
+	}
+	if (is_ghostty) {
+		caps = make_ghostty_capabilities(has_truecolor);
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	clamp_capabilities_to_request(&caps, requested_profile);
+	return caps;
+}
+
+static int
+color_support_rank(terse_color_support_t support)
+{
+	switch (support) {
+	case TERSE_COLOR_NONE:
+		return 0;
+	case TERSE_COLOR_BASIC16:
+		return 1;
+	case TERSE_COLOR_PALETTE256:
+		return 2;
+	case TERSE_COLOR_TRUECOLOR:
+		return 3;
+	default:
+		return 0;
+	}
+}
+
+static unsigned char
+cube_component_from_truecolor(unsigned char value)
+{
+	if (value < 48) {
+		return 0;
+	}
+	if (value < 114) {
+		return 1;
+	}
+	return (unsigned char)((value - 35) / 40);
+}
+
+static unsigned char
+cube_component_to_value(unsigned char component)
+{
+	static const unsigned char values[6] = { 0, 95, 135, 175, 215, 255 };
+	if (component > 5) {
+		component = 5;
+	}
+	return values[component];
+}
+
+static unsigned char
+truecolor_to_palette_index(unsigned char r, unsigned char g, unsigned char b)
+{
+	if (r == g && g == b) {
+		if (r < 8) {
+			return 16;
+		}
+		if (r > 248) {
+			return 231;
+		}
+		return (unsigned char)(232 + (r - 8) / 10);
+	}
+	unsigned char rc = cube_component_from_truecolor(r);
+	unsigned char gc = cube_component_from_truecolor(g);
+	unsigned char bc = cube_component_from_truecolor(b);
+	return (unsigned char)(16 + rc * 36 + gc * 6 + bc);
+}
+
+static void
+palette_index_to_rgb(unsigned char index, unsigned char *r, unsigned char *g, unsigned char *b)
+{
+	if (index < 16) {
+		*r = basic16_rgb[index].r;
+		*g = basic16_rgb[index].g;
+		*b = basic16_rgb[index].b;
+		return;
+	}
+	if (index < 232) {
+		unsigned char adj = (unsigned char)(index - 16);
+		unsigned char rc = (unsigned char)(adj / 36);
+		unsigned char gc = (unsigned char)((adj / 6) % 6);
+		unsigned char bc = (unsigned char)(adj % 6);
+		*r = cube_component_to_value(rc);
+		*g = cube_component_to_value(gc);
+		*b = cube_component_to_value(bc);
+		return;
+	}
+	unsigned char level = (unsigned char)(8 + (index - 232) * 10);
+	*r = level;
+	*g = level;
+	*b = level;
+}
+
+static unsigned char
+closest_basic16_index(unsigned char r, unsigned char g, unsigned char b)
+{
+	unsigned int best_distance = UINT_MAX;
+	unsigned char best_index = 0;
+	for (unsigned char i = 0; i < 16; ++i) {
+		int dr = (int)r - (int)basic16_rgb[i].r;
+		int dg = (int)g - (int)basic16_rgb[i].g;
+		int db = (int)b - (int)basic16_rgb[i].b;
+		unsigned int distance = (unsigned int)(dr * dr + dg * dg + db * db);
+		if (distance < best_distance) {
+			best_distance = distance;
+			best_index = i;
+		}
+	}
+	return best_index;
+}
+
+terse_color_t
+terse_color_default(void)
+{
+	terse_color_t color = { .kind = TERSE_COLOR_KIND_DEFAULT };
+	return color;
+}
+
+terse_color_t
+terse_color_basic(terse_basic_color_t color, int bright)
+{
+	terse_color_t result = {
+		.kind = TERSE_COLOR_KIND_BASIC16,
+		.data.basic16 = {
+			.color = color,
+			.bright = bright ? 1 : 0,
+		},
+	};
+	return result;
+}
+
+terse_color_t
+terse_color_palette(unsigned char index)
+{
+	terse_color_t result = {
+		.kind = TERSE_COLOR_KIND_PALETTE256,
+		.data.palette = {
+			.value = index,
+		},
+	};
+	return result;
+}
+
+terse_color_t
+terse_color_truecolor(unsigned char r, unsigned char g, unsigned char b)
+{
+	terse_color_t result = {
+		.kind = TERSE_COLOR_KIND_TRUECOLOR,
+		.data.truecolor = {
+			.r = r,
+			.g = g,
+			.b = b,
+		},
+	};
+	return result;
+}
+
+terse_style_t
+terse_style_default(void)
+{
+	terse_style_t style = {
+		.foreground = terse_color_default(),
+		.background = terse_color_default(),
+		.effects = 0,
+	};
+	return style;
+}
+
+static unsigned int
+mask_effects(unsigned int effects)
+{
+	return effects & TERSE_STYLE_ALL_SUPPORTED;
+}
+
+static int
+colors_equal(const terse_color_t *a, const terse_color_t *b)
+{
+	if (a->kind != b->kind) {
+		return 0;
+	}
+	switch (a->kind) {
+	case TERSE_COLOR_KIND_DEFAULT:
+		return 1;
+	case TERSE_COLOR_KIND_BASIC16:
+		return a->data.basic16.color == b->data.basic16.color && a->data.basic16.bright == b->data.basic16.bright;
+	case TERSE_COLOR_KIND_PALETTE256:
+		return a->data.palette.value == b->data.palette.value;
+	case TERSE_COLOR_KIND_TRUECOLOR:
+		return a->data.truecolor.r == b->data.truecolor.r && a->data.truecolor.g == b->data.truecolor.g && a->data.truecolor.b == b->data.truecolor.b;
+	default:
+		return 0;
+	}
+}
+
+static int
+styles_equal(const terse_style_t *a, const terse_style_t *b)
+{
+	if (a->effects != b->effects) {
+		return 0;
+	}
+	if (!colors_equal(&a->foreground, &b->foreground)) {
+		return 0;
+	}
+	if (!colors_equal(&a->background, &b->background)) {
+		return 0;
+	}
+	return 1;
+}
+
+static terse_color_t
+degrade_color(terse_color_t color, terse_color_support_t support)
+{
+	if (color.kind == TERSE_COLOR_KIND_DEFAULT) {
+		return color;
+	}
+	int support_level = color_support_rank(support);
+	if (support_level == 0) {
+		return terse_color_default();
+	}
+	int requested_level = color_kind_rank(color.kind);
+	if (requested_level <= support_level) {
+		return color;
+	}
+	switch (support) {
+	case TERSE_COLOR_BASIC16:
+		{
+			unsigned char r = 0;
+			unsigned char g = 0;
+			unsigned char b = 0;
+			if (color.kind == TERSE_COLOR_KIND_TRUECOLOR) {
+				r = color.data.truecolor.r;
+				g = color.data.truecolor.g;
+				b = color.data.truecolor.b;
+			} else if (color.kind == TERSE_COLOR_KIND_PALETTE256) {
+				palette_index_to_rgb(color.data.palette.value, &r, &g, &b);
+			}
+			unsigned char idx = closest_basic16_index(r, g, b);
+			terse_color_t basic = {
+				.kind = TERSE_COLOR_KIND_BASIC16,
+				.data.basic16 = {
+					.color = (terse_basic_color_t)(idx % 8),
+					.bright = idx >= 8,
+				},
+			};
+			return basic;
+		}
+	case TERSE_COLOR_PALETTE256:
+		{
+			if (color.kind == TERSE_COLOR_KIND_TRUECOLOR) {
+				unsigned char idx = truecolor_to_palette_index(color.data.truecolor.r, color.data.truecolor.g, color.data.truecolor.b);
+				terse_color_t palette = {
+					.kind = TERSE_COLOR_KIND_PALETTE256,
+					.data.palette = { .value = idx },
+				};
+				return palette;
+			}
+			break;
+		}
+	case TERSE_COLOR_TRUECOLOR:
+		break;
+	default:
+		break;
+	}
+	return terse_color_default();
+}
+
+static terse_style_t
+sanitize_style_request(const terse_style_t *style)
+{
+	terse_style_t sanitized = *style;
+	sanitized.effects = mask_effects(style->effects);
+	return sanitized;
+}
+
+static terse_style_t
+make_effective_style(const terse_capabilities_t *caps, const terse_style_t *requested)
+{
+	terse_style_t effective = *requested;
+	effective.effects &= caps->effects;
+	effective.foreground = degrade_color(requested->foreground, caps->colors);
+	effective.background = degrade_color(requested->background, caps->colors);
+	return effective;
+}
+
+struct terse_handle {
+	terse_profile_t requested_profile;
+	terse_capabilities_t capabilities;
+	terse_capabilities_t detected_capabilities;
+	terse_options_t options;
+	terse_size_t size;
+	int cursor_visible;
+	int cursor_row;
+	int cursor_col;
+	int cursor_known;
+	terse_style_t style;
+	terse_style_t effective_style;
+	int style_known;
+	terse_mouse_mode_t mouse_mode;
+	int mouse_enabled;
+	terse_mouse_button_t mouse_button;
+	int paste_enabled;
+	terse_error_category_t last_error;
+	int last_errno;
+	unsigned int runtime_enabled;
+	unsigned int runtime_disabled;
+	// State history
+	terse_state_t state_stack[TERSE_STATE_STACK_MAX];
+	int state_stack_top; // -1 when empty
+};
+
+static void
+update_effective_style(terse_handle_t handle)
+{
+	handle->effective_style = make_effective_style(&handle->capabilities, &handle->style);
+	handle->style_known = 1;
+}
 
 static unsigned int
 disable_mask_from_enable(unsigned int enable_mask)
@@ -192,7 +819,7 @@ enable_mask_from_disable(unsigned int disable_mask)
 	return mask;
 }
 
-void
+static void
 recompute_capabilities(terse_handle_t handle)
 {
 	if (!handle) {
@@ -335,6 +962,7 @@ set_mouse_event(terse_event_t *event, terse_event_type_t type, terse_mouse_butto
 }
 
 static int mouse_modifiers_from_param(int param);
+static void clear_error(terse_handle_t handle);
 
 static char *
 base64_encode(const unsigned char *data, size_t length, size_t *out_len)
@@ -437,7 +1065,7 @@ handle_sgr_mouse_sequence(terse_handle_t handle, terse_event_t *out_event, const
 	return 1;
 }
 
-void
+static void
 set_error(terse_handle_t handle, terse_error_category_t category, int code)
 {
 	if (!handle) {
@@ -447,12 +1075,41 @@ set_error(terse_handle_t handle, terse_error_category_t category, int code)
 	handle->last_errno = code;
 }
 
-void
+static void
 clear_error(terse_handle_t handle)
 {
 	set_error(handle, TERSE_ERROR_NONE, 0);
 }
 
+static terse_capabilities_t
+make_p0_capabilities(void)
+{
+	terse_capabilities_t caps = {
+		.profile = TERSE_P0,
+		.has_basic_output = 1,
+		.has_cursor_visibility = 1,
+		.has_move_absolute = 1,
+		.has_move_relative = 1,
+		.has_clear_line = 1,
+		.has_clear_screen = 1,
+		.has_size = 0,
+		.has_sgr_basic = 0,
+		.has_sgr_extended = 0,
+		.has_truecolor = 0,
+		.has_text_styles = 0,
+		.mouse = TERSE_MOUSE_NONE,
+		.has_bracketed_paste = 0,
+		.has_title = 0,
+		.has_hyperlinks = 0,
+		.has_cursor_shape = 0,
+		.colors = TERSE_COLOR_NONE,
+		.effects = 0,
+		.has_clipboard_write = 0,
+		.images = TERSE_IMAGE_NONE,
+		.notifications = 0,
+	};
+	return caps;
+}
 
 static void emit_reset_sequences(terse_handle_t handle);
 
@@ -508,7 +1165,7 @@ query_fd_size(int fd)
 	return size;
 }
 
-void
+static void
 refresh_size(terse_handle_t handle)
 {
 	if (handle->options.disabled_caps & TERSE_CAP_DISABLE_SIZE) {
@@ -595,7 +1252,7 @@ terse_get_capabilities(terse_handle_t handle)
 	return handle->capabilities;
 }
 
-int
+static int
 ensure_handle(terse_handle_t handle)
 {
 	if (!handle) {
@@ -605,7 +1262,7 @@ ensure_handle(terse_handle_t handle)
 	return 0;
 }
 
-void
+static void
 apply_runtime_overrides(terse_handle_t handle)
 {
 	recompute_capabilities(handle);
@@ -754,7 +1411,7 @@ int terse_pop_state(terse_handle_t handle)
 	return 0;
 }
 
-int
+static int
 write_bytes(int fd, const char *bytes, size_t len)
 {
 	if (!bytes) {
@@ -781,7 +1438,7 @@ write_bytes(int fd, const char *bytes, size_t len)
 	return 0;
 }
 
-int
+static int
 write_literal(terse_handle_t handle, const char *literal)
 {
 	int rc = ensure_handle(handle);
@@ -802,7 +1459,7 @@ write_literal(terse_handle_t handle, const char *literal)
 	return out;
 }
 
-int
+static int
 write_sequence(terse_handle_t handle, const char *sequence, size_t length)
 {
 	int out = write_bytes(handle->options.output_fd, sequence, length);
