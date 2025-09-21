@@ -61,3 +61,7 @@ add_test(NAME c.terse_notification_test COMMAND terse_notification_test)
 add_executable(terse_style_test unit/terse_style_test.c)
 target_link_libraries(terse_style_test PRIVATE terse)
 add_test(NAME c.terse_style_test COMMAND terse_style_test)
+
+add_executable(terse_hyperlink_test unit/terse_hyperlink_test.c)
+target_link_libraries(terse_hyperlink_test PRIVATE terse)
+add_test(NAME c.terse_hyperlink_test COMMAND terse_hyperlink_test)
