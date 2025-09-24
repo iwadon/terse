@@ -15,6 +15,8 @@ static int g_raw_installed = 0;
 typedef struct glyph {
 	unsigned int scalar;
 	int width;
+	unsigned int combining[8];
+	size_t combining_count;
 } glyph_t;
 
 typedef struct line_buffer {
@@ -96,6 +98,19 @@ static size_t glyphs_to_utf8(const glyph_t *glyphs, size_t count, char *out, siz
 		}
 		memcpy(out + written, temp, len);
 		written += len;
+		int capacity_exhausted = 0;
+		for (size_t c = 0; c < glyphs[i].combining_count; ++c) {
+			len = encode_utf8(glyphs[i].combining[c], temp);
+			if (written + len >= capacity) {
+				capacity_exhausted = 1;
+				break;
+			}
+			memcpy(out + written, temp, len);
+			written += len;
+		}
+		if (capacity_exhausted) {
+			break;
+		}
 	}
 	if (capacity > 0) {
 		out[written < (capacity - 1) ? written : (capacity - 1)] = '\0';
@@ -174,13 +189,23 @@ static void line_edit_loop(terse_handle_t handle)
 				continue;
 			}
 			if (line.length < BUFFER_CAPACITY) {
-				glyph_t glyph = {
-					.scalar = ch,
-					.width = event.data.ch.width > 0 ? event.data.ch.width : 0,
-				};
-				if (glyph.width == 0 && line.length == 0) {
+				int width = event.data.ch.width > 0 ? event.data.ch.width : 0;
+				if (width == 0) {
+					if (line.cursor == 0) {
+						continue;
+					}
+					glyph_t *base = &line.glyphs[line.cursor - 1];
+					if (base->combining_count < sizeof(base->combining) / sizeof(base->combining[0])) {
+						base->combining[base->combining_count++] = ch;
+						render_line(handle, 2, prompt, &line);
+					}
 					continue;
 				}
+				glyph_t glyph = {
+					.scalar = ch,
+					.width = width,
+					.combining_count = 0,
+				};
 				memmove(&line.glyphs[line.cursor + 1], &line.glyphs[line.cursor], (line.length - line.cursor) * sizeof(glyph_t));
 				line.glyphs[line.cursor] = glyph;
 				line.cursor++;
