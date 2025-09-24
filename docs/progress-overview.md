@@ -3,7 +3,7 @@
 ## Summary
 P0のライフサイクル・出力・入力・サイズ取得・エラー返却は実装済み。環境検出により Apple Terminal / GNOME Terminal (VTE) / iTerm2 / WezTerm / kitty / Ghostty / Warp を判別し、`TERSE_PROFILE_AUTO` で適切なプロファイル能力へ自動縮退/上限クリップ。ランタイムでも `terse_capabilities_enable/disable/reset_overrides` により能力の明示上書きが可能。さらにP1（色・装飾）、P2（マウス/ブランケットペースト/タイトル・リンク）、P3（クリップボード/画像/カーソル形状/通知）の主要APIを実装し、ユニットテストとサンプルで検証済み。
 
-一方で、仕様の「Codec選択/多バイト復号/セル幅推定（East Asian Width）」は未着手（`codec_name` は現時点で未使用）。入力正規化はASCII/制御/矢印/Resize/一部修飾に限定され、機能キー群や複合グラフェムは今後対応予定。
+入出力Codecは `UTF-8` / `Shift_JIS` の選択に対応し、多バイト復号・East Asian Width に基づくセル幅推定（結合文字=幅0/全角=幅2）を実装済み。入力正規化はASCII/制御/矢印/Resize/一部修飾に限定され、機能キー群や複合グラフェムの追加対応は今後実施予定。
 
 ## Progress Matrix
 
@@ -26,11 +26,11 @@ P0のライフサイクル・出力・入力・サイズ取得・エラー返却
 | P3: カーソル形状 | P3 | ✅ 実装済み | `DECSCUSR`（ブロック/下線/バー＋点滅）切替。|
 | P3: 通知 | P3 | ✅ 実装済み | ベル（BEL）/視覚（DECSCNMトグル）/デスクトップ（`OSC 9;1;...`）。環境検出でBELL/デスクトップを付与。|
 | サンプル | P0-P3 | ✅ 実装済み | `samples/` に P0〜P3 デモ（色/スタイル/拡張機能/通知等）。|
-| Codec/セル幅 | P0 | ⏳ 未着手 | `codec_name` は未使用。UTF-8/Shift_JIS 復号と East Asian Width に基づく `width` 推定は今後。|
+| Codec/セル幅 | P0 | ✅ 実装済み | UTF-8/Shift_JIS 変換、復号エラー時の置換、East Asian Width に基づく `Char.width` 推定とテスト完了。|
 | 拡張キーレポート | P2+ | ⏳ 未着手 | `Shift+Enter` などの詳細修飾検出（xterm MOK, kitty 等）の検出/抽象化は今後。|
 
 ## Next Steps Snapshot
-- 入出力Codec（UTF-8/Shift_JIS）と多バイト復号、East Asian Width に基づくセル幅推定を実装（入力`Char.width`/出力エンコード）。
+- East Asian Ambiguous=Wide のオプション化、追加Codec（例：ISO-2022-JP）検討。
 - 入力正規化の拡充：機能キー/Home/End/Page/Function(n) ほか、修飾一貫性の強化、タイムアウト/合成のチューニング。
 - 環境検出の強化：tmux/screen配下や追加端末のSecondary DAマッピング、VISUAL通知サポート検出の拡充。
 - 画像/クリップボードの互換拡大（kitty graphics等の追加）と能力表の詳細化。

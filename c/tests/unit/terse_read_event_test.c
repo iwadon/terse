@@ -6,19 +6,24 @@
 #include <string.h>
 #include <unistd.h>
 
-static void create_input_handle(terse_handle_t *out_handle, int fds[2])
+static void create_input_handle_with_codec(const char *codec, terse_handle_t *out_handle, int fds[2])
 {
 	EXPECT_TRUE(pipe(fds) == 0);
 
 	terse_options_t options = {
 		.input_fd = fds[0],
 		.output_fd = STDOUT_FILENO,
-		.codec_name = "UTF-8",
+		.codec_name = codec,
 		.disabled_caps = 0,
 	};
 
 	*out_handle = terse_open(TERSE_P0, &options);
 	EXPECT_TRUE(*out_handle != NULL);
+}
+
+static void create_input_handle(terse_handle_t *out_handle, int fds[2])
+{
+	create_input_handle_with_codec("UTF-8", out_handle, fds);
 }
 
 TEST(TerseReadEvent, ReturnsNone_OnTimeout)
@@ -139,6 +144,90 @@ TEST(TerseReadEvent, ReturnsArrowWithShift_OnModifierSequence)
 	EXPECT_EQ(TERSE_EVENT_OK, result);
 	EXPECT_EQ(TERSE_EVENT_ARROW_UP, event.type);
 	EXPECT_EQ(TERSE_MOD_SHIFT, event.data.key.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsWideWidth_OnUtf8Cjk)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const unsigned char bytes[] = { 0xe6, 0xbc, 0xa2 }; // U+6F22
+	EXPECT_TRUE(write(fds[1], bytes, sizeof(bytes)) == (ssize_t)sizeof(bytes));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
+	EXPECT_EQ(0x6f22u, event.data.ch.scalar);
+	EXPECT_EQ(2, event.data.ch.width);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsZeroWidth_OnCombiningMark)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const unsigned char bytes[] = { 0xcc, 0x81 }; // U+0301 combining acute
+	EXPECT_TRUE(write(fds[1], bytes, sizeof(bytes)) == (ssize_t)sizeof(bytes));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
+	EXPECT_EQ(0x301u, event.data.ch.scalar);
+	EXPECT_EQ(0, event.data.ch.width);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsWideWidth_OnShiftJisDoubleByte)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle_with_codec("Shift_JIS", &handle, fds);
+
+	const unsigned char bytes[] = { 0x82, 0xa0 }; // "あ"
+	EXPECT_TRUE(write(fds[1], bytes, sizeof(bytes)) == (ssize_t)sizeof(bytes));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
+	EXPECT_EQ(0x3042u, event.data.ch.scalar);
+	EXPECT_EQ(2, event.data.ch.width);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsHalfWidth_OnShiftJisKana)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle_with_codec("Shift_JIS", &handle, fds);
+
+	const unsigned char bytes[] = { 0xa6 }; // Half-width Katakana U+FF66
+	EXPECT_TRUE(write(fds[1], bytes, sizeof(bytes)) == (ssize_t)sizeof(bytes));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
+	EXPECT_EQ(0xff66u, event.data.ch.scalar);
+	EXPECT_EQ(1, event.data.ch.width);
 
 	terse_close(handle);
 	close(fds[0]);
