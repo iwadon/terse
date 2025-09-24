@@ -1,6 +1,5 @@
 #include "terse.h"
 
-#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,9 +7,21 @@
 #include <unistd.h>
 
 #define BUFFER_CAPACITY 1024
+#define UTF8_BUFFER_CAPACITY (BUFFER_CAPACITY * 4 + 1)
 
 static struct termios g_original_termios;
 static int g_raw_installed = 0;
+
+typedef struct glyph {
+	unsigned int scalar;
+	int width;
+} glyph_t;
+
+typedef struct line_buffer {
+	glyph_t glyphs[BUFFER_CAPACITY];
+	size_t length; // glyph count
+	size_t cursor; // glyph index
+} line_buffer_t;
 
 static void restore_terminal(void)
 {
@@ -46,8 +57,68 @@ static void print_error(terse_handle_t handle, const char *label)
 	fprintf(stderr, "%s failed: category=%d code=%d\n", label, err.category, err.code);
 }
 
-static void render_line(terse_handle_t handle, int row, const char *prompt, const char *buffer, size_t cursor_pos)
+static size_t encode_utf8(unsigned int scalar, char *dest)
 {
+	if (scalar <= 0x7f) {
+		dest[0] = (char)scalar;
+		return 1;
+	}
+	if (scalar <= 0x7ff) {
+		dest[0] = (char)(0xc0 | ((scalar >> 6) & 0x1f));
+		dest[1] = (char)(0x80 | (scalar & 0x3f));
+		return 2;
+	}
+	if (scalar <= 0xffff) {
+		dest[0] = (char)(0xe0 | ((scalar >> 12) & 0x0f));
+		dest[1] = (char)(0x80 | ((scalar >> 6) & 0x3f));
+		dest[2] = (char)(0x80 | (scalar & 0x3f));
+		return 3;
+	}
+	if (scalar <= 0x10ffff) {
+		dest[0] = (char)(0xf0 | ((scalar >> 18) & 0x07));
+		dest[1] = (char)(0x80 | ((scalar >> 12) & 0x3f));
+		dest[2] = (char)(0x80 | ((scalar >> 6) & 0x3f));
+		dest[3] = (char)(0x80 | (scalar & 0x3f));
+		return 4;
+	}
+	dest[0] = '?';
+	return 1;
+}
+
+static size_t glyphs_to_utf8(const glyph_t *glyphs, size_t count, char *out, size_t capacity)
+{
+	size_t written = 0;
+	for (size_t i = 0; i < count; ++i) {
+		char temp[4] = { 0 };
+		size_t len = encode_utf8(glyphs[i].scalar, temp);
+		if (written + len >= capacity) {
+			break;
+		}
+		memcpy(out + written, temp, len);
+		written += len;
+	}
+	if (capacity > 0) {
+		out[written < (capacity - 1) ? written : (capacity - 1)] = '\0';
+	}
+	return written;
+}
+
+static int glyphs_display_width(const glyph_t *glyphs, size_t count)
+{
+	int width = 0;
+	for (size_t i = 0; i < count; ++i) {
+		if (glyphs[i].width > 0) {
+			width += glyphs[i].width;
+		}
+	}
+	return width;
+}
+
+static void render_line(terse_handle_t handle, int row, const char *prompt, const line_buffer_t *line)
+{
+	char utf8_buffer[UTF8_BUFFER_CAPACITY];
+	glyphs_to_utf8(line->glyphs, line->length, utf8_buffer, sizeof(utf8_buffer));
+
 	if (terse_move_to(handle, row, 1) < 0) {
 		print_error(handle, "move_to");
 		return;
@@ -66,10 +137,10 @@ static void render_line(terse_handle_t handle, int row, const char *prompt, cons
 	if (terse_reset_style(handle, TERSE_RESET_ALL) < 0) {
 		print_error(handle, "reset_style");
 	}
-	if (terse_write_text(handle, buffer) < 0) {
+	if (terse_write_text(handle, utf8_buffer) < 0) {
 		print_error(handle, "write_text");
 	}
-	int col = (int)strlen(prompt) + (int)cursor_pos + 1;
+	int col = (int)strlen(prompt) + glyphs_display_width(line->glyphs, line->cursor) + 1;
 	if (terse_move_to(handle, row, col) < 0) {
 		print_error(handle, "move_to");
 	}
@@ -77,13 +148,11 @@ static void render_line(terse_handle_t handle, int row, const char *prompt, cons
 
 static void line_edit_loop(terse_handle_t handle)
 {
-	char buffer[BUFFER_CAPACITY];
-	size_t length = 0;
-	size_t cursor = 0;
-	buffer[0] = '\0';
+	line_buffer_t line = { 0 };
+	char utf8_snapshot[UTF8_BUFFER_CAPACITY];
 
 	const char *prompt = "edit> ";
-	render_line(handle, 2, prompt, buffer, cursor);
+	render_line(handle, 2, prompt, &line);
 
 	while (1) {
 		terse_event_t event;
@@ -104,31 +173,38 @@ static void line_edit_loop(terse_handle_t handle)
 				}
 				continue;
 			}
-			if (isprint((int)ch) && length + 1 < BUFFER_CAPACITY) {
-				memmove(buffer + cursor + 1, buffer + cursor, length - cursor + 1);
-				buffer[cursor] = (char)ch;
-				cursor++;
-				length++;
+			if (line.length < BUFFER_CAPACITY) {
+				glyph_t glyph = {
+					.scalar = ch,
+					.width = event.data.ch.width > 0 ? event.data.ch.width : 0,
+				};
+				if (glyph.width == 0 && line.length == 0) {
+					continue;
+				}
+				memmove(&line.glyphs[line.cursor + 1], &line.glyphs[line.cursor], (line.length - line.cursor) * sizeof(glyph_t));
+				line.glyphs[line.cursor] = glyph;
+				line.cursor++;
+				line.length++;
 			}
 		} else if (event.type == TERSE_EVENT_BACKSPACE) {
-			if (cursor > 0) {
-				memmove(buffer + cursor - 1, buffer + cursor, length - cursor + 1);
-				cursor--;
-				length--;
+			if (line.cursor > 0) {
+				memmove(&line.glyphs[line.cursor - 1], &line.glyphs[line.cursor], (line.length - line.cursor) * sizeof(glyph_t));
+				line.cursor--;
+				line.length--;
 			}
 		} else if (event.type == TERSE_EVENT_ARROW_LEFT) {
-			if (cursor > 0) {
-				cursor--;
+			if (line.cursor > 0) {
+				line.cursor--;
 			}
 		} else if (event.type == TERSE_EVENT_ARROW_RIGHT) {
-			if (cursor < length) {
-				cursor++;
+			if (line.cursor < line.length) {
+				line.cursor++;
 			}
 		} else if (event.type == TERSE_EVENT_ENTER) {
 			break;
 		}
 
-		render_line(handle, 2, prompt, buffer, cursor);
+		render_line(handle, 2, prompt, &line);
 	}
 
 	if (terse_move_to(handle, 4, 1) < 0) {
@@ -140,7 +216,8 @@ static void line_edit_loop(terse_handle_t handle)
 	if (terse_write_text(handle, "You entered: ") < 0) {
 		print_error(handle, "write_text");
 	}
-	if (terse_write_text(handle, buffer) < 0) {
+	glyphs_to_utf8(line.glyphs, line.length, utf8_snapshot, sizeof(utf8_snapshot));
+	if (terse_write_text(handle, utf8_snapshot) < 0) {
 		print_error(handle, "write_text");
 	}
 	if (terse_write_text(handle, "\n") < 0) {
@@ -148,17 +225,24 @@ static void line_edit_loop(terse_handle_t handle)
 	}
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
 	if (install_raw_terminal() != 0) {
 		fprintf(stderr, "Failed to enable raw mode.\n");
 		return 1;
 	}
 
+	const char *codec = "UTF-8";
+	if (argc > 1) {
+		if (strcmp(argv[1], "--shift-jis") == 0 || strcmp(argv[1], "--sjis") == 0) {
+			codec = "Shift_JIS";
+		}
+	}
+
 	terse_options_t options = {
 		.input_fd = STDIN_FILENO,
 		.output_fd = STDOUT_FILENO,
-		.codec_name = "UTF-8",
+		.codec_name = codec,
 		.disabled_caps = 0,
 		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES
 	};
