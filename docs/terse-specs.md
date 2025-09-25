@@ -361,19 +361,20 @@ function setup_mouse_if_supported() {
 
 ### イベント種別
 
-| 種別                          | 説明                                | 主フィールド                    |
-| --------------------------- | --------------------------------- | ------------------------- |
-| `Char`                      | 文字入力（表示可能グラフェム）                   | `scalar`, `mods`, `width` |
-| `Enter`                     | 改行キー                              | `mods`                    |
-| `Backspace`                 | 後退キー                              | `mods`                    |
-| `Tab`                       | 水平タブ                              | `mods`                    |
-| `Arrow{Up,Down,Left,Right}` | 矢印キー                              | `mods`                    |
-| `Home` / `End`              | 行頭/行末                             | `mods`                    |
-| `Page{Up,Down}`             | ページ移動                             | `mods`                    |
-| `Function(n)`               | F1–F12（n=1..12、範囲は実装拡張可）          | `n`, `mods`               |
-| `Resize`                    | 端末サイズ変更                           | `rows`, `cols`            |
-| `PasteBegin` / `PasteEnd`   | ブランケットペースト開始/終了（**P0では未対応、P2で有効化**） | なし                        |
-| `RawSequence`               | 未知のエスケープ列または制御列                   | `bytes[]`                 |
+| 種別                              | 説明                                | 主フィールド                    |
+| ------------------------------- | --------------------------------- | ------------------------- |
+| `Char`                          | 文字入力（表示可能グラフェム）                   | `scalar`, `mods`, `width` |
+| `Enter`                         | 改行キー（修飾付きも含む）                      | `mods`                    |
+| `Backspace`                     | 後退キー                              | `mods`                    |
+| `Tab`                           | 水平タブ（`Shift+Tab` など）               | `mods`                    |
+| `Arrow{Up,Down,Left,Right}`     | 矢印キー                              | `mods`                    |
+| `Home` / `End`                  | 行頭/行末                             | `mods`                    |
+| `Page{Up,Down}`                 | ページ移動                             | `mods`                    |
+| `Insert` / `Delete`             | 挿入／削除キー                          | `mods`                    |
+| `Function(n)`                   | F1–F24（実装拡張可。n=1..24 目安）          | `n`, `mods`               |
+| `Resize`                        | 端末サイズ変更                           | `rows`, `cols`            |
+| `PasteBegin` / `PasteEnd`       | ブランケットペースト開始/終了（**P0では未対応、P2で有効化**） | なし                        |
+| `RawSequence`                   | 未知のエスケープ列または制御列                   | `bytes[]`                 |
 
 > 注：P0では `PasteBegin/End` は**未対応**のため生成されない。P2以降で有効化される。ただし、将来互換のためイベント種別として予約定義されている。
 

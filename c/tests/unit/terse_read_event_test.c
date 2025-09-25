@@ -234,6 +234,167 @@ TEST(TerseReadEvent, ReturnsHalfWidth_OnShiftJisKana)
 	close(fds[1]);
 }
 
+TEST(TerseReadEvent, ReturnsHome_OnCsiH)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char seq[] = "\x1b[H";
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_HOME, event.type);
+	EXPECT_EQ(0, event.data.key.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsHomeWithShift_OnCsi1_2H)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char seq[] = "\x1b[1;2H";
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_HOME, event.type);
+	EXPECT_EQ(TERSE_MOD_SHIFT, event.data.key.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsPageDown_OnCsi6Tilde)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char seq[] = "\x1b[6~";
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_PAGE_DOWN, event.type);
+	EXPECT_EQ(0, event.data.key.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsDelete_OnCsi3Tilde)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char seq[] = "\x1b[3~";
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_DELETE, event.type);
+	EXPECT_EQ(0, event.data.key.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsFunction_OnCsi18Tilde)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char seq[] = "\x1b[18~"; // F7
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
+	EXPECT_EQ(7, event.data.function.number);
+	EXPECT_EQ(0, event.data.function.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsShiftTab_OnCsiZ)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char seq[] = "\x1b[Z";
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_TAB, event.type);
+	EXPECT_EQ(TERSE_MOD_SHIFT, event.data.key.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsShiftEnter_OnKittyCSIu)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char seq[] = "\x1b[13;2u";
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_ENTER, event.type);
+	EXPECT_EQ(TERSE_MOD_SHIFT, event.data.key.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsShiftEnter_OnModifyOtherKeys)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char seq[] = "\x1b[27;2;13~";
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_ENTER, event.type);
+	EXPECT_EQ(TERSE_MOD_SHIFT, event.data.key.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
 TEST(TerseReadEvent, ReturnsResize_OnCsi8Sequence)
 {
 	int fds[2];

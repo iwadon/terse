@@ -106,3 +106,20 @@ Build:
 cc -I../c/include -L../build/c -lterse line_edit_demo.c -o line_edit_demo
 ./line_edit_demo
 ```
+
+## Event Logger Demo
+
+`event_logger_demo.c` prints every event returned by `terse_read_event`, making it easy to verify key normalization and modifier handling:
+
+- configures termios raw mode and opens TERSE with `TERSE_PROFILE_AUTO`
+- logs characters (with scalar, UTF-8 text, width, modifiers), navigation keys, function keys, mouse events, paste notifications, and raw sequences
+- exits on `Ctrl+C`, so you can experiment freely with combinations such as `Shift+Enter`, kitty CSI-u, or modifyOtherKeys sequences
+
+Build and run:
+
+```sh
+cc -I../c/include -L../build/c -lterse event_logger_demo.c -o event_logger_demo
+./event_logger_demo
+```
+
+Press `Ctrl+C` to stop the demo.

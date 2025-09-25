@@ -2396,6 +2396,86 @@ modifier_bits_from_param(int param)
 	return mods;
 }
 
+static int
+mods_from_kitty_param(int param)
+{
+	if (param <= 0) {
+		return 0;
+	}
+	int bits = param - 1;
+	int mods = 0;
+	if (bits & 0x01) {
+		mods |= TERSE_MOD_SHIFT;
+	}
+	if (bits & 0x02) {
+		mods |= TERSE_MOD_ALT;
+	}
+	if (bits & 0x04) {
+		mods |= TERSE_MOD_CTRL;
+	}
+	if (bits & 0x08) {
+		mods |= TERSE_MOD_META;
+	}
+	return mods;
+}
+
+static int
+function_number_from_code(int code)
+{
+	switch (code) {
+	case 11:
+		return 1;
+	case 12:
+		return 2;
+	case 13:
+		return 3;
+	case 14:
+		return 4;
+	case 15:
+		return 5;
+	case 17:
+		return 6;
+	case 18:
+		return 7;
+	case 19:
+		return 8;
+	case 20:
+		return 9;
+	case 21:
+		return 10;
+	case 23:
+		return 11;
+	case 24:
+		return 12;
+	case 25:
+		return 13;
+	case 26:
+		return 14;
+	case 28:
+		return 15;
+	case 29:
+		return 16;
+	case 31:
+		return 17;
+	case 32:
+		return 18;
+	case 33:
+		return 19;
+	case 34:
+		return 20;
+	case 35:
+		return 21;
+	case 36:
+		return 22;
+	case 37:
+		return 23;
+	case 38:
+		return 24;
+	default:
+		return 0;
+	}
+}
+
 int terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 {
 	int rc = ensure_handle(handle);
@@ -3373,6 +3453,14 @@ set_key_event(terse_event_t *event, terse_event_type_t type, int mods)
 }
 
 static void
+set_function_event(terse_event_t *event, int fn_number, int mods)
+{
+	event->type = TERSE_EVENT_FUNCTION;
+	event->data.function.number = fn_number;
+	event->data.function.mods = mods;
+}
+
+static void
 set_char_event(terse_handle_t handle, terse_event_t *event, unsigned int scalar, int mods)
 {
 	int width = unicode_cell_width(scalar);
@@ -3490,6 +3578,45 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 					return TERSE_EVENT_OK;
 				}
 			}
+			if (final == 'u' && value_count >= 1) {
+				unsigned int code = (unsigned int)values[0];
+				int mods = 0;
+				if (value_count >= 2) {
+					mods = mods_from_kitty_param(values[1]);
+				}
+				if (code == 13) {
+					set_key_event(out_event, TERSE_EVENT_ENTER, mods);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				}
+				if (code == 9) {
+					set_key_event(out_event, TERSE_EVENT_TAB, mods);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				}
+				if (code == 127) {
+					set_key_event(out_event, TERSE_EVENT_BACKSPACE, mods);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				}
+				if (code >= 0x20 && code <= 0x10ffff) {
+					set_char_event(handle, out_event, code, mods);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				}
+			}
+			if (final == 'Z') {
+				int mods = TERSE_MOD_SHIFT;
+				if (value_count > 0) {
+					mods = modifier_bits_from_param(values[value_count - 1]);
+					if (!(mods & TERSE_MOD_SHIFT)) {
+						mods |= TERSE_MOD_SHIFT;
+					}
+				}
+				set_key_event(out_event, TERSE_EVENT_TAB, mods);
+				clear_error(handle);
+				return TERSE_EVENT_OK;
+			}
 			if (final == 't' && value_count >= 3 && values[0] == 8) {
 				set_resize_event(out_event, values[1], values[2]);
 				handle->size.rows = values[1];
@@ -3498,6 +3625,82 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 				handle->capabilities.has_size = 1;
 				clear_error(handle);
 				return TERSE_EVENT_OK;
+			}
+			if (final == 'H' || final == 'F') {
+				int mods = 0;
+				if (value_count > 0) {
+					mods = modifier_bits_from_param(values[value_count - 1]);
+				}
+				if (final == 'H') {
+					set_key_event(out_event, TERSE_EVENT_HOME, mods);
+				} else {
+					set_key_event(out_event, TERSE_EVENT_END, mods);
+				}
+				clear_error(handle);
+				return TERSE_EVENT_OK;
+			}
+			if (final == '~') {
+				if (value_count == 0) {
+					set_raw_event(out_event, seq, len);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				}
+				int mods_param = 0;
+				int key_code = values[0];
+				if (key_code == 27 && value_count >= 3) {
+					mods_param = values[1];
+					key_code = values[2];
+				} else if (value_count > 1) {
+					mods_param = values[value_count - 1];
+				}
+				int mods = modifier_bits_from_param(mods_param);
+				switch (key_code) {
+				case 1:
+				case 7:
+					set_key_event(out_event, TERSE_EVENT_HOME, mods);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				case 4:
+				case 8:
+					set_key_event(out_event, TERSE_EVENT_END, mods);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				case 2:
+					set_key_event(out_event, TERSE_EVENT_INSERT, mods);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				case 3:
+					set_key_event(out_event, TERSE_EVENT_DELETE, mods);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				case 5:
+					set_key_event(out_event, TERSE_EVENT_PAGE_UP, mods);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				case 6:
+					set_key_event(out_event, TERSE_EVENT_PAGE_DOWN, mods);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				case 9:
+					set_key_event(out_event, TERSE_EVENT_TAB, mods);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				case 13:
+					if (values[0] == 27 && value_count >= 3) {
+						set_key_event(out_event, TERSE_EVENT_ENTER, modifier_bits_from_param(values[1]));
+						clear_error(handle);
+						return TERSE_EVENT_OK;
+					}
+					break;
+				default:
+					break;
+				}
+				int fn = function_number_from_code(key_code);
+				if (fn > 0) {
+					set_function_event(out_event, fn, mods);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				}
 			}
 			if (final == 'A' || final == 'B' || final == 'C' || final == 'D') {
 				int mods = 0;
@@ -3524,6 +3727,54 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 				default:
 					break;
 				}
+			}
+		}
+		if (len >= 3 && seq[1] == 'O') {
+			int mods = 0;
+			char code = (char)seq[2];
+			switch (code) {
+			case 'A':
+				set_key_event(out_event, TERSE_EVENT_ARROW_UP, mods);
+				clear_error(handle);
+				return TERSE_EVENT_OK;
+			case 'B':
+				set_key_event(out_event, TERSE_EVENT_ARROW_DOWN, mods);
+				clear_error(handle);
+				return TERSE_EVENT_OK;
+			case 'C':
+				set_key_event(out_event, TERSE_EVENT_ARROW_RIGHT, mods);
+				clear_error(handle);
+				return TERSE_EVENT_OK;
+			case 'D':
+				set_key_event(out_event, TERSE_EVENT_ARROW_LEFT, mods);
+				clear_error(handle);
+				return TERSE_EVENT_OK;
+			case 'H':
+				set_key_event(out_event, TERSE_EVENT_HOME, mods);
+				clear_error(handle);
+				return TERSE_EVENT_OK;
+			case 'F':
+				set_key_event(out_event, TERSE_EVENT_END, mods);
+				clear_error(handle);
+				return TERSE_EVENT_OK;
+			case 'P':
+				set_function_event(out_event, 1, mods);
+				clear_error(handle);
+				return TERSE_EVENT_OK;
+			case 'Q':
+				set_function_event(out_event, 2, mods);
+				clear_error(handle);
+				return TERSE_EVENT_OK;
+			case 'R':
+				set_function_event(out_event, 3, mods);
+				clear_error(handle);
+				return TERSE_EVENT_OK;
+			case 'S':
+				set_function_event(out_event, 4, mods);
+				clear_error(handle);
+				return TERSE_EVENT_OK;
+			default:
+				break;
 			}
 		}
 		set_raw_event(out_event, seq, len);

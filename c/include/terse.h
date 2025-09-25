@@ -248,6 +248,13 @@ typedef enum terse_event_type {
 	TERSE_EVENT_ARROW_DOWN,
 	TERSE_EVENT_ARROW_LEFT,
 	TERSE_EVENT_ARROW_RIGHT,
+	TERSE_EVENT_HOME,
+	TERSE_EVENT_END,
+	TERSE_EVENT_PAGE_UP,
+	TERSE_EVENT_PAGE_DOWN,
+	TERSE_EVENT_INSERT,
+	TERSE_EVENT_DELETE,
+	TERSE_EVENT_FUNCTION,
 	TERSE_EVENT_MOUSE_DOWN,
 	TERSE_EVENT_MOUSE_UP,
 	TERSE_EVENT_MOUSE_MOVE,
@@ -271,6 +278,10 @@ typedef struct terse_event {
 		struct {
 			int mods;
 		} key;
+		struct {
+			int mods;
+			int number;
+		} function;
 		struct {
 			int rows;
 			int cols;
