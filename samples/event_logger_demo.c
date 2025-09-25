@@ -207,6 +207,10 @@ int main(void)
 	if (keyboard_supported & TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS) {
 		(void)terse_keyboard_enable(handle, TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS);
 	}
+	if ((keyboard_supported & TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL) &&
+	    !(keyboard_supported & TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS)) {
+		(void)terse_keyboard_enable(handle, TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL);
+	}
 
 	printf("Event logger demo. Press Ctrl+C to exit.\r\n");
 	fflush(stdout);

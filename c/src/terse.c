@@ -27,6 +27,8 @@ static const char TERSE_RESET_EFFECTS_SEQ[] = "\x1b[22;23;24;27;29m";
 static const char BASE64_ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static const char TERSE_MODIFY_OTHER_KEYS_ENABLE_SEQ[] = "\x1b[>4;2m";
 static const char TERSE_MODIFY_OTHER_KEYS_DISABLE_SEQ[] = "\x1b[>4;0m";
+static const char TERSE_KITTY_PROTOCOL_ENABLE_SEQ[] = "\x1b[?2026h";
+static const char TERSE_KITTY_PROTOCOL_DISABLE_SEQ[] = "\x1b[?2026l";
 
 typedef struct terse_rgb {
 	unsigned char r;
@@ -938,7 +940,7 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	}
 	if (is_kitty) {
 		caps = make_kitty_capabilities(has_truecolor);
-		/* kitty prefers its own keyboard protocol; keep keyboard feature unset for now. */
+		caps.keyboard_features |= TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL;
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
@@ -2087,6 +2089,12 @@ int terse_keyboard_enable(terse_handle_t handle, unsigned int feature_mask)
 			return rc;
 		}
 	}
+	if (to_enable & TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL) {
+		rc = write_literal(handle, TERSE_KITTY_PROTOCOL_ENABLE_SEQ);
+		if (rc < 0) {
+			return rc;
+		}
+	}
 	handle->keyboard_enabled |= to_enable;
 	clear_error(handle);
 	return 0;
@@ -2110,6 +2118,12 @@ int terse_keyboard_disable(terse_handle_t handle, unsigned int feature_mask)
 	if (handle->capabilities.has_basic_output) {
 		if (to_disable & TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS) {
 			rc = write_literal(handle, TERSE_MODIFY_OTHER_KEYS_DISABLE_SEQ);
+			if (rc < 0) {
+				return rc;
+			}
+		}
+		if (to_disable & TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL) {
+			rc = write_literal(handle, TERSE_KITTY_PROTOCOL_DISABLE_SEQ);
 			if (rc < 0) {
 				return rc;
 			}

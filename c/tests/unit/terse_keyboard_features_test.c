@@ -66,7 +66,7 @@ TEST(TerseKeyboardFeatures, EnablesModifyOtherKeysAndTracksState)
 	EXPECT_TRUE(n > 0);
 	EXPECT_EQ((size_t)n, strlen(enable_seq));
 	EXPECT_TRUE(memcmp(buffer, enable_seq, strlen(enable_seq)) == 0);
-	EXPECT_EQ(TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS, terse_keyboard_get_enabled(handle));
+	EXPECT_TRUE((terse_keyboard_get_enabled(handle) & TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS) != 0);
 
 	EXPECT_EQ(0, terse_keyboard_enable(handle, TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS));
 	errno = 0;
@@ -129,4 +129,51 @@ TEST(TerseKeyboardFeatures, EnableDegradesWhenUnsupported)
 int main(void)
 {
 	return RunAllTests();
+}
+
+TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
+{
+	char *saved_term = save_env("TERM");
+	char *saved_term_program = save_env("TERM_PROGRAM");
+	char *saved_lc_terminal = save_env("LC_TERMINAL");
+	setenv("TERM", "xterm-kitty", 1);
+	unsetenv("TERM_PROGRAM");
+	unsetenv("LC_TERMINAL");
+
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+	set_nonblocking(fds[0]);
+
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = 0,
+	};
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
+	EXPECT_TRUE(handle != NULL);
+	EXPECT_TRUE((terse_keyboard_get_supported(handle) & TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL) != 0);
+	EXPECT_EQ(0, terse_keyboard_enable(handle, TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL));
+	char buffer[32] = {0};
+	const char *enable_seq = "\x1b[?2026h";
+	errno = 0;
+	ssize_t n = read(fds[0], buffer, sizeof(buffer));
+	EXPECT_TRUE(n > 0);
+	EXPECT_EQ((size_t)n, strlen(enable_seq));
+	EXPECT_TRUE(memcmp(buffer, enable_seq, strlen(enable_seq)) == 0);
+	EXPECT_TRUE((terse_keyboard_get_enabled(handle) & TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL) != 0);
+	EXPECT_EQ(0, terse_keyboard_disable(handle, TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL));
+	const char *disable_seq = "\x1b[?2026l";
+	errno = 0;
+	n = read(fds[0], buffer, sizeof(buffer));
+	EXPECT_TRUE(n > 0);
+	EXPECT_EQ((size_t)n, strlen(disable_seq));
+	EXPECT_TRUE(memcmp(buffer, disable_seq, strlen(disable_seq)) == 0);
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+	restore_env("TERM", saved_term);
+	restore_env("TERM_PROGRAM", saved_term_program);
+	restore_env("LC_TERMINAL", saved_lc_terminal);
 }

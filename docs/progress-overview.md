@@ -27,7 +27,7 @@ P0のライフサイクル・出力・入力・サイズ取得・エラー返却
 | P3: 通知 | P3 | ✅ 実装済み | ベル（BEL）/視覚（DECSCNMトグル）/デスクトップ（`OSC 9;1;...`）。環境検出でBELL/デスクトップを付与。|
 | サンプル | P0-P3 | ✅ 実装済み | `samples/` に P0〜P3 デモ（色/スタイル/拡張機能/通知等）。|
 | Codec/セル幅 | P0 | ✅ 実装済み | UTF-8/Shift_JIS 変換、復号エラー時の置換、East Asian Width に基づく `Char.width` 推定とテスト完了。|
-| キーボード拡張 (modifyOtherKeys) | P0 | ✅ 実装済み | `terse_keyboard_enable/disable` を通じて modifyOtherKeys level 2 を opt-in。kitty keyboard は今後対応。|
+| キーボード拡張 (modifyOtherKeys/kitty) | P0 | ✅ 実装済み | `terse_keyboard_enable/disable` で modifyOtherKeys level 2 および kitty CSI-u を opt-in（対応端末のみ）。|
 | 拡張キーレポート | P2+ | ⏳ 未着手 | `Shift+Enter` などの詳細修飾検出（xterm MOK, kitty 等）の検出/抽象化は今後。|
 
 ## Next Steps Snapshot

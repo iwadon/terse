@@ -460,9 +460,10 @@ int terse_keyboard_enable(terse_handle_t handle, unsigned int feature_mask);
 int terse_keyboard_disable(terse_handle_t handle, unsigned int feature_mask);
 ```
 
-- `terse_keyboard_get_supported` は、環境検出の結果「安全に有効化できると推定される機能」をビット集合で返す。現在は `TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS` のみを判定対象としている（iTerm2 / WezTerm など）。
+- `terse_keyboard_get_supported` は、環境検出の結果「安全に有効化できると推定される機能」をビット集合で返す。現在は `TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS`（xterm/iTerm2/WezTerm 等）と `TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL`（kitty / CSI-u 対応端末）を判定対象としている。
 - `terse_keyboard_enable` / `disable` は冪等で、すでに対象がオン/オフの場合も 0 を返す。送信が必要な場合のみ制御シーケンスを出し、エラーが発生したときに負の値を返す。
-- `TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS` は xterm/iTerm2 系の `CSI > 4 ; n m` による拡張で、`Shift+Enter` や `Ctrl+Tab` などの修飾付きキーが `CSI 27;…~` 形式で届くようになる。
+- `TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS` は `CSI > 4 ; 2 m` / `CSI > 4 ; 0 m` を送信し、`Shift+Enter` や `Ctrl+Tab` などが `CSI 27;…~` 形式で届くようになる。
+- `TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL` は `CSI ? 2026 h` / `CSI ? 2026 l` を送信し、kitty 互換の `CSI number;mods u` フォーマットで修飾付きキーが届くようになる。
 - サポートされない環境では縮退（シーケンスを送信せず成功扱い、`get_enabled` にも反映されない）。
 
 ### 例：抽象イベント（非規範・参考）
