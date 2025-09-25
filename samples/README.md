@@ -90,6 +90,23 @@ cc -I../c/include -L../build/c -lterse p3_notifications_demo.c -o p3_notificatio
 
 On macOS Terminal/iTerm2, `b Hello!` should surface a desktop notification if OSC 9 is allowed by the terminal. The command still succeeds silently when the capability is absent.
 
+## P3 Image Demo
+
+`p3_image_demo.c` renders an arbitrary image using the iTerm2 inline protocol:
+
+- requests inline image support via `TERSE_CAP_ENABLE_IMAGE_INLINE`
+- loads the given file into memory and sends it with `terse_display_image_inline`
+- verifies that the negotiated capabilities include `TERSE_IMAGE_ITERM_INLINE` before transmitting
+
+Build and run (iTerm2 or WezTerm recommended):
+
+```sh
+cc -I../c/include -L../build/c -lterse p3_image_demo.c -o p3_image_demo
+./p3_image_demo path/to/image.png
+```
+
+If the terminal does not advertise inline images, the demo exits gracefully without sending the OSC 1337 sequence.
+
 ## Line Editing Demo
 
 `line_edit_demo.c` provides a minimal readline-style editor using only P0 APIs:
