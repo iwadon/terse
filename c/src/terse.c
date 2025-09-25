@@ -887,7 +887,7 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	}
 	if (is_iterm) {
 		caps = make_iterm_capabilities(has_truecolor);
-		caps.keyboard_features |= TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS;
+		caps.keyboard_features |= TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL;
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
