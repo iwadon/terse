@@ -5,6 +5,10 @@ P0のライフサイクル・出力・入力・サイズ取得・エラー返却
 
 入出力Codecは `UTF-8` / `Shift_JIS` の選択に対応し、多バイト復号・East Asian Width に基づくセル幅推定（結合文字=幅0/全角=幅2）を実装済み。入力正規化はASCII/制御/矢印/Resize/一部修飾に限定され、機能キー群や複合グラフェムの追加対応は今後実施予定。
 
+## Build Options
+
+- `-DTERSE_ENABLE_ICONV=OFF` で iconv なしのUTF-8専用ビルドが可能に。`Shift_JIS` を指定した場合は `ENOSYS` で `terse_open` が失敗する。
+
 ## Progress Matrix
 
 | 機能領域 | 対応プロファイル | ステータス | 現状メモ |

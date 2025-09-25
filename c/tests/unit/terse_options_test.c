@@ -54,7 +54,12 @@ TEST(TerseGetOptions, CopiesHandleOptions_OnValidHandle)
 	terse_options_t options = {
 		.input_fd = fds[0],
 		.output_fd = fds[1],
-		.codec_name = "Shift_JIS",
+		.codec_name =
+#if TERSE_HAVE_ICONV
+			"Shift_JIS",
+#else
+			"UTF-8",
+#endif
 		.disabled_caps = TERSE_CAP_DISABLE_CLEAR_SCREEN,
 		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES,
 	};
@@ -74,6 +79,28 @@ TEST(TerseGetOptions, CopiesHandleOptions_OnValidHandle)
 	close(fds[0]);
 	close(fds[1]);
 }
+
+#if !TERSE_HAVE_ICONV
+TEST(TerseOpen, ReturnsEnosys_OnShiftJisWithoutIconv)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "Shift_JIS",
+	};
+
+	errno = 0;
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_TRUE(handle == NULL);
+	EXPECT_EQ(ENOSYS, errno);
+
+	close(fds[0]);
+	close(fds[1]);
+}
+#endif
 
 TEST(TerseCapabilities, DefaultsMatchP0)
 {

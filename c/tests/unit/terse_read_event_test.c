@@ -192,6 +192,7 @@ TEST(TerseReadEvent, ReturnsZeroWidth_OnCombiningMark)
 	close(fds[1]);
 }
 
+#if TERSE_HAVE_ICONV
 TEST(TerseReadEvent, ReturnsWideWidth_OnShiftJisDoubleByte)
 {
 	int fds[2];
@@ -233,6 +234,7 @@ TEST(TerseReadEvent, ReturnsHalfWidth_OnShiftJisKana)
 	close(fds[0]);
 	close(fds[1]);
 }
+#endif
 
 TEST(TerseReadEvent, ReturnsHome_OnCsiH)
 {

@@ -1,6 +1,7 @@
 #include "terse.h"
 #include "test.h"
 
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -33,6 +34,7 @@ TEST(TerseWriteText, Succeeds_OnPipeOutput)
 	close(fds[1]);
 }
 
+#if TERSE_HAVE_ICONV
 TEST(TerseWriteText, EncodesShiftJis_OnWideCharacter)
 {
 	int fds[2];
@@ -89,6 +91,7 @@ TEST(TerseWriteText, WritesReplacement_OnUnencodable)
 	close(fds[0]);
 	close(fds[1]);
 }
+#endif
 
 int main()
 {
