@@ -156,7 +156,7 @@ TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
 	EXPECT_TRUE((terse_keyboard_get_supported(handle) & TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL) != 0);
 	EXPECT_EQ(0, terse_keyboard_enable(handle, TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL));
 	char buffer[32] = {0};
-	const char *enable_seq = "\x1b[?2026h";
+	const char *enable_seq = "\x1b[>1u";
 	errno = 0;
 	ssize_t n = read(fds[0], buffer, sizeof(buffer));
 	EXPECT_TRUE(n > 0);
@@ -164,7 +164,7 @@ TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
 	EXPECT_TRUE(memcmp(buffer, enable_seq, strlen(enable_seq)) == 0);
 	EXPECT_TRUE((terse_keyboard_get_enabled(handle) & TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL) != 0);
 	EXPECT_EQ(0, terse_keyboard_disable(handle, TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL));
-	const char *disable_seq = "\x1b[?2026l";
+	const char *disable_seq = "\x1b[<u";
 	errno = 0;
 	n = read(fds[0], buffer, sizeof(buffer));
 	EXPECT_TRUE(n > 0);

@@ -27,8 +27,8 @@ static const char TERSE_RESET_EFFECTS_SEQ[] = "\x1b[22;23;24;27;29m";
 static const char BASE64_ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static const char TERSE_MODIFY_OTHER_KEYS_ENABLE_SEQ[] = "\x1b[>4;2m";
 static const char TERSE_MODIFY_OTHER_KEYS_DISABLE_SEQ[] = "\x1b[>4;0m";
-static const char TERSE_KITTY_PROTOCOL_ENABLE_SEQ[] = "\x1b[?2026h";
-static const char TERSE_KITTY_PROTOCOL_DISABLE_SEQ[] = "\x1b[?2026l";
+static const char TERSE_KITTY_PROTOCOL_ENABLE_SEQ[] = "\x1b[>1u";
+static const char TERSE_KITTY_PROTOCOL_DISABLE_SEQ[] = "\x1b[<u";
 
 typedef struct terse_rgb {
 	unsigned char r;
