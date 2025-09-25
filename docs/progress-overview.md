@@ -7,7 +7,7 @@ P0のライフサイクル・出力・入力・サイズ取得・エラー返却
 
 ## Build Options
 
-- `-DTERSE_ENABLE_ICONV=OFF` で iconv なしのUTF-8専用ビルドが可能に。`Shift_JIS` を指定した場合は `ENOSYS` で `terse_open` が失敗する。
+- `-DTERSE_ENABLE_ICONV=OFF` で iconv なしのUTF-8専用ビルドが可能に。`Shift_JIS` を指定した場合は `ENOSYS` で `terse_open` が失敗する（今後の対策方針は `docs/mini-iconv-plan.md` を参照）。
 
 ## Progress Matrix
 
