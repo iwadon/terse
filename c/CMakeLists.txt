@@ -2,6 +2,12 @@ add_library(terse
   src/terse.c
 )
 
+if(UNIX)
+  target_sources(terse PRIVATE src/terse_posix.c)
+else()
+  target_sources(terse PRIVATE src/terse_platform_stub.c)
+endif()
+
 target_include_directories(terse
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

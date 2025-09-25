@@ -1,4 +1,5 @@
 #include "terse.h"
+#include "terse_platform.h"
 
 /* State history stack depth macro.  Small for sanity, yet enough for
  * typical nested UI layers.
@@ -18,16 +19,12 @@
 #endif
 #include <limits.h>
 #include <stdint.h>
-#include <poll.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/ioctl.h>
-#include <termios.h>
-#include <unistd.h>
 
 static const char TERSE_RESET_ALL_SEQ[] = "\x1b[0m";
 static const char TERSE_RESET_COLOR_SEQ[] = "\x1b[39;49m";
@@ -621,95 +618,6 @@ color_kind_rank(terse_color_kind_t kind)
 	}
 }
 
-static size_t
-read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int timeout_ms)
-{
-	size_t total = 0;
-	struct pollfd pfd = {
-		.fd = fd,
-		.events = POLLIN,
-	};
-	const int slice = 25;
-	int remaining = timeout_ms;
-	while (total < capacity) {
-		int poll_timeout;
-		int wait = slice;
-		if (timeout_ms < 0) {
-			poll_timeout = -1;
-		} else {
-			if (remaining <= 0) {
-				break;
-			}
-			if (remaining < slice) {
-				wait = remaining;
-			}
-			poll_timeout = wait;
-		}
-		int ready = poll(&pfd, 1, poll_timeout);
-		if (ready < 0) {
-			if (errno == EINTR) {
-				continue;
-			}
-			break;
-		}
-		if (ready == 0) {
-			if (timeout_ms >= 0) {
-				remaining -= wait;
-			}
-			continue;
-		}
-		ssize_t n = read(fd, buffer + total, capacity - total);
-		if (n <= 0) {
-			break;
-		}
-		total += (size_t)n;
-		if (timeout_ms >= 0) {
-			remaining -= wait;
-		}
-	}
-	return total;
-}
-
-static size_t
-probe_secondary_da(int input_fd, int output_fd, unsigned char *buffer, size_t capacity)
-{
-	if (!buffer || capacity == 0) {
-		return 0;
-	}
-	if (input_fd < 0 || output_fd < 0) {
-		return 0;
-	}
-	if (!isatty(input_fd) || !isatty(output_fd)) {
-		return 0;
-	}
-	struct termios original;
-	if (tcgetattr(input_fd, &original) != 0) {
-		return 0;
-	}
-	struct termios raw = original;
-	raw.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
-	raw.c_oflag &= ~(OPOST);
-	raw.c_cflag |= CS8;
-	raw.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
-	raw.c_cc[VMIN] = 0;
-	raw.c_cc[VTIME] = 0;
-	if (tcsetattr(input_fd, TCSANOW, &raw) != 0) {
-		return 0;
-	}
-	const char request[] = "\x1b[>0c";
-	if (write(output_fd, request, sizeof(request) - 1) < 0) {
-		(void)tcsetattr(input_fd, TCSANOW, &original);
-		return 0;
-	}
-	unsigned char local[128];
-	if (!buffer) {
-		buffer = local;
-	}
-	size_t length = read_bytes_with_timeout(input_fd, buffer, capacity, 200);
-	(void)tcsetattr(input_fd, TCSANOW, &original);
-	return length;
-}
-
 static int
 matches_da_prefix(const unsigned char *buffer, size_t length, const char *prefix)
 {
@@ -853,7 +761,7 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 		memcpy(secondary, secondary_hint, hint_len);
 		secondary_len = hint_len;
 	} else if (options) {
-		secondary_len = probe_secondary_da(options->input_fd, options->output_fd, secondary, sizeof(secondary));
+		secondary_len = terse_platform_probe_secondary_da(options->input_fd, options->output_fd, secondary, sizeof(secondary));
 	}
 	int has_truecolor = (colorterm && strcasecmp(colorterm, "truecolor") == 0) ? 1 : 0;
 	int is_terminal_app = 0;
@@ -1285,7 +1193,6 @@ update_effective_style(terse_handle_t handle)
 static void set_char_event(terse_handle_t handle, terse_event_t *event, unsigned int scalar, int mods);
 static void set_key_event(terse_event_t *event, terse_event_type_t type, int mods);
 static void set_raw_event(terse_event_t *event, const unsigned char *bytes, size_t length);
-static ssize_t read_byte(int fd, unsigned char *out);
 static int write_literal(terse_handle_t handle, const char *literal);
 
 static int
@@ -1358,7 +1265,7 @@ decode_utf8_stream(int fd, unsigned char first, unsigned int *out_scalar)
 	}
 	for (int i = 1; i < expected; ++i) {
 		unsigned char next = 0;
-		ssize_t n = read_byte(fd, &next);
+		ssize_t n = terse_platform_read_byte(fd, &next);
 		if (n <= 0) {
 			if (n == 0) {
 				errno = EPIPE;
@@ -1412,7 +1319,7 @@ decode_shift_jis_stream(terse_handle_t handle, int fd, unsigned char first, unsi
 	}
 	if ((first >= 0x81 && first <= 0x9f) || (first >= 0xe0 && first <= 0xfc)) {
 		unsigned char second = 0;
-		ssize_t n = read_byte(fd, &second);
+		ssize_t n = terse_platform_read_byte(fd, &second);
 		if (n <= 0) {
 			if (n == 0) {
 				errno = EPIPE;
@@ -1858,19 +1765,6 @@ make_p0_capabilities(void)
 
 static void emit_reset_sequences(terse_handle_t handle);
 
-static terse_options_t
-default_options(void)
-{
-	terse_options_t options = {
-		.input_fd = STDIN_FILENO,
-		.output_fd = STDOUT_FILENO,
-		.codec_name = "UTF-8",
-		.disabled_caps = 0,
-		.enabled_caps = 0,
-	};
-	return options;
-}
-
 int terse_validate_options(const terse_options_t *options)
 {
 	if (!options) {
@@ -1894,22 +1788,6 @@ make_unknown_size(void)
 	return size;
 }
 
-static terse_size_t
-query_fd_size(int fd)
-{
-	terse_size_t size = make_unknown_size();
-	if (fd < 0) {
-		return size;
-	}
-	struct winsize ws;
-	if (ioctl(fd, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0 && ws.ws_row > 0) {
-		size.rows = ws.ws_row;
-		size.cols = ws.ws_col;
-		size.known = 1;
-	}
-	return size;
-}
-
 static void
 refresh_size(terse_handle_t handle)
 {
@@ -1917,9 +1795,9 @@ refresh_size(terse_handle_t handle)
 		handle->size = make_unknown_size();
 		return;
 	}
-	terse_size_t size = query_fd_size(handle->options.output_fd);
+	terse_size_t size = terse_platform_query_fd_size(handle->options.output_fd);
 	if (!size.known && handle->options.input_fd != handle->options.output_fd) {
-		size = query_fd_size(handle->options.input_fd);
+		size = terse_platform_query_fd_size(handle->options.input_fd);
 	}
 	if (size.known || !handle->size.known) {
 		handle->size = size;
@@ -1948,13 +1826,14 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	handle->requested_profile = requested_profile;
 	handle->capabilities = make_p0_capabilities();
 
+	terse_options_t defaults = terse_platform_default_options();
 	if (options) {
 		handle->options = *options;
 		if (!handle->options.codec_name) {
-			handle->options.codec_name = default_options().codec_name;
+			handle->options.codec_name = defaults.codec_name;
 		}
 	} else {
-		handle->options = default_options();
+		handle->options = defaults;
 	}
 	if (initialize_codec_handles(handle) < 0) {
 		int err = errno ? errno : EINVAL;
@@ -2259,33 +2138,6 @@ int terse_pop_state(terse_handle_t handle)
 }
 
 static int
-write_bytes(int fd, const char *bytes, size_t len)
-{
-	if (!bytes) {
-		errno = EINVAL;
-		return -EINVAL;
-	}
-	while (len > 0) {
-		ssize_t written = write(fd, bytes, len);
-		if (written < 0) {
-			if (errno == EINTR) {
-				continue;
-			}
-			int err = errno;
-			errno = err;
-			return -err;
-		}
-		if (written == 0) {
-			errno = EPIPE;
-			return -EPIPE;
-		}
-		bytes += (size_t)written;
-		len -= (size_t)written;
-	}
-	return 0;
-}
-
-static int
 write_literal(terse_handle_t handle, const char *literal)
 {
 	int rc = ensure_handle(handle);
@@ -2297,7 +2149,7 @@ write_literal(terse_handle_t handle, const char *literal)
 		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
 		return -EINVAL;
 	}
-	int out = write_bytes(handle->options.output_fd, literal, strlen(literal));
+	int out = terse_platform_write_bytes(handle->options.output_fd, literal, strlen(literal));
 	if (out < 0) {
 		set_error(handle, TERSE_ERROR_TRANSPORT, -out);
 	} else {
@@ -2309,7 +2161,7 @@ write_literal(terse_handle_t handle, const char *literal)
 static int
 write_sequence(terse_handle_t handle, const char *sequence, size_t length)
 {
-	int out = write_bytes(handle->options.output_fd, sequence, length);
+	int out = terse_platform_write_bytes(handle->options.output_fd, sequence, length);
 	if (out < 0) {
 		set_error(handle, TERSE_ERROR_TRANSPORT, -out);
 	} else {
@@ -2357,79 +2209,6 @@ emit_reset_sequences(terse_handle_t handle)
 		handle->style = terse_style_default();
 		update_effective_style(handle);
 	}
-}
-
-static int
-wait_for_input(int fd, int timeout_ms)
-{
-	struct pollfd pfd = {
-		.fd = fd,
-		.events = POLLIN,
-	};
-	int poll_timeout = timeout_ms < 0 ? -1 : timeout_ms;
-	for (;;) {
-		int ready = poll(&pfd, 1, poll_timeout);
-		if (ready < 0) {
-			if (errno == EINTR) {
-				continue;
-			}
-			int err = errno;
-			errno = err;
-			return -err;
-		}
-		return ready;
-	}
-}
-
-static ssize_t
-read_byte(int fd, unsigned char *out)
-{
-	for (;;) {
-		ssize_t n = read(fd, out, 1);
-		if (n < 0) {
-			if (errno == EINTR) {
-				continue;
-			}
-			int err = errno;
-			errno = err;
-			return -err;
-		}
-		return n;
-	}
-}
-
-static size_t
-drain_escape_sequence(int fd, unsigned char *buffer, size_t max)
-{
-	size_t len = 1;
-	while (len < max) {
-		struct pollfd pfd = {
-			.fd = fd,
-			.events = POLLIN,
-		};
-		int ready = poll(&pfd, 1, 10);
-		if (ready < 0) {
-			if (errno == EINTR) {
-				continue;
-			}
-			break;
-		}
-		if (ready == 0) {
-			break;
-		}
-		ssize_t n = read(fd, buffer + len, 1);
-		if (n <= 0) {
-			break;
-		}
-		len += (size_t)n;
-		if (len >= 3) {
-			unsigned char c = buffer[len - 1];
-			if (c >= '@' && c <= '~') {
-				break;
-			}
-		}
-	}
-	return len;
 }
 
 static int
@@ -3619,7 +3398,7 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 	}
 
 	int fd = handle->options.input_fd;
-	int ready = wait_for_input(fd, timeout_ms);
+	int ready = terse_platform_wait_for_input(fd, timeout_ms);
 	if (ready == 0) {
 		clear_error(handle);
 		return TERSE_EVENT_NONE;
@@ -3631,7 +3410,7 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 	}
 
 	unsigned char first = 0;
-	ssize_t n = read_byte(fd, &first);
+	ssize_t n = terse_platform_read_byte(fd, &first);
 	if (n == 0) {
 		errno = EPIPE;
 		set_error(handle, TERSE_ERROR_TRANSPORT, EPIPE);
@@ -3671,7 +3450,7 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 	if (first == 0x1b) {
 		unsigned char seq[TERSE_EVENT_RAW_MAX] = { 0 };
 		seq[0] = first;
-		size_t len = drain_escape_sequence(fd, seq, TERSE_EVENT_RAW_MAX);
+		size_t len = terse_platform_drain_escape_sequence(fd, seq, TERSE_EVENT_RAW_MAX);
 		int values[8] = { 0 };
 		size_t value_count = 0;
 		char final = 0;
