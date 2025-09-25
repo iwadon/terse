@@ -35,8 +35,39 @@ static void set_nonblocking(int fd)
 
 TEST(TerseKeyboardFeatures, EnablesModifyOtherKeysAndTracksState)
 {
+	char *saved_term = save_env("TERM");
 	char *saved_term_program = save_env("TERM_PROGRAM");
-	setenv("TERM_PROGRAM", "iTerm.app", 1);
+	char *saved_term_program_version = save_env("TERM_PROGRAM_VERSION");
+	char *saved_lc_terminal = save_env("LC_TERMINAL");
+	char *saved_lc_terminal_version = save_env("LC_TERMINAL_VERSION");
+	char *saved_colorterm = save_env("COLORTERM");
+	char *saved_gnome_screen = save_env("GNOME_TERMINAL_SCREEN");
+	char *saved_gnome_service = save_env("GNOME_TERMINAL_SERVICE");
+	char *saved_vte_version = save_env("VTE_VERSION");
+	char *saved_kitty_pid = save_env("KITTY_PID");
+	char *saved_wezterm_exec = save_env("WEZTERM_EXECUTABLE");
+	char *saved_secondary_hint = save_env("TERSE_SECONDARY_DA_HINT");
+	setenv("TERM", "xterm-256color", 1);
+	setenv("TERM_PROGRAM", "WezTerm", 1);
+	setenv("TERM_PROGRAM_VERSION", "20240203-110809-5046fc22", 1);
+	unsetenv("LC_TERMINAL");
+	unsetenv("LC_TERMINAL_VERSION");
+	setenv("COLORTERM", "truecolor", 1);
+	unsetenv("GNOME_TERMINAL_SCREEN");
+	unsetenv("GNOME_TERMINAL_SERVICE");
+	unsetenv("VTE_VERSION");
+	unsetenv("KITTY_PID");
+	setenv("WEZTERM_EXECUTABLE", "/Applications/WezTerm.app/Contents/MacOS/wezterm-gui", 1);
+	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;277;0c", 1);
+	EXPECT_TRUE(getenv("TERM_PROGRAM") != NULL);
+	EXPECT_TRUE(strcmp("WezTerm", getenv("TERM_PROGRAM")) == 0);
+	EXPECT_TRUE(getenv("COLORTERM") != NULL);
+	EXPECT_TRUE(strcmp("truecolor", getenv("COLORTERM")) == 0);
+	EXPECT_TRUE(getenv("LC_TERMINAL") == NULL);
+	EXPECT_TRUE(getenv("GNOME_TERMINAL_SERVICE") == NULL);
+	const char *secondary_hint = getenv("TERSE_SECONDARY_DA_HINT");
+	EXPECT_TRUE(secondary_hint != NULL);
+	EXPECT_EQ(11u, (unsigned)strlen(secondary_hint));
 
 	int fds[2];
 	EXPECT_TRUE(pipe(fds) == 0);
@@ -52,6 +83,10 @@ TEST(TerseKeyboardFeatures, EnablesModifyOtherKeysAndTracksState)
 
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
 	EXPECT_TRUE(handle != NULL);
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_EQ(TERSE_P3, caps.profile);
+	EXPECT_EQ(TERSE_IMAGE_ITERM_INLINE, caps.images);
+	EXPECT_TRUE((caps.keyboard_features & TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS) != 0);
 
 	unsigned int supported = terse_keyboard_get_supported(handle);
 	EXPECT_TRUE((supported & TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS) != 0);
@@ -87,7 +122,18 @@ TEST(TerseKeyboardFeatures, EnablesModifyOtherKeysAndTracksState)
 	close(fds[0]);
 	close(fds[1]);
 
+	restore_env("TERSE_SECONDARY_DA_HINT", saved_secondary_hint);
+	restore_env("WEZTERM_EXECUTABLE", saved_wezterm_exec);
+	restore_env("KITTY_PID", saved_kitty_pid);
+	restore_env("VTE_VERSION", saved_vte_version);
+	restore_env("GNOME_TERMINAL_SERVICE", saved_gnome_service);
+	restore_env("GNOME_TERMINAL_SCREEN", saved_gnome_screen);
+	restore_env("COLORTERM", saved_colorterm);
+	restore_env("LC_TERMINAL_VERSION", saved_lc_terminal_version);
+	restore_env("LC_TERMINAL", saved_lc_terminal);
+	restore_env("TERM_PROGRAM_VERSION", saved_term_program_version);
 	restore_env("TERM_PROGRAM", saved_term_program);
+	restore_env("TERM", saved_term);
 }
 
 TEST(TerseKeyboardFeatures, EnableDegradesWhenUnsupported)
@@ -155,7 +201,7 @@ TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
 	EXPECT_TRUE(handle != NULL);
 	EXPECT_TRUE((terse_keyboard_get_supported(handle) & TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL) != 0);
 	EXPECT_EQ(0, terse_keyboard_enable(handle, TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL));
-	char buffer[32] = {0};
+	char buffer[32] = { 0 };
 	const char *enable_seq = "\x1b[>1u";
 	errno = 0;
 	ssize_t n = read(fds[0], buffer, sizeof(buffer));
