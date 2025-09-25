@@ -203,6 +203,10 @@ int main(void)
 		fprintf(stderr, "terse_open failed\r\n");
 		return 1;
 	}
+	unsigned int keyboard_supported = terse_keyboard_get_supported(handle);
+	if (keyboard_supported & TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS) {
+		(void)terse_keyboard_enable(handle, TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS);
+	}
 
 	printf("Event logger demo. Press Ctrl+C to exit.\r\n");
 	fflush(stdout);
@@ -224,7 +228,8 @@ int main(void)
 		log_event(&event);
 		if (event.type == TERSE_EVENT_CHAR &&
 		    (event.data.ch.mods & TERSE_MOD_CTRL) &&
-		    event.data.ch.scalar == 'C') {
+		    (event.data.ch.mods & (TERSE_MOD_SHIFT | TERSE_MOD_ALT | TERSE_MOD_META)) == 0 &&
+		    (event.data.ch.scalar == 'C' || event.data.ch.scalar == 'c')) {
 			printf("Ctrl+C detected, exiting.\r\n");
 			break;
 		}

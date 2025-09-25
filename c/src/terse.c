@@ -25,6 +25,8 @@ static const char TERSE_RESET_ALL_SEQ[] = "\x1b[0m";
 static const char TERSE_RESET_COLOR_SEQ[] = "\x1b[39;49m";
 static const char TERSE_RESET_EFFECTS_SEQ[] = "\x1b[22;23;24;27;29m";
 static const char BASE64_ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static const char TERSE_MODIFY_OTHER_KEYS_ENABLE_SEQ[] = "\x1b[>4;2m";
+static const char TERSE_MODIFY_OTHER_KEYS_DISABLE_SEQ[] = "\x1b[>4;0m";
 
 typedef struct terse_rgb {
 	unsigned char r;
@@ -883,6 +885,7 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	}
 	if (is_iterm) {
 		caps = make_iterm_capabilities(has_truecolor);
+		caps.keyboard_features |= TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS;
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
@@ -916,6 +919,7 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	}
 	if (is_wezterm) {
 		caps = make_wezterm_capabilities(has_truecolor);
+		caps.keyboard_features |= TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS;
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
@@ -934,6 +938,7 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	}
 	if (is_kitty) {
 		caps = make_kitty_capabilities(has_truecolor);
+		/* kitty prefers its own keyboard protocol; keep keyboard feature unset for now. */
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
@@ -1253,6 +1258,8 @@ struct terse_handle {
 	int last_errno;
 	unsigned int runtime_enabled;
 	unsigned int runtime_disabled;
+	unsigned int keyboard_supported;
+	unsigned int keyboard_enabled;
 	// State history
 	terse_state_t state_stack[TERSE_STATE_STACK_MAX];
 	int state_stack_top; // -1 when empty
@@ -1269,6 +1276,7 @@ static void set_char_event(terse_handle_t handle, terse_event_t *event, unsigned
 static void set_key_event(terse_event_t *event, terse_event_type_t type, int mods);
 static void set_raw_event(terse_event_t *event, const unsigned char *bytes, size_t length);
 static ssize_t read_byte(int fd, unsigned char *out);
+static int write_literal(terse_handle_t handle, const char *literal);
 
 static int
 initialize_codec_handles(terse_handle_t handle)
@@ -1831,6 +1839,7 @@ make_p0_capabilities(void)
 		.has_clipboard_write = 0,
 		.images = TERSE_IMAGE_NONE,
 		.notifications = 0,
+		.keyboard_features = 0,
 	};
 	return caps;
 }
@@ -1947,6 +1956,8 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	handle->detected_capabilities = handle->capabilities;
 	handle->runtime_enabled = 0;
 	handle->runtime_disabled = 0;
+	handle->keyboard_supported = handle->capabilities.keyboard_features;
+	handle->keyboard_enabled = 0;
 	recompute_capabilities(handle);
 	handle->cursor_visible = 1;
 	handle->cursor_row = 0;
@@ -1966,6 +1977,11 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 
 void terse_close(terse_handle_t handle)
 {
+	if (handle) {
+		if (handle->keyboard_enabled) {
+			(void)terse_keyboard_disable(handle, handle->keyboard_enabled);
+		}
+	}
 	emit_reset_sequences(handle);
 	destroy_codec_handles(handle);
 	free(handle);
@@ -2043,6 +2059,81 @@ int terse_capabilities_reset_overrides(terse_handle_t handle)
 	handle->runtime_disabled = 0;
 	apply_runtime_overrides(handle);
 	return 0;
+}
+
+int terse_keyboard_enable(terse_handle_t handle, unsigned int feature_mask)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (feature_mask == 0) {
+		clear_error(handle);
+		return 0;
+	}
+	unsigned int supported = handle->keyboard_supported & feature_mask;
+	unsigned int to_enable = supported & ~handle->keyboard_enabled;
+	if (to_enable == 0) {
+		clear_error(handle);
+		return 0;
+	}
+	if (!handle->capabilities.has_basic_output) {
+		clear_error(handle);
+		return 0;
+	}
+	if (to_enable & TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS) {
+		rc = write_literal(handle, TERSE_MODIFY_OTHER_KEYS_ENABLE_SEQ);
+		if (rc < 0) {
+			return rc;
+		}
+	}
+	handle->keyboard_enabled |= to_enable;
+	clear_error(handle);
+	return 0;
+}
+
+int terse_keyboard_disable(terse_handle_t handle, unsigned int feature_mask)
+{
+	int rc = ensure_handle(handle);
+	if (rc < 0) {
+		return rc;
+	}
+	if (feature_mask == 0) {
+		clear_error(handle);
+		return 0;
+	}
+	unsigned int to_disable = feature_mask & handle->keyboard_enabled;
+	if (to_disable == 0) {
+		clear_error(handle);
+		return 0;
+	}
+	if (handle->capabilities.has_basic_output) {
+		if (to_disable & TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS) {
+			rc = write_literal(handle, TERSE_MODIFY_OTHER_KEYS_DISABLE_SEQ);
+			if (rc < 0) {
+				return rc;
+			}
+		}
+	}
+	handle->keyboard_enabled &= ~to_disable;
+	clear_error(handle);
+	return 0;
+}
+
+unsigned int terse_keyboard_get_enabled(terse_handle_t handle)
+{
+	if (!handle) {
+		return 0;
+	}
+	return handle->keyboard_enabled;
+}
+
+unsigned int terse_keyboard_get_supported(terse_handle_t handle)
+{
+	if (!handle) {
+		return 0;
+	}
+	return handle->keyboard_supported;
 }
 
 int terse_state_override(terse_handle_t handle, const terse_state_t *state)
@@ -3698,6 +3789,21 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 				int fn = function_number_from_code(key_code);
 				if (fn > 0) {
 					set_function_event(out_event, fn, mods);
+					clear_error(handle);
+					return TERSE_EVENT_OK;
+				}
+				if (key_code >= 0 && key_code <= 0x10ffff) {
+					if (key_code == 9) {
+						set_key_event(out_event, TERSE_EVENT_TAB, mods);
+						clear_error(handle);
+						return TERSE_EVENT_OK;
+					}
+					if (key_code == 8 || key_code == 127) {
+						set_key_event(out_event, TERSE_EVENT_BACKSPACE, mods);
+						clear_error(handle);
+						return TERSE_EVENT_OK;
+					}
+					set_char_event(handle, out_event, (unsigned int)key_code, mods);
 					clear_error(handle);
 					return TERSE_EVENT_OK;
 				}

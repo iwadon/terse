@@ -449,6 +449,22 @@ function setup_mouse_if_supported() {
 - `RawSequence.bytes[]` は **そのまま再送しない**。ログに出力する際は制御コードを可視化/エスケープすること。
 - 端末へ戻す場合はアプリ側で検証/再解釈すること（インジェクション防止）。
 
+### キーボード拡張 API
+
+TERSE は端末に対して修飾キー拡張を opt-in で交渉する関数を提供する。
+
+```c
+unsigned int terse_keyboard_get_supported(terse_handle_t handle);
+unsigned int terse_keyboard_get_enabled(terse_handle_t handle);
+int terse_keyboard_enable(terse_handle_t handle, unsigned int feature_mask);
+int terse_keyboard_disable(terse_handle_t handle, unsigned int feature_mask);
+```
+
+- `terse_keyboard_get_supported` は、環境検出の結果「安全に有効化できると推定される機能」をビット集合で返す。現在は `TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS` のみを判定対象としている（iTerm2 / WezTerm など）。
+- `terse_keyboard_enable` / `disable` は冪等で、すでに対象がオン/オフの場合も 0 を返す。送信が必要な場合のみ制御シーケンスを出し、エラーが発生したときに負の値を返す。
+- `TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS` は xterm/iTerm2 系の `CSI > 4 ; n m` による拡張で、`Shift+Enter` や `Ctrl+Tab` などの修飾付きキーが `CSI 27;…~` 形式で届くようになる。
+- サポートされない環境では縮退（シーケンスを送信せず成功扱い、`get_enabled` にも反映されない）。
+
 ### 例：抽象イベント（非規範・参考）
 
 - `Char(scalar=U+3042, width=2, mods=0)` … ひらがな「あ」入力。

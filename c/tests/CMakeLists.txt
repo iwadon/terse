@@ -65,3 +65,7 @@ add_test(NAME c.terse_style_test COMMAND terse_style_test)
 add_executable(terse_hyperlink_test unit/terse_hyperlink_test.c)
 target_link_libraries(terse_hyperlink_test PRIVATE terse)
 add_test(NAME c.terse_hyperlink_test COMMAND terse_hyperlink_test)
+
+add_executable(terse_keyboard_features_test unit/terse_keyboard_features_test.c)
+target_link_libraries(terse_keyboard_features_test PRIVATE terse)
+add_test(NAME c.terse_keyboard_features_test COMMAND terse_keyboard_features_test)

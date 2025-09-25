@@ -128,6 +128,7 @@ typedef struct terse_capabilities {
 	int has_clipboard_write;
 	terse_image_support_t images;
 	unsigned int notifications;
+	unsigned int keyboard_features;
 } terse_capabilities_t;
 
 typedef enum terse_capability_flag {
@@ -170,6 +171,12 @@ typedef enum terse_capability_enable_flag {
 	TERSE_CAP_ENABLE_NOTIFICATION_VISUAL = 1u << 12,
 	TERSE_CAP_ENABLE_NOTIFICATION_DESKTOP = 1u << 13
 } terse_capability_enable_flag_t;
+
+typedef enum terse_keyboard_feature {
+	TERSE_KEYBOARD_FEATURE_NONE = 0,
+	TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS = 1u << 0,
+	TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL = 1u << 1,
+} terse_keyboard_feature_t;
 
 typedef struct terse_options {
 	int input_fd;
@@ -329,6 +336,11 @@ terse_size_t terse_get_size(terse_handle_t handle);
 int terse_get_options(terse_handle_t handle, terse_options_t *out_options);
 int terse_validate_options(const terse_options_t *options);
 terse_error_info_t terse_get_last_error(terse_handle_t handle);
+
+int terse_keyboard_enable(terse_handle_t handle, unsigned int feature_mask);
+int terse_keyboard_disable(terse_handle_t handle, unsigned int feature_mask);
+unsigned int terse_keyboard_get_enabled(terse_handle_t handle);
+unsigned int terse_keyboard_get_supported(terse_handle_t handle);
 int terse_capture_state(terse_handle_t handle, terse_state_t *out_state);
 int terse_restore_state(terse_handle_t handle, const terse_state_t *state);
 terse_style_t terse_style_default(void);
