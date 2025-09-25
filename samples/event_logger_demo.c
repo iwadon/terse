@@ -100,7 +100,7 @@ static void log_event(const terse_event_t *event)
 		char utf8[5] = { 0 };
 		size_t len = encode_utf8(event->data.ch.scalar, utf8);
 		utf8[len] = '\0';
-		printf("CHAR scalar=U+%04X text='%s' width=%d mods=%s\n",
+		printf("CHAR scalar=U+%04X text='%s' width=%d mods=%s\r\n",
 			(unsigned int)event->data.ch.scalar,
 			utf8,
 			event->data.ch.width,
@@ -108,13 +108,13 @@ static void log_event(const terse_event_t *event)
 		break;
 	}
 	case TERSE_EVENT_ENTER:
-		printf("ENTER mods=%s\n", mod_string(event->data.key.mods));
+		printf("ENTER mods=%s\r\n", mod_string(event->data.key.mods));
 		break;
 	case TERSE_EVENT_BACKSPACE:
-		printf("BACKSPACE mods=%s\n", mod_string(event->data.key.mods));
+		printf("BACKSPACE mods=%s\r\n", mod_string(event->data.key.mods));
 		break;
 	case TERSE_EVENT_TAB:
-		printf("TAB mods=%s\n", mod_string(event->data.key.mods));
+		printf("TAB mods=%s\r\n", mod_string(event->data.key.mods));
 		break;
 	case TERSE_EVENT_HOME:
 	case TERSE_EVENT_END:
@@ -126,7 +126,7 @@ static void log_event(const terse_event_t *event)
 	case TERSE_EVENT_ARROW_DOWN:
 	case TERSE_EVENT_ARROW_LEFT:
 	case TERSE_EVENT_ARROW_RIGHT:
-		printf("%s mods=%s\n",
+		printf("%s mods=%s\r\n",
 			(event->type == TERSE_EVENT_HOME) ? "HOME" :
 			(event->type == TERSE_EVENT_END) ? "END" :
 			(event->type == TERSE_EVENT_PAGE_UP) ? "PAGE_UP" :
@@ -139,7 +139,7 @@ static void log_event(const terse_event_t *event)
 			mod_string(event->data.key.mods));
 		break;
 	case TERSE_EVENT_FUNCTION:
-		printf("FUNCTION F%d mods=%s\n",
+		printf("FUNCTION F%d mods=%s\r\n",
 			 event->data.function.number,
 			 mod_string(event->data.function.mods));
 		break;
@@ -147,7 +147,7 @@ static void log_event(const terse_event_t *event)
 	case TERSE_EVENT_MOUSE_UP:
 	case TERSE_EVENT_MOUSE_MOVE:
 	case TERSE_EVENT_MOUSE_SCROLL:
-		printf("MOUSE %s button=%d row=%d col=%d mods=%s\n",
+		printf("MOUSE %s button=%d row=%d col=%d mods=%s\r\n",
 			(event->type == TERSE_EVENT_MOUSE_DOWN) ? "DOWN" :
 			(event->type == TERSE_EVENT_MOUSE_UP) ? "UP" :
 			(event->type == TERSE_EVENT_MOUSE_MOVE) ? "MOVE" : "SCROLL",
@@ -157,13 +157,13 @@ static void log_event(const terse_event_t *event)
 			mod_string(event->data.mouse.mods));
 		break;
 	case TERSE_EVENT_PASTE_BEGIN:
-		printf("PASTE_BEGIN\n");
+		printf("PASTE_BEGIN\r\n");
 		break;
 	case TERSE_EVENT_PASTE_END:
-		printf("PASTE_END\n");
+		printf("PASTE_END\r\n");
 		break;
 	case TERSE_EVENT_RESIZE:
-		printf("RESIZE rows=%d cols=%d\n",
+		printf("RESIZE rows=%d cols=%d\r\n",
 			event->data.resize.rows,
 			event->data.resize.cols);
 		break;
@@ -173,11 +173,11 @@ static void log_event(const terse_event_t *event)
 		for (size_t i = 0; i < (size_t)event->data.raw.length; ++i) {
 			printf("%s%02X", (i == 0) ? "" : " ", event->data.raw.bytes[i]);
 		}
-		printf("\n");
+		printf("\r\n");
 		break;
 	}
 	default:
-		printf("UNKNOWN type=%d\n", event->type);
+		printf("UNKNOWN type=%d\r\n", event->type);
 		break;
 	}
 	fflush(stdout);
@@ -186,7 +186,7 @@ static void log_event(const terse_event_t *event)
 int main(void)
 {
 	if (install_raw_terminal() != 0) {
-		fprintf(stderr, "Failed to set raw mode.\n");
+		fprintf(stderr, "Failed to set raw mode.\r\n");
 		return 1;
 	}
 
@@ -200,11 +200,11 @@ int main(void)
 
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
 	if (!handle) {
-		fprintf(stderr, "terse_open failed\n");
+		fprintf(stderr, "terse_open failed\r\n");
 		return 1;
 	}
 
-	printf("Event logger demo. Press Ctrl+C to exit.\n");
+	printf("Event logger demo. Press Ctrl+C to exit.\r\n");
 	fflush(stdout);
 
 	terse_state_t saved_state;
@@ -218,14 +218,14 @@ int main(void)
 		}
 		if (rc < 0) {
 			terse_error_info_t info = terse_get_last_error(handle);
-			fprintf(stderr, "read_event failed: category=%d code=%d\n", info.category, info.code);
+			fprintf(stderr, "read_event failed: category=%d code=%d\r\n", info.category, info.code);
 			break;
 		}
 		log_event(&event);
 		if (event.type == TERSE_EVENT_CHAR &&
 		    (event.data.ch.mods & TERSE_MOD_CTRL) &&
 		    event.data.ch.scalar == 'C') {
-			printf("Ctrl+C detected, exiting.\n");
+			printf("Ctrl+C detected, exiting.\r\n");
 			break;
 		}
 	}
