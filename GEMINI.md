@@ -43,6 +43,20 @@ cc -I../c/include -L../build/c -lterse samples/p0_demo.c -o p0_demo
 ./p0_demo
 ```
 
+## Automated Build and Testing
+
+The project includes automated build and testing via GitHub Actions. The CI pipeline runs automatically on:
+
+* Push to `master` or `main` branches
+* Pull requests targeting `master` or `main` branches
+
+The workflow performs the following steps:
+1. **Configure:** `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release`
+2. **Build:** `ninja -C build`
+3. **Test:** `ctest --test-dir build --output-on-failure`
+
+All 18 unit tests must pass for the build to be considered successful. The CI runs on Ubuntu latest with all necessary dependencies (ninja-build, cmake, build-essential) automatically installed.
+
 ## Development Conventions
 
 ### Coding Style
