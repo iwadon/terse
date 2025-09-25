@@ -5,16 +5,16 @@
  */
 #define TERSE_STATE_STACK_MAX 8
 
-#ifndef TERSE_HAVE_ICONV
-#define TERSE_HAVE_ICONV 1
+#ifndef TERSE_USE_SYSTEM_ICONV
+#define TERSE_USE_SYSTEM_ICONV 1
 #endif
 
 #include <ctype.h>
 #include <errno.h>
-#if TERSE_HAVE_ICONV
+#if TERSE_USE_SYSTEM_ICONV
 #include <iconv.h>
 #else
-typedef int iconv_t;
+#include "mini_iconv.h"
 #endif
 #include <limits.h>
 #include <stdint.h>
@@ -521,7 +521,6 @@ unicode_cell_width(unsigned int scalar)
 	return 1;
 }
 
-#if TERSE_HAVE_ICONV
 static void
 reset_iconv_state(iconv_t cd)
 {
@@ -530,13 +529,6 @@ reset_iconv_state(iconv_t cd)
 	}
 	(void)iconv(cd, NULL, NULL, NULL, NULL);
 }
-#else
-static void
-reset_iconv_state(iconv_t cd)
-{
-	(void)cd;
-}
-#endif
 
 static unsigned int
 decode_utf8_bytes(const unsigned char *bytes, size_t length)
@@ -1306,7 +1298,6 @@ initialize_codec_handles(terse_handle_t handle)
 	handle->codec_to_utf8 = (iconv_t)-1;
 	handle->utf8_to_codec = (iconv_t)-1;
 	if (handle->codec_kind == TERSE_CODEC_SHIFT_JIS) {
-#if TERSE_HAVE_ICONV
 		handle->codec_to_utf8 = iconv_open("UTF-8", "SHIFT_JIS");
 		if (handle->codec_to_utf8 == (iconv_t)-1) {
 			return -1;
@@ -1317,10 +1308,6 @@ initialize_codec_handles(terse_handle_t handle)
 			handle->codec_to_utf8 = (iconv_t)-1;
 			return -1;
 		}
-#else
-		errno = ENOSYS;
-		return -1;
-#endif
 	}
 	return 0;
 }
@@ -1332,15 +1319,11 @@ destroy_codec_handles(terse_handle_t handle)
 		return;
 	}
 	if (handle->codec_to_utf8 != (iconv_t)-1) {
-#if TERSE_HAVE_ICONV
 		iconv_close(handle->codec_to_utf8);
-#endif
 		handle->codec_to_utf8 = (iconv_t)-1;
 	}
 	if (handle->utf8_to_codec != (iconv_t)-1) {
-#if TERSE_HAVE_ICONV
 		iconv_close(handle->utf8_to_codec);
-#endif
 		handle->utf8_to_codec = (iconv_t)-1;
 	}
 }
@@ -1394,7 +1377,6 @@ convert_shift_jis_pair(terse_handle_t handle, unsigned char lead, unsigned char 
 {
 	(void)lead;
 	(void)trail;
-#if TERSE_HAVE_ICONV
 	if (!handle || handle->codec_to_utf8 == (iconv_t)-1) {
 		return SHIFT_JIS_REPLACEMENT;
 	}
@@ -1415,21 +1397,11 @@ convert_shift_jis_pair(terse_handle_t handle, unsigned char lead, unsigned char 
 	}
 	size_t produced = (size_t)(out_ptr - outbuf);
 	return decode_utf8_bytes((const unsigned char *)outbuf, produced);
-#else
-	(void)handle;
-	return SHIFT_JIS_REPLACEMENT;
-#endif
 }
 
 static int
 decode_shift_jis_stream(terse_handle_t handle, int fd, unsigned char first, unsigned int *out_scalar)
 {
-#if !TERSE_HAVE_ICONV
-	(void)handle;
-	(void)fd;
-	*out_scalar = (first <= 0x7f) ? first : SHIFT_JIS_REPLACEMENT;
-	return 0;
-#else
 	if (first <= 0x7f) {
 		*out_scalar = first;
 		return 0;
@@ -1462,7 +1434,6 @@ decode_shift_jis_stream(terse_handle_t handle, int fd, unsigned char first, unsi
 	}
 	*out_scalar = SHIFT_JIS_REPLACEMENT;
 	return 0;
-#endif
 }
 
 static int
@@ -1481,16 +1452,11 @@ decode_stream_char(terse_handle_t handle, int fd, unsigned char first, terse_eve
 		}
 		break;
 	case TERSE_CODEC_SHIFT_JIS:
-#if TERSE_HAVE_ICONV
 		rc = decode_shift_jis_stream(handle, fd, first, &scalar);
 		if (rc < 0) {
 			return rc;
 		}
 		break;
-#else
-		errno = ENOSYS;
-		return -ENOSYS;
-#endif
 	default:
 		scalar = first;
 		break;
