@@ -130,6 +130,114 @@ TEST(TerseReadEvent, ReturnsCtrlChar_WithControlModifier)
 	close(fds[1]);
 }
 
+TEST(TerseReadEvent, ReturnsCharWithAlt_OnEscapePrefixedAscii)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const unsigned char seq[] = { 0x1b, 'a' };
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq)) == (ssize_t)sizeof(seq));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
+	EXPECT_EQ((unsigned int)'a', event.data.ch.scalar);
+	EXPECT_EQ(TERSE_MOD_ALT, event.data.ch.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsEnterWithAlt_OnEscapePrefixedNewline)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const unsigned char seq[] = { 0x1b, '\n' };
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq)) == (ssize_t)sizeof(seq));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_ENTER, event.type);
+	EXPECT_EQ(TERSE_MOD_ALT, event.data.key.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsCtrlAltChar_OnEscapePrefixedControl)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const unsigned char seq[] = { 0x1b, 0x01 };
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq)) == (ssize_t)sizeof(seq));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
+	EXPECT_EQ((unsigned int)'A', event.data.ch.scalar);
+	EXPECT_EQ(TERSE_MOD_ALT | TERSE_MOD_CTRL, event.data.ch.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsWideCharWithAlt_OnEscapePrefixedUtf8)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const unsigned char seq[] = { 0x1b, 0xe6, 0xbc, 0xa2 };
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq)) == (ssize_t)sizeof(seq));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
+	EXPECT_EQ(0x6f22u, event.data.ch.scalar);
+	EXPECT_EQ(TERSE_MOD_ALT, event.data.ch.mods);
+	EXPECT_EQ(2, event.data.ch.width);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+#if TERSE_HAVE_ICONV
+TEST(TerseReadEvent, ReturnsWideCharWithAlt_OnEscapePrefixedShiftJis)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle_with_codec("Shift_JIS", &handle, fds);
+
+	const unsigned char seq[] = { 0x1b, 0x82, 0xa0 };
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq)) == (ssize_t)sizeof(seq));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
+	EXPECT_EQ(0x3042u, event.data.ch.scalar);
+	EXPECT_EQ(TERSE_MOD_ALT, event.data.ch.mods);
+	EXPECT_EQ(2, event.data.ch.width);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+#endif
+
 TEST(TerseReadEvent, ReturnsArrowWithShift_OnModifierSequence)
 {
 	int fds[2];

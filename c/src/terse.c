@@ -2313,6 +2313,75 @@ mods_from_kitty_param(int param)
 	return mods;
 }
 
+static size_t
+expected_bytes_for_codec(terse_codec_kind_t kind, unsigned char first)
+{
+	switch (kind) {
+	case TERSE_CODEC_UTF8:
+		if (first < 0x80) {
+			return 1;
+		}
+		if ((first & 0xe0u) == 0xc0u) {
+			return 2;
+		}
+		if ((first & 0xf0u) == 0xe0u) {
+			return 3;
+		}
+		if ((first & 0xf8u) == 0xf0u) {
+			return 4;
+		}
+		return 0;
+	case TERSE_CODEC_SHIFT_JIS:
+		if (first <= 0x7f) {
+			return 1;
+		}
+		if (first >= 0xa1 && first <= 0xdf) {
+			return 1;
+		}
+		if ((first >= 0x81 && first <= 0x9f) || (first >= 0xe0 && first <= 0xfc)) {
+			return 2;
+		}
+		return 0;
+	case TERSE_CODEC_UNKNOWN:
+	default:
+		return 1;
+	}
+}
+
+static unsigned int
+decode_shift_jis_bytes(terse_handle_t handle, const unsigned char *bytes, size_t length)
+{
+	if (length == 0 || !bytes) {
+		return SHIFT_JIS_REPLACEMENT;
+	}
+	unsigned char first = bytes[0];
+	if (length == 1) {
+		if (first <= 0x7f) {
+			return first;
+		}
+		if (first >= 0xa1 && first <= 0xdf) {
+			return 0xff61u + (unsigned int)(first - 0xa1);
+		}
+		return SHIFT_JIS_REPLACEMENT;
+	}
+	if (length == 2) {
+		unsigned char lead = bytes[0];
+		unsigned char trail = bytes[1];
+		if (!((trail >= 0x40 && trail <= 0x7e) || (trail >= 0x80 && trail <= 0xfc))) {
+			return SHIFT_JIS_REPLACEMENT;
+		}
+		if (!((lead >= 0x81 && lead <= 0x9f) || (lead >= 0xe0 && lead <= 0xfc))) {
+			return SHIFT_JIS_REPLACEMENT;
+		}
+		unsigned int scalar = convert_shift_jis_pair(handle, lead, trail);
+		if (scalar == UTF8_REPLACEMENT) {
+			return SHIFT_JIS_REPLACEMENT;
+		}
+		return scalar;
+	}
+	return SHIFT_JIS_REPLACEMENT;
+}
+
 static int
 function_number_from_code(int code)
 {
@@ -3385,6 +3454,68 @@ set_resize_event(terse_event_t *event, int rows, int cols)
 	event->data.resize.cols = cols;
 }
 
+static int
+handle_escape_prefixed_char(terse_handle_t handle, terse_event_t *event, const unsigned char *seq, size_t len)
+{
+	if (len < 2 || !handle) {
+		return 0;
+	}
+	size_t payload_len = len - 1;
+	if (payload_len == 0) {
+		return 0;
+	}
+	const unsigned char *payload = seq + 1;
+	unsigned char first = payload[0];
+	if (first == 0x1b) {
+		return 0;
+	}
+	size_t expected = expected_bytes_for_codec(handle->codec_kind, first);
+	if (expected == 0 || expected != payload_len) {
+		return 0;
+	}
+	int mods = TERSE_MOD_ALT;
+	if (payload_len == 1) {
+		if (payload[0] == '\r' || payload[0] == '\n') {
+			set_key_event(event, TERSE_EVENT_ENTER, mods);
+			return 1;
+		}
+		if (payload[0] == '\t') {
+			set_key_event(event, TERSE_EVENT_TAB, mods);
+			return 1;
+		}
+		if (payload[0] == '\b' || payload[0] == 0x7f) {
+			set_key_event(event, TERSE_EVENT_BACKSPACE, mods);
+			return 1;
+		}
+		if (payload[0] >= 0x01 && payload[0] <= 0x1a) {
+			unsigned int scalar = 'A' + (unsigned int)(payload[0] - 1);
+			set_char_event(handle, event, scalar, mods | TERSE_MOD_CTRL);
+			return 1;
+		}
+	}
+	unsigned int scalar = 0;
+	switch (handle->codec_kind) {
+	case TERSE_CODEC_UTF8:
+		scalar = decode_utf8_bytes(payload, payload_len);
+		if (scalar == UTF8_REPLACEMENT) {
+			return 0;
+		}
+		break;
+	case TERSE_CODEC_SHIFT_JIS:
+		scalar = decode_shift_jis_bytes(handle, payload, payload_len);
+		if (scalar == SHIFT_JIS_REPLACEMENT) {
+			return 0;
+		}
+		break;
+	case TERSE_CODEC_UNKNOWN:
+	default:
+		scalar = payload[0];
+		break;
+	}
+	set_char_event(handle, event, scalar, mods);
+	return 1;
+}
+
 int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event)
 {
 	int rc = ensure_handle(handle);
@@ -3685,6 +3816,10 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 			default:
 				break;
 			}
+		}
+		if (handle_escape_prefixed_char(handle, out_event, seq, len)) {
+			clear_error(handle);
+			return TERSE_EVENT_OK;
 		}
 		set_raw_event(out_event, seq, len);
 		clear_error(handle);
