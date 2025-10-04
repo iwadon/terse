@@ -85,7 +85,7 @@ TEST(TerseKeyboardFeatures, EnablesModifyOtherKeysAndTracksState)
 	EXPECT_TRUE(handle != NULL);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(TERSE_P3, caps.profile);
-	EXPECT_EQ(TERSE_IMAGE_ITERM_INLINE, caps.images);
+	EXPECT_EQ(TERSE_IMAGE_KITTY, caps.images);
 	EXPECT_TRUE((caps.keyboard_features & TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS) != 0);
 
 	unsigned int supported = terse_keyboard_get_supported(handle);
