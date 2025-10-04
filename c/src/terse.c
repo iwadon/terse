@@ -674,7 +674,7 @@ make_wezterm_capabilities(int has_truecolor)
 	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
 	caps.profile = TERSE_P3;
 	caps.has_clipboard_write = 1;
-	caps.images = TERSE_IMAGE_ITERM_INLINE;
+	caps.images = TERSE_IMAGE_KITTY;
 	caps.notifications |= TERSE_NOTIFICATION_SUPPORT_DESKTOP;
 	return caps;
 }
@@ -685,7 +685,7 @@ make_kitty_capabilities(int has_truecolor)
 	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
 	caps.profile = TERSE_P3;
 	caps.has_clipboard_write = 1;
-	caps.images = TERSE_IMAGE_ITERM_INLINE;
+	caps.images = TERSE_IMAGE_KITTY;
 	return caps;
 }
 
@@ -1820,9 +1820,28 @@ send_sixel_image(terse_handle_t handle, const unsigned char *data, size_t size, 
 static int
 send_kitty_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
 {
-	(void)data;
-	(void)size;
 	(void)name;
+	size_t encoded_len = 0;
+	char *encoded = base64_encode(data, size, &encoded_len);
+	if (!encoded) {
+		errno = ENOMEM;
+		set_error(handle, TERSE_ERROR_RESOURCE, ENOMEM);
+		return -ENOMEM;
+	}
+	const char prefix[] = "\x1b_Ga=T,f=100,m=1;";
+	if (write_sequence(handle, prefix, sizeof(prefix) - 1) < 0) {
+		free(encoded);
+		return -handle->last_errno;
+	}
+	if (write_sequence(handle, encoded, encoded_len) < 0) {
+		free(encoded);
+		return -handle->last_errno;
+	}
+	free(encoded);
+	const char suffix[] = "\x1b\\";
+	if (write_sequence(handle, suffix, sizeof(suffix) - 1) < 0) {
+		return -handle->last_errno;
+	}
 	clear_error(handle);
 	return 0;
 }

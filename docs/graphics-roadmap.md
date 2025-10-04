@@ -38,7 +38,7 @@
   - Optional width/height hints (pixels) for Sixel scaling.
   - Optional `const char *name;` (used where supported, e.g., iTerm/kitty).
   - `unsigned int flags;` (`TERSE_IMAGE_FLAG_INLINE`, `TERSE_IMAGE_FLAG_ALLOW_DEGRADE`, ...)
-- `terse_display_image_inline` will internally build a request with `format=AUTO`, `flags=INLINE|ALLOW_DEGRADE` and call the new API. 現段階では後方互換のため kitty 対応端末も `TERSE_IMAGE_ITERM_INLINE` として報告し、新 API 実装時に切り替える。
+- `terse_display_image_inline` will internally build a request with `format=AUTO`, `flags=INLINE|ALLOW_DEGRADE` and call the new API。現状は iTerm inline / Sixel / kitty graphics を自動判別し、互換ルートからでも新 API の経路を通る。
 - Implementation phases:
   1. Expand capability detection
   2. Provide internal helpers for each protocol (sixel encoder, kitty file transfer). Accept pre-encoded Sixel data initially to avoid heavy encoding.
@@ -46,7 +46,7 @@
 
 ### Encoding / Transmission
 - **Sixel**: Terminal expects `ESC P q ... ESC \`. Need to chunk output, optionally apply RLE. Strategy: accept already-encoded Sixel, and supply helper `terse_image_encode_sixel_rgba` later. For now support basic streaming with `write_sequence`.
-- **kitty**: Use `OSC 1337` style but different control: `ESC_G` / `ESC\` framed chunks with key/value parameters (`a=t`, `f=100` etc). Need base64 optional; can send binary if `terminfo` indicates? Provide simple base64 path first (Kitty accepts base64 if `;` parted). Manage chunk sizes (<= 4096 bytes recommended). Provide minimal implementer: encode to base64 in-chunk using existing helper or new streaming routine。現状は互換性維持のため検出結果を iTerm inline として返すが、新 API で `TERSE_IMAGE_KITTY` を返す予定。
+- **kitty**: Use `OSC_G` frames (`ESC_G` ... `ESC\`) with parameters such as `a=T` (base64), `f=100` (PNG), `m=1` (final chunk). Current implementation emits a single base64 chunk per image; future work may add compression and streaming refinements.
 
 ### Error Handling / Fallback
 - If chosen protocol fails (transport error), set `TERSE_ERROR_TRANSPORT`.

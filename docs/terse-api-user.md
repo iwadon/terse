@@ -51,7 +51,7 @@ if (!caps.has_basic_output) {
 | カーソル操作 | `terse_move_to`, `terse_move_by`, `terse_show_cursor` |
 | 消去 | `terse_clear_screen`, `terse_clear_line` |
 | 文字列出力 | `terse_write_text`（Shift_JIS 変換を含む） |
-| 画像表示 | `terse_display_image`（新API） / `terse_display_image_inline`（互換） |
+| 画像表示 | `terse_display_image`（Sixel/kitty/iTerm inlineを自動選択） / `terse_display_image_inline`（互換） |
 | フラッシュ | `terse_flush`（必要に応じバッファ送出） |
 | スタイル設定 | `terse_set_style`, `terse_reset_style`, `terse_style_default` |
 | 色ユーティリティ | `terse_color_default`, `terse_color_basic`, `terse_color_palette`, `terse_color_truecolor` |
@@ -60,7 +60,7 @@ if (!caps.has_basic_output) {
 
 ### 4.1 画像表示
 
-`terse_display_image(handle, const terse_image_request_t *request)` を使うと、利用可能な画像プロトコル（現状は iTerm2 inline を使用、Sixel/kitty は順次対応予定）に基づいて最適な送出が行われます。`request->flags` を省略（0）すると安全なノーオペ縮退が既定で有効になります。既存の `terse_display_image_inline` は互換用ラッパーであり、内部的に新APIを呼び出します。
+`terse_display_image(handle, const terse_image_request_t *request)` を使うと、利用可能な画像プロトコル（iTerm2 inline / Sixel / kitty graphics）に基づいて最適な送出が行われます。`request->flags` を省略（0）すると安全なノーオペ縮退が既定で有効になります。既存の `terse_display_image_inline` は互換用ラッパーであり、内部的に新APIを呼び出します。
 
 ### 4.2 状態スタック
 

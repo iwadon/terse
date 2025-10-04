@@ -274,7 +274,7 @@ TEST(TerseOpen, DetectsP3Profile_OnWezTermEnv)
 	EXPECT_TRUE(handle != NULL);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P3);
-	EXPECT_EQ(caps.images, TERSE_IMAGE_ITERM_INLINE);
+	EXPECT_EQ(caps.images, TERSE_IMAGE_KITTY);
 	EXPECT_EQ(caps.has_clipboard_write, 1);
 	EXPECT_EQ(caps.mouse, TERSE_MOUSE_SGR);
 	terse_close(handle);
@@ -300,7 +300,7 @@ TEST(TerseOpen, DetectsP3Profile_OnKittyEnv)
 	EXPECT_TRUE(handle != NULL);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P3);
-	EXPECT_EQ(caps.images, TERSE_IMAGE_ITERM_INLINE);
+	EXPECT_EQ(caps.images, TERSE_IMAGE_KITTY);
 	EXPECT_EQ(caps.has_clipboard_write, 1);
 	EXPECT_EQ(caps.has_bracketed_paste, 1);
 	terse_close(handle);
