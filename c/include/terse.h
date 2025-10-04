@@ -60,7 +60,9 @@ typedef enum terse_cursor_shape {
 
 typedef enum terse_image_support {
 	TERSE_IMAGE_NONE = 0,
-	TERSE_IMAGE_ITERM_INLINE
+	TERSE_IMAGE_ITERM_INLINE,
+	TERSE_IMAGE_SIXEL,
+	TERSE_IMAGE_KITTY
 } terse_image_support_t;
 
 typedef enum terse_notification_kind {

@@ -685,6 +685,7 @@ make_kitty_capabilities(int has_truecolor)
 	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
 	caps.profile = TERSE_P3;
 	caps.has_clipboard_write = 1;
+	caps.images = TERSE_IMAGE_ITERM_INLINE;
 	return caps;
 }
 
@@ -694,6 +695,15 @@ make_ghostty_capabilities(int has_truecolor)
 	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
 	caps.profile = TERSE_P3;
 	caps.has_clipboard_write = 1;
+	return caps;
+}
+
+static terse_capabilities_t
+make_sixel_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_terminal_app_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.images = TERSE_IMAGE_SIXEL;
 	return caps;
 }
 
@@ -734,6 +744,42 @@ clamp_capabilities_to_request(terse_capabilities_t *caps, terse_profile_t reques
 	}
 }
 
+static int
+is_multiplexer_session(const char *term)
+{
+	if (getenv("TMUX")) {
+		return 1;
+	}
+	if (!term) {
+		return 0;
+	}
+	if (strstr(term, "tmux") || strstr(term, "screen")) {
+		return 1;
+	}
+	return 0;
+}
+
+static int
+term_supports_sixel(const char *term)
+{
+	if (!term) {
+		return 0;
+	}
+	if (strstr(term, "sixel")) {
+		return 1;
+	}
+	if (strcmp(term, "mlterm") == 0 || strcmp(term, "mlterm-direct") == 0) {
+		return 1;
+	}
+	if (strcmp(term, "contour") == 0) {
+		return 1;
+	}
+	if (strcmp(term, "yaft-256color") == 0 || strcmp(term, "yaft-sixel") == 0) {
+		return 1;
+	}
+	return 0;
+}
+
 static terse_capabilities_t
 detect_environment_capabilities(terse_profile_t requested_profile, const terse_options_t *options)
 {
@@ -764,6 +810,7 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 		secondary_len = terse_platform_probe_secondary_da(options->input_fd, options->output_fd, secondary, sizeof(secondary));
 	}
 	int has_truecolor = (colorterm && strcasecmp(colorterm, "truecolor") == 0) ? 1 : 0;
+	int is_mux = is_multiplexer_session(term);
 	int is_terminal_app = 0;
 	if (term_program && strcmp(term_program, "Apple_Terminal") == 0) {
 		is_terminal_app = 1;
@@ -776,6 +823,9 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	}
 	if (is_terminal_app) {
 		caps = make_terminal_app_capabilities(has_truecolor);
+		if (is_mux) {
+			caps.images = TERSE_IMAGE_NONE;
+		}
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
@@ -788,6 +838,9 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	}
 	if (is_warp) {
 		caps = make_warp_capabilities(has_truecolor);
+		if (is_mux) {
+			caps.images = TERSE_IMAGE_NONE;
+		}
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
@@ -804,6 +857,9 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	if (is_iterm) {
 		caps = make_iterm_capabilities(has_truecolor);
 		caps.keyboard_features |= TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL;
+		if (is_mux) {
+			caps.images = TERSE_IMAGE_NONE;
+		}
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
@@ -819,6 +875,9 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	}
 	if (is_vte) {
 		caps = make_vte_capabilities(has_truecolor);
+		if (is_mux) {
+			caps.images = TERSE_IMAGE_NONE;
+		}
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
@@ -838,6 +897,9 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	if (is_wezterm) {
 		caps = make_wezterm_capabilities(has_truecolor);
 		caps.keyboard_features |= TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS;
+		if (is_mux) {
+			caps.images = TERSE_IMAGE_NONE;
+		}
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
@@ -857,6 +919,9 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	if (is_kitty) {
 		caps = make_kitty_capabilities(has_truecolor);
 		caps.keyboard_features |= TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL;
+		if (is_mux) {
+			caps.images = TERSE_IMAGE_NONE;
+		}
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
@@ -872,6 +937,17 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	}
 	if (is_ghostty) {
 		caps = make_ghostty_capabilities(has_truecolor);
+		if (is_mux) {
+			caps.images = TERSE_IMAGE_NONE;
+		}
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	if (term_supports_sixel(term)) {
+		caps = make_sixel_capabilities(has_truecolor);
+		if (is_mux) {
+			caps.images = TERSE_IMAGE_NONE;
+		}
 		clamp_capabilities_to_request(&caps, requested_profile);
 		return caps;
 	}
@@ -1577,7 +1653,11 @@ recompute_capabilities(terse_handle_t handle)
 		handle->capabilities.has_clipboard_write = 1;
 	}
 	if (enabled & TERSE_CAP_ENABLE_IMAGE_INLINE) {
-		handle->capabilities.images = TERSE_IMAGE_ITERM_INLINE;
+		if (handle->detected_capabilities.images != TERSE_IMAGE_NONE) {
+			handle->capabilities.images = handle->detected_capabilities.images;
+		} else if (handle->capabilities.images == TERSE_IMAGE_NONE) {
+			handle->capabilities.images = TERSE_IMAGE_ITERM_INLINE;
+		}
 	}
 	if (enabled & TERSE_CAP_ENABLE_NOTIFICATION_BELL) {
 		handle->capabilities.notifications |= TERSE_NOTIFICATION_SUPPORT_BELL;
