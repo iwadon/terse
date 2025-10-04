@@ -489,9 +489,13 @@ int terse_keyboard_disable(terse_handle_t handle, unsigned int feature_mask);
 | フィールド               | 値域                                     | 説明            | P0での既定     |
 | ------------------- | -------------------------------------- | ------------- | ---------- |
 | `profile`           | {P0,P1,P2,P3}                          | 実効プロファイル      | P0         |
-| `rows`              | 正整数または Unknown                         | 端末の行数         | Unknown可   |
-| `cols`              | 正整数または Unknown                         | 端末の列数         | Unknown可   |
 | `cursor_visibility` | {toggle, always_on}                   | カーソル表示切替可能性   | always_on |
+| `colors`            | {none, basic16, palette256, truecolor} | 色表現レンジ         | none       |
+| `effects`           | ビット集合 `{bold, italic, …}`              | 装飾適用可否          | なし        |
+| `mouse`             | {none, x10, vt200, sgr}               | マウス追跡モード        | none       |
+| `notifications`     | ビット集合 `{bell, visual, desktop}`        | 通知サポート          | bell のみ   |
+
+> **備考:** 端末サイズは `get_size()` API で提供し、成功時に `capabilities.has_size` が 1 になる。`get_capabilities()` の戻り値には `rows` / `cols` を含めない。
 
 ### 縮退規則（P0コア能力）
 
@@ -504,7 +508,7 @@ int terse_keyboard_disable(terse_handle_t handle, unsigned int feature_mask);
 - **P1以降**で追加される能力フィールド：
   - P1: `colors`, `effects`（色・装飾）
   - P2: `mouse`, `paste_bracketed`, `title`, `hyperlink`（入出力拡張）
-  - P3: `images`, `clipboard`, `cursor_shape`, `keyboard_reporting`, `notifications` 等（高度拡張）
+  - P3: `images`, `clipboard`, `cursor_shape`, `notifications` 等（高度拡張）。`keyboard_reporting` は将来的な追加候補。
 - Human68k環境では多くが未対応となり、P0相当の返却となることを想定。
 
 ---
@@ -1014,7 +1018,7 @@ try {
 - `capabilities.image_limits`：最大サイズ・ピクセル数・埋め込み数・透過サポート等
 - `capabilities.clipboard`：{none, osc52_write, osc52_rw}
 - `capabilities.cursor_shape`：{true,false}
-- `capabilities.keyboard_reporting`：{none, xterm_mok, kitty, wezterm, other}
+- `capabilities.keyboard_reporting`（将来追加予定）：{none, xterm_mok, kitty, wezterm, other}
 - `capabilities.notifications`：{none, bell, visual, desktop}（複合可）
 - `capabilities.focus_events`：{true,false}
 - `capabilities.multiplexer`：{none, tmux, screen, other}

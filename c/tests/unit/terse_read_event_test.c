@@ -69,7 +69,48 @@ TEST(TerseReadEvent, ReturnsChar_OnAsciiInput)
 	close(fds[1]);
 }
 
-TEST(TerseReadEvent, ReturnsEnter_OnNewline)
+TEST(TerseReadEvent, ReturnsEnter_OnCrLf)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char seq[] = "\r\n";
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_ENTER, event.type);
+	EXPECT_EQ(0, event.data.key.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsRawSequence_OnCarriageReturn)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	const char ch = '\r';
+	EXPECT_TRUE(write(fds[1], &ch, 1) == 1);
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_EVENT_RAW_SEQUENCE, event.type);
+	EXPECT_EQ(1u, event.data.raw.length);
+	EXPECT_EQ('\r', event.data.raw.bytes[0]);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsEnterWithCtrl_OnLineFeed)
 {
 	int fds[2];
 	terse_handle_t handle;
@@ -82,7 +123,7 @@ TEST(TerseReadEvent, ReturnsEnter_OnNewline)
 	int result = terse_read_event(handle, 50, &event);
 	EXPECT_EQ(TERSE_EVENT_OK, result);
 	EXPECT_EQ(TERSE_EVENT_ENTER, event.type);
-	EXPECT_EQ(0, event.data.key.mods);
+	EXPECT_EQ(TERSE_MOD_CTRL, event.data.key.mods);
 
 	terse_close(handle);
 	close(fds[0]);

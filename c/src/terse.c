@@ -1181,6 +1181,8 @@ struct terse_handle {
 	// State history
 	terse_state_t state_stack[TERSE_STATE_STACK_MAX];
 	int state_stack_top; // -1 when empty
+	unsigned char pending_byte;
+	int has_pending_byte;
 };
 
 static void
@@ -1862,6 +1864,7 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	handle->paste_enabled = 0;
 	clear_error(handle);
 	refresh_size(handle);
+	handle->has_pending_byte = 0;
 
 	return handle;
 }
@@ -3455,6 +3458,36 @@ set_resize_event(terse_event_t *event, int rows, int cols)
 }
 
 static int
+read_input_byte(terse_handle_t handle, int timeout_ms, unsigned char *out)
+{
+	if (!handle || !out) {
+		return -EINVAL;
+	}
+	if (handle->has_pending_byte) {
+		*out = handle->pending_byte;
+		handle->has_pending_byte = 0;
+		return 1;
+	}
+	int fd = handle->options.input_fd;
+	int ready = terse_platform_wait_for_input(fd, timeout_ms);
+	if (ready == 0) {
+		return 0;
+	}
+	if (ready < 0) {
+		return ready;
+	}
+	ssize_t n = terse_platform_read_byte(fd, out);
+	if (n == 0) {
+		errno = EPIPE;
+		return -EPIPE;
+	}
+	if (n < 0) {
+		return (int)n;
+	}
+	return 1;
+}
+
+static int
 handle_escape_prefixed_char(terse_handle_t handle, terse_event_t *event, const unsigned char *seq, size_t len)
 {
 	if (len < 2 || !handle) {
@@ -3529,34 +3562,44 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 	}
 
 	int fd = handle->options.input_fd;
-	int ready = terse_platform_wait_for_input(fd, timeout_ms);
-	if (ready == 0) {
+
+	unsigned char first = 0;
+	rc = read_input_byte(handle, timeout_ms, &first);
+	if (rc == 0) {
 		clear_error(handle);
 		return TERSE_EVENT_NONE;
 	}
-	if (ready < 0) {
-		int err = -ready;
+	if (rc < 0) {
+		int err = -rc;
 		set_error(handle, TERSE_ERROR_TRANSPORT, err);
-		return -err;
-	}
-
-	unsigned char first = 0;
-	ssize_t n = terse_platform_read_byte(fd, &first);
-	if (n == 0) {
-		errno = EPIPE;
-		set_error(handle, TERSE_ERROR_TRANSPORT, EPIPE);
-		return -EPIPE;
-	}
-	if (n < 0) {
-		int err = -(int)n;
-		set_error(handle, TERSE_ERROR_TRANSPORT, err);
-		return (int)n;
+		return rc;
 	}
 
 	switch (first) {
-	case '\r':
+	case '\r': {
+		unsigned char next = 0;
+		int peek = read_input_byte(handle, 0, &next);
+		if (peek < 0) {
+			int err = -peek;
+			set_error(handle, TERSE_ERROR_TRANSPORT, err);
+			return peek;
+		}
+		if (peek > 0 && next == '\n') {
+			set_key_event(out_event, TERSE_EVENT_ENTER, 0);
+			clear_error(handle);
+			return TERSE_EVENT_OK;
+		}
+		if (peek > 0) {
+			handle->pending_byte = next;
+			handle->has_pending_byte = 1;
+		}
+		unsigned char raw_bytes[1] = { '\r' };
+		set_raw_event(out_event, raw_bytes, sizeof(raw_bytes));
+		clear_error(handle);
+		return TERSE_EVENT_OK;
+	}
 	case '\n':
-		set_key_event(out_event, TERSE_EVENT_ENTER, 0);
+		set_key_event(out_event, TERSE_EVENT_ENTER, TERSE_MOD_CTRL);
 		clear_error(handle);
 		return TERSE_EVENT_OK;
 	case '\b':
