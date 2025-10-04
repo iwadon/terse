@@ -208,6 +208,7 @@ function setup_mouse_if_supported() {
 | `show_cursor(handle, bool)`      | カーソル表示／非表示             | 未対応時は常に表示       |
 | `write_text(handle, graphemes)`  | 文字列出力（符号化を経由）          | 符号化不可文字は代替文字に変換 |
 | `flush(handle)`                  | 明示的なバッファー送出（P0では即時送出のためNo-op） | 無効果（エラー状態リセットのみ） |
+| `display_image(handle, request)` | 画像出力（プロトコル自動選択、現在はiTerm inline対応） | 未対応環境ではノーオペ |
 
 ### スタイル・色制御（P0拡張）
 

@@ -65,6 +65,29 @@ typedef enum terse_image_support {
 	TERSE_IMAGE_KITTY
 } terse_image_support_t;
 
+typedef enum terse_image_format {
+	TERSE_IMAGE_FORMAT_AUTO = 0,
+	TERSE_IMAGE_FORMAT_PNG,
+	TERSE_IMAGE_FORMAT_JPEG,
+	TERSE_IMAGE_FORMAT_SIXEL,
+	TERSE_IMAGE_FORMAT_KITTY
+} terse_image_format_t;
+
+enum {
+	TERSE_IMAGE_FLAG_INLINE = 1u << 0,
+	TERSE_IMAGE_FLAG_ALLOW_DEGRADE = 1u << 1
+};
+
+typedef struct terse_image_request {
+	const unsigned char *data;
+	size_t size;
+	const char *name;
+	terse_image_format_t format;
+	int width;  // optional pixel width hint, 0 when unspecified
+	int height; // optional pixel height hint, 0 when unspecified
+	unsigned int flags;
+} terse_image_request_t;
+
 typedef enum terse_notification_kind {
 	TERSE_NOTIFICATION_KIND_BELL = 0,
 	TERSE_NOTIFICATION_KIND_VISUAL,
@@ -360,6 +383,7 @@ int terse_set_title(terse_handle_t handle, const char *title);
 int terse_set_hyperlink(terse_handle_t handle, const char *url, const char *label);
 int terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, int blinking);
 int terse_set_clipboard(terse_handle_t handle, const char *data);
+int terse_display_image(terse_handle_t handle, const terse_image_request_t *request);
 int terse_display_image_inline(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
 int terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const char *payload);
 

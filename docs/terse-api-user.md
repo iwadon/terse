@@ -51,13 +51,18 @@ if (!caps.has_basic_output) {
 | カーソル操作 | `terse_move_to`, `terse_move_by`, `terse_show_cursor` |
 | 消去 | `terse_clear_screen`, `terse_clear_line` |
 | 文字列出力 | `terse_write_text`（Shift_JIS 変換を含む） |
+| 画像表示 | `terse_display_image`（新API） / `terse_display_image_inline`（互換） |
 | フラッシュ | `terse_flush`（必要に応じバッファ送出） |
 | スタイル設定 | `terse_set_style`, `terse_reset_style`, `terse_style_default` |
 | 色ユーティリティ | `terse_color_default`, `terse_color_basic`, `terse_color_palette`, `terse_color_truecolor` |
 
 スタイルを適用する際は、現在の能力に応じて自動縮退が行われます。`terse_set_style` は `TERSE_ERROR_TRANSPORT` 等を返すことがあるため、戻り値を必ず確認してください。
 
-### 4.1 状態スタック
+### 4.1 画像表示
+
+`terse_display_image(handle, const terse_image_request_t *request)` を使うと、利用可能な画像プロトコル（現状は iTerm2 inline を使用、Sixel/kitty は順次対応予定）に基づいて最適な送出が行われます。`request->flags` を省略（0）すると安全なノーオペ縮退が既定で有効になります。既存の `terse_display_image_inline` は互換用ラッパーであり、内部的に新APIを呼び出します。
+
+### 4.2 状態スタック
 
 一時的にカーソルやスタイルを変更する場合は、`terse_push_state` / `terse_pop_state` を利用します。スタック上限 (`TERSE_STATE_STACK_MAX`) を超えると `-EINVAL` で失敗し、`terse_get_last_error` から `TERSE_ERROR_STACK_OVERFLOW` が取得できます。
 

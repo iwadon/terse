@@ -1272,6 +1272,11 @@ static void set_char_event(terse_handle_t handle, terse_event_t *event, unsigned
 static void set_key_event(terse_event_t *event, terse_event_type_t type, int mods);
 static void set_raw_event(terse_event_t *event, const unsigned char *bytes, size_t length);
 static int write_literal(terse_handle_t handle, const char *literal);
+static int write_sequence(terse_handle_t handle, const char *sequence, size_t length);
+static void set_error(terse_handle_t handle, terse_error_category_t category, int code);
+static int send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
+static int send_sixel_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
+static int send_kitty_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
 
 static int
 initialize_codec_handles(terse_handle_t handle)
@@ -1741,6 +1746,69 @@ base64_encode(const unsigned char *data, size_t length, size_t *out_len)
 		*out_len = out_index;
 	}
 	return output;
+}
+
+static int
+send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
+{
+	size_t name_len = 0;
+	char *name_encoded = base64_encode((const unsigned char *)name, strlen(name), &name_len);
+	size_t data_len = 0;
+	char *data_encoded = base64_encode(data, size, &data_len);
+	if (!name_encoded || !data_encoded) {
+		free(name_encoded);
+		free(data_encoded);
+		errno = ENOMEM;
+		set_error(handle, TERSE_ERROR_RESOURCE, ENOMEM);
+		return -ENOMEM;
+	}
+	char header[256];
+	int header_len = snprintf(header,
+		sizeof(header),
+		"\x1b]1337;File=name=%s;size=%zu;inline=1:",
+		name_encoded,
+		size);
+	free(name_encoded);
+	if (header_len <= 0 || (size_t)header_len >= sizeof(header)) {
+		free(data_encoded);
+		errno = EOVERFLOW;
+		set_error(handle, TERSE_ERROR_CONFIG, EOVERFLOW);
+		return -EOVERFLOW;
+	}
+	if (write_sequence(handle, header, (size_t)header_len) < 0) {
+		free(data_encoded);
+		return -handle->last_errno;
+	}
+	if (write_sequence(handle, data_encoded, data_len) < 0) {
+		free(data_encoded);
+		return -handle->last_errno;
+	}
+	free(data_encoded);
+	if (write_literal(handle, "\x07") < 0) {
+		return -handle->last_errno;
+	}
+	clear_error(handle);
+	return 0;
+}
+
+static int
+send_sixel_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
+{
+	(void)data;
+	(void)size;
+	(void)name;
+	clear_error(handle);
+	return 0;
+}
+
+static int
+send_kitty_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
+{
+	(void)data;
+	(void)size;
+	(void)name;
+	clear_error(handle);
+	return 0;
 }
 
 static int
@@ -3298,60 +3366,116 @@ int terse_set_clipboard(terse_handle_t handle, const char *data)
 
 int terse_display_image_inline(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
 {
+	terse_image_request_t request = {
+		.data = data,
+		.size = size,
+		.name = name,
+		.format = TERSE_IMAGE_FORMAT_AUTO,
+		.width = 0,
+		.height = 0,
+		.flags = TERSE_IMAGE_FLAG_INLINE | TERSE_IMAGE_FLAG_ALLOW_DEGRADE,
+	};
+	return terse_display_image(handle, &request);
+}
+
+int terse_display_image(terse_handle_t handle, const terse_image_request_t *request)
+{
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
 		return rc;
 	}
-	if (!data || size == 0) {
+	if (!request) {
 		errno = EINVAL;
 		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
 		return -EINVAL;
 	}
-	if (handle->capabilities.images != TERSE_IMAGE_ITERM_INLINE || !handle->capabilities.has_basic_output) {
-		clear_error(handle);
-		return 0;
+	if (!request->data || request->size == 0) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
+		return -EINVAL;
 	}
-	if (!name) {
+	unsigned int flags = request->flags;
+	if (flags == 0) {
+		flags = TERSE_IMAGE_FLAG_ALLOW_DEGRADE | TERSE_IMAGE_FLAG_INLINE;
+	}
+	int degrade_allowed = (flags & TERSE_IMAGE_FLAG_ALLOW_DEGRADE) != 0;
+	if (!handle->capabilities.has_basic_output) {
+		if (degrade_allowed) {
+			clear_error(handle);
+			return 0;
+		}
+		errno = ENOTSUP;
+		set_error(handle, TERSE_ERROR_CONFIG, ENOTSUP);
+		return -ENOTSUP;
+	}
+	terse_image_support_t available = handle->capabilities.images;
+	if (available == TERSE_IMAGE_NONE) {
+		if (degrade_allowed) {
+			clear_error(handle);
+			return 0;
+		}
+		errno = ENOTSUP;
+		set_error(handle, TERSE_ERROR_CONFIG, ENOTSUP);
+		return -ENOTSUP;
+	}
+	terse_image_support_t target = available;
+	switch (request->format) {
+	case TERSE_IMAGE_FORMAT_AUTO:
+	case TERSE_IMAGE_FORMAT_PNG:
+	case TERSE_IMAGE_FORMAT_JPEG:
+		break;
+	case TERSE_IMAGE_FORMAT_SIXEL:
+		if (available == TERSE_IMAGE_SIXEL) {
+			target = TERSE_IMAGE_SIXEL;
+			break;
+		}
+		if (degrade_allowed) {
+			clear_error(handle);
+			return 0;
+		}
+		errno = ENOTSUP;
+		set_error(handle, TERSE_ERROR_CONFIG, ENOTSUP);
+		return -ENOTSUP;
+	case TERSE_IMAGE_FORMAT_KITTY:
+		if (available == TERSE_IMAGE_KITTY) {
+			target = TERSE_IMAGE_KITTY;
+			break;
+		}
+		if (degrade_allowed) {
+			clear_error(handle);
+			return 0;
+		}
+		errno = ENOTSUP;
+		set_error(handle, TERSE_ERROR_CONFIG, ENOTSUP);
+		return -ENOTSUP;
+	default:
+		errno = ENOTSUP;
+		set_error(handle, TERSE_ERROR_CONFIG, ENOTSUP);
+		return -ENOTSUP;
+	}
+	const char *name = request->name;
+	if (!name || !*name) {
 		name = "image";
 	}
-	size_t name_len = 0;
-	char *name_encoded = base64_encode((const unsigned char *)name, strlen(name), &name_len);
-	size_t data_len = 0;
-	char *data_encoded = base64_encode(data, size, &data_len);
-	if (!name_encoded || !data_encoded) {
-		free(name_encoded);
-		free(data_encoded);
-		errno = ENOMEM;
-		set_error(handle, TERSE_ERROR_RESOURCE, ENOMEM);
-		return -ENOMEM;
+	(void)request->width;
+	(void)request->height;
+	switch (target) {
+	case TERSE_IMAGE_ITERM_INLINE:
+		return send_iterm_inline_image(handle, request->data, request->size, name);
+	case TERSE_IMAGE_SIXEL:
+		return send_sixel_image(handle, request->data, request->size, name);
+	case TERSE_IMAGE_KITTY:
+		return send_kitty_image(handle, request->data, request->size, name);
+	case TERSE_IMAGE_NONE:
+	default:
+		if (degrade_allowed) {
+			clear_error(handle);
+			return 0;
+		}
+		errno = ENOTSUP;
+		set_error(handle, TERSE_ERROR_CONFIG, ENOTSUP);
+		return -ENOTSUP;
 	}
-	char header[256];
-	int header_len = snprintf(header,
-		sizeof(header),
-		"\x1b]1337;File=name=%s;size=%zu;inline=1:",
-		name_encoded,
-		size);
-	free(name_encoded);
-	if (header_len <= 0 || (size_t)header_len >= sizeof(header)) {
-		free(data_encoded);
-		errno = EOVERFLOW;
-		set_error(handle, TERSE_ERROR_CONFIG, EOVERFLOW);
-		return -EOVERFLOW;
-	}
-	if (write_sequence(handle, header, (size_t)header_len) < 0) {
-		free(data_encoded);
-		return -handle->last_errno;
-	}
-	if (write_sequence(handle, data_encoded, data_len) < 0) {
-		free(data_encoded);
-		return -handle->last_errno;
-	}
-	free(data_encoded);
-	if (write_literal(handle, "\x07") < 0) {
-		return -handle->last_errno;
-	}
-	clear_error(handle);
-	return 0;
 }
 
 int terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const char *payload)
