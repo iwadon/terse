@@ -1,10 +1,10 @@
 # Graphics Output Roadmap (Sixel / kitty)
 
 ## Current State
-- API: `terse_display_image_inline(handle, data, size, name)`
-- Capability flag: `TERSE_IMAGE_ITERM_INLINE` only (OSC 1337 inline PNG/JPEG)
-- Detection: iTerm2/WezTerm/Ghostty environments upgrade capability to iTerm inline via `detect_environment_capabilities`
-- Degrade path: If capability != `TERSE_IMAGE_ITERM_INLINE`, call becomes no-op (success, no error)
+- API: `terse_display_image` (request-based) + compatibility wrapper `terse_display_image_inline`
+- Capability reporting: `TERSE_IMAGE_ITERM_INLINE` / `TERSE_IMAGE_SIXEL` / `TERSE_IMAGE_KITTY` depending on detected terminal
+- Detection: iTerm2 / WezTerm / kitty / Sixel環境を自動識別し、tmux/screen では保守的に `TERSE_IMAGE_NONE` にフォールバック
+- Degrade path: 未対応環境ではノーオペ成功、`TERSE_IMAGE_FLAG_ALLOW_DEGRADE` をオフにすると `-ENOTSUP`
 
 ## Goals
 1. Support **Sixel** output (DEC-compatible terminals, some tmux passthroughs)
@@ -25,9 +25,10 @@
 - Introduce runtime enable/disable flags for image transports? (Probably not necessary initially; rely on detection + degrade.)
 
 ### Environment Detection
-- **Sixel**: check `$TERM` for `xterm`, `mlterm`, `contour`, `wezterm` (with opt-in), or query DA response for `;4;` feature bit. Investigate `DECSDM` support. Fallback: allow explicit override via options.
-- **kitty**: detect `$TERM` == `xterm-kitty`, env `KITTY_PID`, or DA `ESC[>1;4000;...c`. Already used for keyboard detection.
-- For multiplexer (tmux/screen), detect via `$TERM` or env and mark capability as `TERSE_IMAGE_NONE` unless passthrough known.
+- **Sixel**: `$TERM` に `sixel` を含むもの (`xterm-sixel`, `mlterm`, `contour`, `yaft-sixel` など) を優先。Secondary DA の `;4;` ビットなど追加検知は今後検討。
+- **kitty**: `$TERM` == `xterm-kitty`, `KITTY_PID` 環境変数、もしくは Secondary DA `ESC[>1;4000;...c`。
+- **WezTerm**: `$TERM_PROGRAM` や `WEZTERM_EXECUTABLE`、Secondary DA `ESC[>1;277;...c` を手掛かりに `TERSE_IMAGE_KITTY` を広告。
+- **tmux/screen**: `TMUX` / `TERM` に `tmux` / `screen` が含まれる場合は `TERSE_IMAGE_NONE` に縮退（安全側）。
 
 ### API Shape
 - Adopt new entry point `terse_display_image(handle, const terse_image_request_t *request)` while keeping `terse_display_image_inline` as a backwards-compatibility shim.
@@ -39,10 +40,10 @@
   - Optional `const char *name;` (used where supported, e.g., iTerm/kitty).
   - `unsigned int flags;` (`TERSE_IMAGE_FLAG_INLINE`, `TERSE_IMAGE_FLAG_ALLOW_DEGRADE`, ...)
 - `terse_display_image_inline` will internally build a request with `format=AUTO`, `flags=INLINE|ALLOW_DEGRADE` and call the new API。現状は iTerm inline / Sixel / kitty graphics を自動判別し、互換ルートからでも新 API の経路を通る。
-- Implementation phases:
-  1. Expand capability detection
-  2. Provide internal helpers for each protocol (sixel encoder, kitty file transfer). Accept pre-encoded Sixel data initially to avoid heavy encoding.
-  3. Update `terse_display_image_inline` to call new helper with best protocol, preserving ABI.
+- Implementation phases (完了済み):
+  1. Capability detection更新（Sixel / kitty / iTerm inline の広告）
+  2. 送信ヘルパー実装（Sixel チャンク出力 / kitty OSC_G ベース64）
+  3. `terse_display_image_inline` を新 API に委譲し、互換性維持
 
 ### Encoding / Transmission
 - **Sixel**: Terminal expects `ESC P q ... ESC \`. Need to chunk output, optionally apply RLE. Strategy: accept already-encoded Sixel, and supply helper `terse_image_encode_sixel_rgba` later. For now support basic streaming with `write_sequence`.
@@ -55,8 +56,8 @@
 
 ### Testing Strategy
 - Extend unit tests in `c/tests/unit/terse_image_test.c` to validate capability checks and emitted sequences using fake FDs.
-- Add integration sample under `samples/` demonstrating detection fallback (e.g., prints which protocol used and sends sample image).
-- Provide documentation updates in `docs/terse-specs.md` (capability table, API reference) and `docs/terse-api-user.md` (usage instructions).
+- **TODO**: `samples/` にデモを追加し、利用可能なプロトコルの出力・フォールバック挙動を可視化する。
+- ドキュメント更新（API/仕様）は完了済み。
 
 ## Proposed Implementation Steps
 1. Update enums and capability structure; adjust detection for kitty/sixel; add degrade priority logic.
