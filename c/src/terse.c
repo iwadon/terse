@@ -1794,9 +1794,25 @@ send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t
 static int
 send_sixel_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
 {
-	(void)data;
-	(void)size;
 	(void)name;
+	static const char prefix[] = "\x1bPq";
+	static const char suffix[] = "\x1b\\";
+	if (write_sequence(handle, prefix, sizeof(prefix) - 1) < 0) {
+		return -handle->last_errno;
+	}
+	const size_t chunk_size = 1024;
+	size_t offset = 0;
+	while (offset < size) {
+		size_t remaining = size - offset;
+		size_t to_write = remaining > chunk_size ? chunk_size : remaining;
+		if (write_sequence(handle, (const char *)data + offset, to_write) < 0) {
+			return -handle->last_errno;
+		}
+		offset += to_write;
+	}
+	if (write_sequence(handle, suffix, sizeof(suffix) - 1) < 0) {
+		return -handle->last_errno;
+	}
 	clear_error(handle);
 	return 0;
 }

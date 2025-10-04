@@ -3,6 +3,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -33,6 +34,27 @@ static void expect_no_bytes_available_fd(int fd)
 	ssize_t n = read(fd, tmp, sizeof(tmp));
 	EXPECT_TRUE(n == -1);
 	EXPECT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK);
+}
+
+static char *save_env_value(const char *name)
+{
+	const char *value = getenv(name);
+	if (!value) {
+		return NULL;
+	}
+	char *copy = strdup(value);
+	EXPECT_TRUE(copy != NULL);
+	return copy;
+}
+
+static void restore_env_value(const char *name, char *saved)
+{
+	if (saved) {
+		setenv(name, saved, 1);
+		free(saved);
+	} else {
+		unsetenv(name);
+	}
 }
 
 TEST(TerseImage, WritesItermSequence)
@@ -134,6 +156,69 @@ TEST(TerseImage, NoopWhenDisabled)
 	close(out_pipe[1]);
 	close(in_pipe[0]);
 	close(in_pipe[1]);
+}
+
+TEST(TerseImage, WritesSixelSequenceWhenAvailable)
+{
+	char *saved_term = save_env_value("TERM");
+	char *saved_term_program = save_env_value("TERM_PROGRAM");
+	char *saved_lc_terminal = save_env_value("LC_TERMINAL");
+	char *saved_wezterm = save_env_value("WEZTERM_EXECUTABLE");
+	char *saved_kitty = save_env_value("KITTY_PID");
+	char *saved_da = save_env_value("TERSE_SECONDARY_DA_HINT");
+	char *saved_tmux = save_env_value("TMUX");
+	setenv("TERM", "xterm-sixel", 1);
+	unsetenv("TERM_PROGRAM");
+	unsetenv("LC_TERMINAL");
+	unsetenv("WEZTERM_EXECUTABLE");
+	unsetenv("KITTY_PID");
+	unsetenv("TERSE_SECONDARY_DA_HINT");
+	unsetenv("TMUX");
+	int out_pipe[2];
+	int in_pipe[2];
+	EXPECT_TRUE(pipe(out_pipe) == 0);
+	EXPECT_TRUE(pipe(in_pipe) == 0);
+	terse_options_t options = {
+		.input_fd = in_pipe[0],
+		.output_fd = out_pipe[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = 0,
+	};
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
+	EXPECT_TRUE(handle != NULL);
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_EQ(TERSE_IMAGE_SIXEL, caps.images);
+	unsigned char payload[] = "#$-!";
+	terse_image_request_t request = {
+		.data = payload,
+		.size = sizeof(payload) - 1,
+		.name = "sixel",
+		.format = TERSE_IMAGE_FORMAT_SIXEL,
+		.width = 0,
+		.height = 0,
+		.flags = TERSE_IMAGE_FLAG_ALLOW_DEGRADE | TERSE_IMAGE_FLAG_INLINE,
+	};
+	EXPECT_EQ(0, terse_display_image(handle, &request));
+	char buffer[256] = { 0 };
+	size_t n = (size_t)read_pipe_data(out_pipe[0], buffer, sizeof(buffer));
+	EXPECT_TRUE(n > 0);
+	EXPECT_EQ('\x1b', buffer[0]);
+	EXPECT_EQ('P', buffer[1]);
+	EXPECT_EQ('q', buffer[2]);
+	EXPECT_TRUE(strstr(buffer, "\x1b\\") != NULL);
+	terse_close(handle);
+	close(out_pipe[0]);
+	close(out_pipe[1]);
+	close(in_pipe[0]);
+	close(in_pipe[1]);
+	restore_env_value("TERM", saved_term);
+	restore_env_value("TERM_PROGRAM", saved_term_program);
+	restore_env_value("LC_TERMINAL", saved_lc_terminal);
+	restore_env_value("WEZTERM_EXECUTABLE", saved_wezterm);
+	restore_env_value("KITTY_PID", saved_kitty);
+	restore_env_value("TERSE_SECONDARY_DA_HINT", saved_da);
+	restore_env_value("TMUX", saved_tmux);
 }
 
 TEST(TerseImage, DegradesWhenFormatMismatch)
