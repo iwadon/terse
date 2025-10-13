@@ -1,5 +1,5 @@
 #include "terse.h"
-#include "test.h"
+#include <attest/attest.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -622,7 +622,7 @@ TEST(TerseReadEvent, ReturnsEpipe_OnPipeClosed)
 	close(fds[0]);
 }
 
-int main()
+int main(int argc, char **argv)
 {
-	return RunAllTests();
+	return attest_main(argc, argv);
 }

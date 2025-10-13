@@ -1,5 +1,5 @@
 #include "terse.h"
-#include "test.h"
+#include <attest/attest.h>
 
 #include <errno.h>
 #include <string.h>
@@ -93,7 +93,7 @@ TEST(TerseWriteText, WritesReplacement_OnUnencodable)
 }
 #endif
 
-int main()
+int main(int argc, char **argv)
 {
-	return RunAllTests();
+	return attest_main(argc, argv);
 }

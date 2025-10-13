@@ -6,6 +6,7 @@ include(CMakePackageConfigHelpers)
 include(CTest)
 
 option(TERSE_ENABLE_ICONV "Enable iconv-based codec conversions" ON)
+add_subdirectory(external/attest)
 add_subdirectory(c)
 
 option(TERSE_BUILD_TOOLS "Build auxiliary tooling" ON)

@@ -1,5 +1,5 @@
 #include "terse.h"
-#include "test.h"
+#include <attest/attest.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -109,7 +109,7 @@ TEST(TerseTitle, NoopOnUnsupportedTerminal)
 	close(in_pipe[1]);
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
-	return RunAllTests();
+	return attest_main(argc, argv);
 }

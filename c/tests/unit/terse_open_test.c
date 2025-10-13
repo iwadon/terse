@@ -1,5 +1,5 @@
 #include "terse.h"
-#include "test.h"
+#include <attest/attest.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -515,7 +515,7 @@ TEST(TerseRestoreState, UpdatesWhenCapabilitiesMissing)
 	terse_close(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
-int main()
+int main(int argc, char **argv)
 {
-	return RunAllTests();
+	return attest_main(argc, argv);
 }

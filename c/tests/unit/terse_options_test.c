@@ -1,5 +1,5 @@
 #include "terse.h"
-#include "test.h"
+#include <attest/attest.h>
 
 #include <errno.h>
 #include <unistd.h>
@@ -140,7 +140,7 @@ TEST(TerseGetOptions, ReturnsEINVAL_OnNullOut)
 	terse_close(handle);
 }
 
-int main()
+int main(int argc, char **argv)
 {
-	return RunAllTests();
+	return attest_main(argc, argv);
 }

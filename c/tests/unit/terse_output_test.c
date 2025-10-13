@@ -1,5 +1,5 @@
 #include "terse.h"
-#include "test.h"
+#include <attest/attest.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -414,11 +414,6 @@ TEST(TerseWriteText, ReturnsEBadf_OnUnreadableFd)
 	close(fds[0]);
 }
 
-int main()
-{
-	return RunAllTests();
-}
-
 TEST(TerseStateCapture, RestoresCursorPositionAndVisibility)
 {
 	int fds1[2];
@@ -773,4 +768,9 @@ TEST(TerseStateRestore, ReturnsConfigError_OnNullState)
 	EXPECT_EQ(TERSE_ERROR_CONFIG, err.category);
 	EXPECT_EQ(EINVAL, err.code);
 	terse_close(handle);
+}
+
+int main(int argc, char **argv)
+{
+	return attest_main(argc, argv);
 }

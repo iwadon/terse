@@ -1,5 +1,5 @@
 #include "terse.h"
-#include "test.h"
+#include <attest/attest.h>
 
 #include <errno.h>
 #include <string.h>
@@ -89,7 +89,7 @@ TEST(TerseClose, AcceptsNullHandle)
 	EXPECT_EQ(0, errno);
 }
 
-int main()
+int main(int argc, char **argv)
 {
-	return RunAllTests();
+	return attest_main(argc, argv);
 }

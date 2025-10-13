@@ -1,0 +1,3 @@
+[submodule "external/attest"]
+	path = external/attest
+	url = git@github.com:iwadon/attest.git

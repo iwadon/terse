@@ -1,5 +1,5 @@
 #include "terse.h"
-#include "test.h"
+#include <attest/attest.h>
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -68,10 +68,6 @@ TEST(TerseStyle, AppliesBasicStyleAndEffects)
 	terse_close(handle);
 }
 
-int main()
-{
-	return RunAllTests();
-}
 
 TEST(TerseStyle, SetStyleIsNoOpForSameStyle)
 {
@@ -190,4 +186,9 @@ TEST(TerseStyle, ResetStyleResetsToDefault)
 
 	free(output);
 	terse_close(handle);
+}
+
+int main(int argc, char **argv)
+{
+	return attest_main(argc, argv);
 }

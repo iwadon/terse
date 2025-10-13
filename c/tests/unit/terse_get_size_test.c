@@ -1,7 +1,7 @@
 #define _XOPEN_SOURCE 600
 
 #include "terse.h"
-#include "test.h"
+#include <attest/attest.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -204,7 +204,7 @@ TEST(TerseGetSize, ReturnsUnknown_WhenCapabilityDisabled)
 	close(slave_fd);
 }
 
-int main()
+int main(int argc, char **argv)
 {
-	return RunAllTests();
+	return attest_main(argc, argv);
 }

@@ -1,5 +1,5 @@
 #include "terse.h"
-#include "test.h"
+#include <attest/attest.h>
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -78,7 +78,7 @@ TEST(TerseHyperlink, SetsHyperlink)
 	terse_close(handle);
 }
 
-int main()
+int main(int argc, char **argv)
 {
-	return RunAllTests();
+	return attest_main(argc, argv);
 }
