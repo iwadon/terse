@@ -141,9 +141,11 @@ static void render_line(terse_handle_t handle, int row, const char *prompt, cons
 	if (terse_clear_line(handle, TERSE_CLEAR_AFTER) < 0) {
 		print_error(handle, "clear_line");
 	}
-	terse_style_t bold = terse_style_default();
-	bold.effects = TERSE_STYLE_BOLD;
-	if (terse_set_style(handle, &bold) < 0) {
+	// Use color for the prompt
+	terse_style_t prompt_style = terse_style_default();
+	prompt_style.effects = TERSE_STYLE_BOLD;
+	prompt_style.foreground = terse_color_basic(TERSE_BASIC_COLOR_CYAN, 1);
+	if (terse_set_style(handle, &prompt_style) < 0) {
 		print_error(handle, "set_style");
 	}
 	if (terse_write_text(handle, prompt) < 0) {
@@ -165,6 +167,7 @@ static void line_edit_loop(terse_handle_t handle)
 {
 	line_buffer_t line = { 0 };
 	char utf8_snapshot[UTF8_BUFFER_CAPACITY];
+	int in_paste = 0;
 
 	const char *prompt = "edit> ";
 	render_line(handle, 2, prompt, &line);
@@ -185,7 +188,44 @@ static void line_edit_loop(terse_handle_t handle)
 			if ((event.data.ch.mods & TERSE_MOD_CTRL) != 0) {
 				if (ch == 'C') {
 					break;
+				} else if (ch == 'A') {
+					// Ctrl+A: Move to beginning of line
+					line.cursor = 0;
+				} else if (ch == 'E') {
+					// Ctrl+E: Move to end of line
+					line.cursor = line.length;
+				} else if (ch == 'U') {
+					// Ctrl+U: Delete from cursor to beginning of line
+					if (line.cursor > 0) {
+						memmove(&line.glyphs[0], &line.glyphs[line.cursor], (line.length - line.cursor) * sizeof(glyph_t));
+						line.length -= line.cursor;
+						line.cursor = 0;
+					}
+				} else if (ch == 'K') {
+					// Ctrl+K: Delete from cursor to end of line
+					line.length = line.cursor;
+				} else if (ch == 'W') {
+					// Ctrl+W: Delete word before cursor
+					if (line.cursor > 0) {
+						size_t start = line.cursor;
+						// Skip trailing whitespace
+						while (start > 0 && line.glyphs[start - 1].scalar == ' ') {
+							start--;
+						}
+						// Delete word
+						while (start > 0 && line.glyphs[start - 1].scalar != ' ') {
+							start--;
+						}
+						if (start < line.cursor) {
+							memmove(&line.glyphs[start], &line.glyphs[line.cursor], (line.length - line.cursor) * sizeof(glyph_t));
+							line.length -= (line.cursor - start);
+							line.cursor = start;
+						}
+					}
+				} else {
+					continue;
 				}
+				render_line(handle, 2, prompt, &line);
 				continue;
 			}
 			if (line.length < BUFFER_CAPACITY) {
@@ -217,6 +257,15 @@ static void line_edit_loop(terse_handle_t handle)
 				line.cursor--;
 				line.length--;
 			}
+		} else if (event.type == TERSE_EVENT_DELETE) {
+			if (line.cursor < line.length) {
+				memmove(&line.glyphs[line.cursor], &line.glyphs[line.cursor + 1], (line.length - line.cursor - 1) * sizeof(glyph_t));
+				line.length--;
+			}
+		} else if (event.type == TERSE_EVENT_HOME) {
+			line.cursor = 0;
+		} else if (event.type == TERSE_EVENT_END) {
+			line.cursor = line.length;
 		} else if (event.type == TERSE_EVENT_ARROW_LEFT) {
 			if (line.cursor > 0) {
 				line.cursor--;
@@ -225,11 +274,22 @@ static void line_edit_loop(terse_handle_t handle)
 			if (line.cursor < line.length) {
 				line.cursor++;
 			}
+		} else if (event.type == TERSE_EVENT_RESIZE) {
+			// Just re-render on resize
+		} else if (event.type == TERSE_EVENT_PASTE_BEGIN) {
+			in_paste = 1;
+			continue; // Don't re-render yet
+		} else if (event.type == TERSE_EVENT_PASTE_END) {
+			in_paste = 0;
+			// Re-render once after paste completes
 		} else if (event.type == TERSE_EVENT_ENTER) {
 			break;
 		}
 
-		render_line(handle, 2, prompt, &line);
+		// Skip re-rendering during paste for better performance
+		if (!in_paste) {
+			render_line(handle, 2, prompt, &line);
+		}
 	}
 
 	if (terse_move_to(handle, 4, 1) < 0) {
@@ -269,7 +329,7 @@ int main(int argc, char **argv)
 		.output_fd = STDOUT_FILENO,
 		.codec_name = codec,
 		.disabled_caps = 0,
-		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES
+		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES | TERSE_CAP_ENABLE_BRACKETED_PASTE | TERSE_CAP_ENABLE_CURSOR_SHAPE
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
@@ -278,13 +338,21 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	terse_state_t saved_state;
-	if (terse_capture_state(handle, &saved_state) < 0) {
-		print_error(handle, "capture_state");
+	// Enable bracketed paste mode
+	if (terse_enable_bracketed_paste(handle) < 0) {
+		print_error(handle, "enable_bracketed_paste");
+	}
+
+	if (terse_push_state(handle) < 0) {
+		print_error(handle, "push_state");
 	}
 
 	if (terse_show_cursor(handle, 1) < 0) {
 		print_error(handle, "show_cursor");
+	}
+	// Set cursor to bar shape for insert mode
+	if (terse_set_cursor_shape(handle, TERSE_CURSOR_SHAPE_BAR, 1) < 0) {
+		print_error(handle, "set_cursor_shape");
 	}
 	if (terse_clear_screen(handle, TERSE_CLEAR_ALL) < 0) {
 		print_error(handle, "clear_screen");
@@ -298,8 +366,8 @@ int main(int argc, char **argv)
 
 	line_edit_loop(handle);
 
-	if (terse_restore_state(handle, &saved_state) < 0) {
-		print_error(handle, "restore_state");
+	if (terse_pop_state(handle) < 0) {
+		print_error(handle, "pop_state");
 	}
 	terse_close(handle);
 	return 0;
