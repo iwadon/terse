@@ -6,7 +6,18 @@ include(CMakePackageConfigHelpers)
 include(CTest)
 
 option(TERSE_ENABLE_ICONV "Enable iconv-based codec conversions" ON)
-add_subdirectory(external/attest)
+
+# テストのデフォルト: トップレベルプロジェクトならON、サブプロジェクトならOFF
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+  option(TERSE_BUILD_TESTING "Build terse tests" ON)
+else()
+  option(TERSE_BUILD_TESTING "Build terse tests" OFF)
+endif()
+
+if(TERSE_BUILD_TESTING)
+  add_subdirectory(external/attest)
+endif()
+
 add_subdirectory(c)
 
 option(TERSE_BUILD_TOOLS "Build auxiliary tooling" ON)
