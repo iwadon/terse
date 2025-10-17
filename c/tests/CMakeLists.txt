@@ -18,6 +18,10 @@ add_executable(terse_get_size_test unit/terse_get_size_test.c)
 target_link_libraries(terse_get_size_test PRIVATE terse attest)
 add_test(NAME c.terse_get_size_test COMMAND terse_get_size_test)
 
+add_executable(terse_get_cursor_position_test unit/terse_get_cursor_position_test.c)
+target_link_libraries(terse_get_cursor_position_test PRIVATE terse attest)
+add_test(NAME c.terse_get_cursor_position_test COMMAND terse_get_cursor_position_test)
+
 add_executable(terse_options_test unit/terse_options_test.c)
 target_link_libraries(terse_options_test PRIVATE terse attest)
 add_test(NAME c.terse_options_test COMMAND terse_options_test)

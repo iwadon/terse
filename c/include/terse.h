@@ -217,6 +217,12 @@ typedef struct terse_size {
 	int known;
 } terse_size_t;
 
+typedef struct terse_cursor_position {
+	int row;
+	int col;
+	int known;
+} terse_cursor_position_t;
+
 typedef struct terse_state {
 	int cursor_known;
 	int cursor_visible;
@@ -358,6 +364,7 @@ int terse_write_text(terse_handle_t handle, const char *graphemes);
 int terse_flush(terse_handle_t handle);
 int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event);
 terse_size_t terse_get_size(terse_handle_t handle);
+terse_cursor_position_t terse_get_cursor_position(terse_handle_t handle);
 int terse_get_options(terse_handle_t handle, terse_options_t *out_options);
 int terse_validate_options(const terse_options_t *options);
 terse_error_info_t terse_get_last_error(terse_handle_t handle);
