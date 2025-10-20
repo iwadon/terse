@@ -8,6 +8,12 @@ else()
   target_sources(terse PRIVATE src/terse_platform_stub.c)
 endif()
 
+include(CheckIncludeFile)
+check_include_file(poll.h HAVE_POLL_H)
+if(HAVE_POLL_H)
+  target_compile_definitions(terse PRIVATE TERSE_HAVE_POLL_H=1)
+endif()
+
 target_include_directories(terse
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

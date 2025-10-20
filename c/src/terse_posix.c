@@ -1,7 +1,12 @@
 #include "terse_platform.h"
 
 #include <errno.h>
+#ifdef TERSE_HAVE_POLL_H
 #include <poll.h>
+#else
+#include <sys/select.h>
+#include <sys/time.h>
+#endif
 #include <string.h>
 #include <sys/ioctl.h>
 #include <termios.h>
@@ -11,10 +16,12 @@ static size_t
 read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int timeout_ms)
 {
 	size_t total = 0;
+#ifdef TERSE_HAVE_POLL_H
 	struct pollfd pfd = {
 		.fd = fd,
 		.events = POLLIN,
 	};
+#endif
 	const int slice = 25;
 	int remaining = timeout_ms;
 	while (total < capacity) {
@@ -31,7 +38,21 @@ read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int time
 			}
 			poll_timeout = wait;
 		}
+#ifdef TERSE_HAVE_POLL_H
 		int ready = poll(&pfd, 1, poll_timeout);
+#else
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(fd, &readfds);
+		struct timeval tv;
+		struct timeval *tvp = NULL;
+		if (poll_timeout >= 0) {
+			tv.tv_sec = poll_timeout / 1000;
+			tv.tv_usec = (poll_timeout % 1000) * 1000;
+			tvp = &tv;
+		}
+		int ready = select(fd + 1, &readfds, NULL, NULL, tvp);
+#endif
 		if (ready < 0) {
 			if (errno == EINTR) {
 				continue;
@@ -132,6 +153,7 @@ terse_platform_probe_secondary_da(int input_fd, int output_fd, unsigned char *bu
 int
 terse_platform_wait_for_input(int fd, int timeout_ms)
 {
+#ifdef TERSE_HAVE_POLL_H
 	struct pollfd pfd = {
 		.fd = fd,
 		.events = POLLIN,
@@ -149,6 +171,30 @@ terse_platform_wait_for_input(int fd, int timeout_ms)
 		}
 		return ready;
 	}
+#else
+	for (;;) {
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(fd, &readfds);
+		struct timeval tv;
+		struct timeval *tvp = NULL;
+		if (timeout_ms >= 0) {
+			tv.tv_sec = timeout_ms / 1000;
+			tv.tv_usec = (timeout_ms % 1000) * 1000;
+			tvp = &tv;
+		}
+		int ready = select(fd + 1, &readfds, NULL, NULL, tvp);
+		if (ready < 0) {
+			if (errno == EINTR) {
+				continue;
+			}
+			int err = errno;
+			errno = err;
+			return -err;
+		}
+		return ready;
+	}
+#endif
 }
 
 ssize_t
@@ -173,11 +219,22 @@ terse_platform_drain_escape_sequence(int fd, unsigned char *buffer, size_t max)
 {
 	size_t len = 1;
 	while (len < max) {
+#ifdef TERSE_HAVE_POLL_H
 		struct pollfd pfd = {
 			.fd = fd,
 			.events = POLLIN,
 		};
 		int ready = poll(&pfd, 1, 10);
+#else
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(fd, &readfds);
+		struct timeval tv = {
+			.tv_sec = 0,
+			.tv_usec = 10000,
+		};
+		int ready = select(fd + 1, &readfds, NULL, NULL, &tv);
+#endif
 		if (ready < 0) {
 			if (errno == EINTR) {
 				continue;

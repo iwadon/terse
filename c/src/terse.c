@@ -18,7 +18,12 @@
 #include "mini_iconv.h"
 #endif
 #include <limits.h>
+#ifdef TERSE_HAVE_POLL_H
 #include <poll.h>
+#else
+#include <sys/select.h>
+#include <sys/time.h>
+#endif
 #include <stdint.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -4197,16 +4202,29 @@ query_cursor_position(terse_handle_t handle, int *out_row, int *out_col)
 	// Read response: CSI row ; col R
 	unsigned char buffer[32];
 	size_t length = 0;
+#ifdef TERSE_HAVE_POLL_H
 	struct pollfd pfd = {
 		.fd = input_fd,
 		.events = POLLIN,
 	};
+#endif
 	const int timeout_ms = 200;
 	const int slice = 25;
 	int remaining = timeout_ms;
 	while (length < sizeof(buffer)) {
 		int poll_timeout = (remaining < slice) ? remaining : slice;
+#ifdef TERSE_HAVE_POLL_H
 		int ready = poll(&pfd, 1, poll_timeout);
+#else
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(input_fd, &readfds);
+		struct timeval tv = {
+			.tv_sec = poll_timeout / 1000,
+			.tv_usec = (poll_timeout % 1000) * 1000,
+		};
+		int ready = select(input_fd + 1, &readfds, NULL, NULL, &tv);
+#endif
 		if (ready < 0) {
 			if (errno == EINTR) {
 				continue;
