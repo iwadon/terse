@@ -2,6 +2,9 @@
 set(CMAKE_SYSTEM_NAME Generic)          # macOS ではなく「組込み/汎用」扱いにする
 set(CMAKE_SYSTEM_PROCESSOR m68k)
 
+# Human68k platform identification
+set(TERSE_PLATFORM_HUMAN68K ON CACHE BOOL "Building for Human68k" FORCE)
+
 # クロス用コンパイラ
 set(CMAKE_C_COMPILER   m68k-xelf-gcc)
 set(CMAKE_CXX_COMPILER m68k-xelf-g++)

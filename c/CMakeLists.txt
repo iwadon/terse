@@ -2,7 +2,9 @@ add_library(terse
   src/terse.c
 )
 
-if(UNIX)
+if(TERSE_PLATFORM_HUMAN68K)
+  target_sources(terse PRIVATE src/terse_human68k.c)
+elseif(UNIX)
   target_sources(terse PRIVATE src/terse_posix.c)
 else()
   target_sources(terse PRIVATE src/terse_platform_stub.c)
