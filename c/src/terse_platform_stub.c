@@ -38,6 +38,17 @@ terse_platform_probe_secondary_da(int input_fd, int output_fd, unsigned char *bu
 }
 
 int
+terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, int *out_col)
+{
+	(void)input_fd;
+	(void)output_fd;
+	(void)out_row;
+	(void)out_col;
+	errno = ENOSYS;
+	return -ENOSYS;
+}
+
+int
 terse_platform_wait_for_input(int fd, int timeout_ms)
 {
 	(void)fd;

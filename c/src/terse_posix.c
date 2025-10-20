@@ -151,6 +151,127 @@ terse_platform_probe_secondary_da(int input_fd, int output_fd, unsigned char *bu
 }
 
 int
+terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, int *out_col)
+{
+	if (!out_row || !out_col) {
+		return -EINVAL;
+	}
+	if (input_fd < 0 || output_fd < 0) {
+		return -EBADF;
+	}
+	if (!isatty(input_fd) || !isatty(output_fd)) {
+		return -ENOTTY;
+	}
+
+	// Save current terminal settings and switch to raw mode
+	struct termios original;
+	if (tcgetattr(input_fd, &original) != 0) {
+		return -errno;
+	}
+	struct termios raw = original;
+	raw.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+	raw.c_oflag &= ~(OPOST);
+	raw.c_cflag |= CS8;
+	raw.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+	raw.c_cc[VMIN] = 0;
+	raw.c_cc[VTIME] = 0;
+	if (tcsetattr(input_fd, TCSANOW, &raw) != 0) {
+		return -errno;
+	}
+
+	// Send CPR (Cursor Position Report) request: CSI 6 n
+	const char request[] = "\x1b[6n";
+	if (write(output_fd, request, sizeof(request) - 1) < 0) {
+		(void)tcsetattr(input_fd, TCSANOW, &original);
+		return -errno;
+	}
+
+	// Read response: CSI row ; col R
+	unsigned char buffer[32];
+	size_t length = 0;
+#ifdef TERSE_HAVE_POLL_H
+	struct pollfd pfd = {
+		.fd = input_fd,
+		.events = POLLIN,
+	};
+#endif
+	const int timeout_ms = 200;
+	const int slice = 25;
+	int remaining = timeout_ms;
+	while (length < sizeof(buffer)) {
+		int poll_timeout = (remaining < slice) ? remaining : slice;
+#ifdef TERSE_HAVE_POLL_H
+		int ready = poll(&pfd, 1, poll_timeout);
+#else
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(input_fd, &readfds);
+		struct timeval tv = {
+			.tv_sec = poll_timeout / 1000,
+			.tv_usec = (poll_timeout % 1000) * 1000,
+		};
+		int ready = select(input_fd + 1, &readfds, NULL, NULL, &tv);
+#endif
+		if (ready < 0) {
+			if (errno == EINTR) {
+				continue;
+			}
+			(void)tcsetattr(input_fd, TCSANOW, &original);
+			return -errno;
+		}
+		if (ready == 0) {
+			remaining -= poll_timeout;
+			if (remaining <= 0) {
+				break;
+			}
+			continue;
+		}
+		ssize_t n = read(input_fd, buffer + length, sizeof(buffer) - length);
+		if (n <= 0) {
+			break;
+		}
+		length += (size_t)n;
+		remaining -= poll_timeout;
+
+		// Check if we have a complete response (ends with 'R')
+		if (length > 0 && buffer[length - 1] == 'R') {
+			break;
+		}
+	}
+
+	// Restore terminal settings
+	(void)tcsetattr(input_fd, TCSANOW, &original);
+
+	// Parse response: ESC [ row ; col R
+	if (length < 6 || buffer[0] != 0x1b || buffer[1] != '[' || buffer[length - 1] != 'R') {
+		return -EPROTO;
+	}
+
+	// Parse row and col
+	int row = 0, col = 0;
+	size_t i = 2;
+	while (i < length && buffer[i] >= '0' && buffer[i] <= '9') {
+		row = row * 10 + (buffer[i] - '0');
+		i++;
+	}
+	if (i >= length || buffer[i] != ';') {
+		return -EPROTO;
+	}
+	i++; // skip ';'
+	while (i < length && buffer[i] >= '0' && buffer[i] <= '9') {
+		col = col * 10 + (buffer[i] - '0');
+		i++;
+	}
+	if (i >= length || buffer[i] != 'R') {
+		return -EPROTO;
+	}
+
+	*out_row = row;
+	*out_col = col;
+	return 0;
+}
+
+int
 terse_platform_wait_for_input(int fd, int timeout_ms)
 {
 #ifdef TERSE_HAVE_POLL_H
