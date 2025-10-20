@@ -25,6 +25,11 @@ if(TERSE_BUILD_TOOLS)
   add_subdirectory(tools)
 endif()
 
+option(TERSE_BUILD_SAMPLES "Build sample programs" ON)
+if(TERSE_BUILD_SAMPLES)
+  add_subdirectory(samples)
+endif()
+
 set(TERSE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/terse")
 
 write_basic_package_version_file(
