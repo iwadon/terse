@@ -20,12 +20,24 @@ endif()
 
 add_subdirectory(c)
 
-option(TERSE_BUILD_TOOLS "Build auxiliary tooling" ON)
+# ツールのデフォルト: トップレベルプロジェクトならON、サブプロジェクトならOFF
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+  option(TERSE_BUILD_TOOLS "Build auxiliary tooling" ON)
+else()
+  option(TERSE_BUILD_TOOLS "Build auxiliary tooling" OFF)
+endif()
+
 if(TERSE_BUILD_TOOLS)
   add_subdirectory(tools)
 endif()
 
-option(TERSE_BUILD_SAMPLES "Build sample programs" ON)
+# サンプルのデフォルト: トップレベルプロジェクトならON、サブプロジェクトならOFF
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+  option(TERSE_BUILD_SAMPLES "Build sample programs" ON)
+else()
+  option(TERSE_BUILD_SAMPLES "Build sample programs" OFF)
+endif()
+
 if(TERSE_BUILD_SAMPLES)
   add_subdirectory(samples)
 endif()
