@@ -3831,16 +3831,17 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 			return peek;
 		}
 		if (peek > 0 && next == '\n') {
+			// Consume \r\n as Enter
 			set_key_event(out_event, TERSE_EVENT_ENTER, 0);
 			clear_error(handle);
 			return TERSE_EVENT_OK;
 		}
+		// Treat \r alone as Enter, push back next byte if any
 		if (peek > 0) {
 			handle->pending_byte = next;
 			handle->has_pending_byte = 1;
 		}
-		unsigned char raw_bytes[1] = { '\r' };
-		set_raw_event(out_event, raw_bytes, sizeof(raw_bytes));
+		set_key_event(out_event, TERSE_EVENT_ENTER, 0);
 		clear_error(handle);
 		return TERSE_EVENT_OK;
 	}

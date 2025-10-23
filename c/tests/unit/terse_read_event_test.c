@@ -89,7 +89,7 @@ TEST(TerseReadEvent, ReturnsEnter_OnCrLf)
 	close(fds[1]);
 }
 
-TEST(TerseReadEvent, ReturnsRawSequence_OnCarriageReturn)
+TEST(TerseReadEvent, ReturnsEnter_OnCarriageReturn)
 {
 	int fds[2];
 	terse_handle_t handle;
@@ -101,9 +101,8 @@ TEST(TerseReadEvent, ReturnsRawSequence_OnCarriageReturn)
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
 	EXPECT_EQ(TERSE_EVENT_OK, result);
-	EXPECT_EQ(TERSE_EVENT_RAW_SEQUENCE, event.type);
-	EXPECT_EQ(1u, event.data.raw.length);
-	EXPECT_EQ('\r', event.data.raw.bytes[0]);
+	EXPECT_EQ(TERSE_EVENT_ENTER, event.type);
+	EXPECT_EQ(0, event.data.key.mods);
 
 	terse_close(handle);
 	close(fds[0]);
