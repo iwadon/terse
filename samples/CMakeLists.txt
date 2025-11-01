@@ -8,6 +8,9 @@ set(SAMPLES
 	p2_features_demo
 	p3_notifications_demo
 	p3_image_demo
+	p3_sixel_demo
+	p3_kitty_graphics_demo
+	p3_image_protocol_fallback_demo
 	event_logger_demo
 	line_edit_demo
 	mouse_click_demo

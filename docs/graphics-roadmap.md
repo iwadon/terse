@@ -56,7 +56,7 @@
 
 ### Testing Strategy
 - Extend unit tests in `c/tests/unit/terse_image_test.c` to validate capability checks and emitted sequences using fake FDs.
-- **TODO**: `samples/` にデモを追加し、利用可能なプロトコルの出力・フォールバック挙動を可視化する。
+- **完了**: `samples/` にデモを追加済み（`p3_sixel_demo.c`, `p3_kitty_graphics_demo.c`, `p3_image_protocol_fallback_demo.c`）。利用可能なプロトコルの出力・フォールバック挙動を可視化。
 - ドキュメント更新（API/仕様）は完了済み。
 
 ## Proposed Implementation Steps
