@@ -620,8 +620,3 @@ TEST(TerseReadEvent, ReturnsEpipe_OnPipeClosed)
 	terse_close(handle);
 	close(fds[0]);
 }
-
-int main(int argc, char **argv)
-{
-	return attest_main(argc, argv);
-}

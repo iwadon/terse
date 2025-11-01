@@ -172,11 +172,6 @@ TEST(TerseKeyboardFeatures, EnableDegradesWhenUnsupported)
 	restore_env("TERM_PROGRAM", saved_term_program);
 }
 
-int main(int argc, char **argv)
-{
-	return attest_main(argc, argv);
-}
-
 TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
 {
 	char *saved_term = save_env("TERM");

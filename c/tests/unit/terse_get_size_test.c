@@ -203,8 +203,3 @@ TEST(TerseGetSize, ReturnsUnknown_WhenCapabilityDisabled)
 	close(master_fd);
 	close(slave_fd);
 }
-
-int main(int argc, char **argv)
-{
-	return attest_main(argc, argv);
-}

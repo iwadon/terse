@@ -515,7 +515,3 @@ TEST(TerseRestoreState, UpdatesWhenCapabilitiesMissing)
 	terse_close(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
-int main(int argc, char **argv)
-{
-	return attest_main(argc, argv);
-}

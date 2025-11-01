@@ -390,8 +390,3 @@ TEST(TerseImage, ErrorsOnMissingData)
 	EXPECT_EQ(EINVAL, err.code);
 	terse_close(handle);
 }
-
-int main(int argc, char **argv)
-{
-	return attest_main(argc, argv);
-}

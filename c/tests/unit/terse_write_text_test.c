@@ -92,8 +92,3 @@ TEST(TerseWriteText, WritesReplacement_OnUnencodable)
 	close(fds[1]);
 }
 #endif
-
-int main(int argc, char **argv)
-{
-	return attest_main(argc, argv);
-}

@@ -95,8 +95,3 @@ TEST(TerseClipboard, NoopWhenDisabled)
 	close(in_pipe[0]);
 	close(in_pipe[1]);
 }
-
-int main(int argc, char **argv)
-{
-	return attest_main(argc, argv);
-}

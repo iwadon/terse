@@ -139,8 +139,3 @@ TEST(TerseGetOptions, ReturnsEINVAL_OnNullOut)
 	EXPECT_EQ(EINVAL, errno);
 	terse_close(handle);
 }
-
-int main(int argc, char **argv)
-{
-	return attest_main(argc, argv);
-}

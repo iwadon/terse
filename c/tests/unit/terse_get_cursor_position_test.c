@@ -69,8 +69,3 @@ TEST(CursorPosition, InvalidHandle)
 	terse_cursor_position_t pos = terse_get_cursor_position(NULL);
 	EXPECT_EQ(0, pos.known);
 }
-
-int main(int argc, char **argv)
-{
-	return attest_main(argc, argv);
-}

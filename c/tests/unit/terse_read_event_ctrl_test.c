@@ -38,8 +38,3 @@ TEST(TerseReadEventCtrl, ReportsCtrlModifier_OnControlSequence)
 	close(fds[0]);
 	close(fds[1]);
 }
-
-int main(int argc, char **argv)
-{
-	return attest_main(argc, argv);
-}

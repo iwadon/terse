@@ -88,8 +88,3 @@ TEST(TerseClose, AcceptsNullHandle)
 	terse_close(NULL);
 	EXPECT_EQ(0, errno);
 }
-
-int main(int argc, char **argv)
-{
-	return attest_main(argc, argv);
-}
