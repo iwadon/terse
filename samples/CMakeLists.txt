@@ -10,6 +10,7 @@ set(SAMPLES
 	p3_image_demo
 	event_logger_demo
 	line_edit_demo
+	mouse_click_demo
 )
 
 # Create executable for each sample
