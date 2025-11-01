@@ -85,7 +85,7 @@ Legacy `terse_display_image_inline()` wraps the new API for compatibility.
 ## Key Implementation Files
 
 - `c/include/terse.h`: Public API surface (all `terse_*` symbols)
-- `c/src/terse.c`: Core library implementation (~3000+ lines)
+- `c/src/terse.c`: Core library implementation
 - `c/src/terse_posix.c`: POSIX platform layer (terminal I/O, detection, raw mode)
 - `c/src/terse_platform_stub.c`: Stub for non-UNIX platforms
 - `c/src/mini_iconv.c`: Fallback charset converter for Shift_JIS
@@ -108,7 +108,7 @@ All unit tests located in `c/tests/unit/`:
 ## Documentation Structure
 
 - `docs/terse-api-user.md`: Application developer API guide
-- `docs/terse-specs.md`: Profile specifications and degradation rules (26900 tokens, read with offset/limit)
+- `docs/terse-specs.md`: Profile specifications and degradation rules (large file, read with offset/limit as needed)
 - `docs/progress-overview.md`: Implementation status summary
 - `docs/graphics-roadmap.md`: Image features roadmap
 - `docs/terse-platform-porting.md`: Porting guide for additional platforms
