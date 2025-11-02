@@ -1152,6 +1152,405 @@ try {
 
 ---
 
+## プロファイルシステムアーキテクチャ（詳細）
+
+### プロファイルの階層構造
+
+プロファイルシステムは、端末機能を4段階の階層として整理している：
+
+| プロファイル | 機能カテゴリ | 主な端末 | 検出方法 |
+|---------|----------|---------|---------|
+| **P0** | 基本出力・入力 | すべての端末 | 最小保証 |
+| **P1** | 色・装飾 | ほとんどの近代端末 | `COLORTERM`環境変数、SGR応答 |
+| **P2** | マウス・ペースト・タイトル | VTE系、xterm系 | `VTE_VERSION`、DA応答、OSC応答 |
+| **P3** | 画像・クリップボード・拡張 | iTerm2、kitty、WezTerm、Ghostty | `TERM_PROGRAM`、DA応答、プロトコルプローブ |
+
+### 機能分類マトリクス
+
+各プロファイルで利用可能な機能の完全マトリクス：
+
+| 機能カテゴリ | P0 | P1 | P2 | P3 | 備考 |
+|------------|----|----|----|----|------|
+| **基本出力** |  |  |  |  |  |
+| カーソル移動 | ✓ | ✓ | ✓ | ✓ | 絶対・相対移動 |
+| 画面・行消去 | ✓ | ✓ | ✓ | ✓ | 前方・後方・全体 |
+| カーソル表示制御 | ✓ | ✓ | ✓ | ✓ | 表示・非表示 |
+| テキスト出力 | ✓ | ✓ | ✓ | ✓ | Codec変換含む |
+| サイズ取得 | ✓ | ✓ | ✓ | ✓ | Unknown可 |
+| **基本入力** |  |  |  |  |  |
+| 文字入力 | ✓ | ✓ | ✓ | ✓ | ASCII・Unicode |
+| 制御キー | ✓ | ✓ | ✓ | ✓ | Enter/BS/Tab |
+| 矢印キー | ✓ | ✓ | ✓ | ✓ | 4方向 |
+| リサイズイベント | ✓ | ✓ | ✓ | ✓ | SIGWINCH等 |
+| **色・装飾（P1）** |  |  |  |  |  |
+| 16色（Basic16） | - | ✓ | ✓ | ✓ | ANSI 8色+明暗 |
+| 256色パレット | - | ✓* | ✓ | ✓ | *検出次第 |
+| TrueColor | - | ✓* | ✓ | ✓ | *`COLORTERM=truecolor` |
+| 装飾（Bold/Italic等） | - | ✓ | ✓ | ✓ | SGR 1,2,3,4,7,5,9 |
+| スタイルリセット | - | ✓ | ✓ | ✓ | 全体・色のみ・装飾のみ |
+| **入出力拡張（P2）** |  |  |  |  |  |
+| マウス追跡 | - | - | ✓ | ✓ | X10/VT200/SGR |
+| ブランケットペースト | - | - | ✓ | ✓ | PasteBegin/End |
+| タイトル設定 | - | - | ✓ | ✓ | OSC 2 |
+| ハイパーリンク | - | - | ✓ | ✓ | OSC 8 |
+| カーソル形状 | - | - | ✓* | ✓ | *一部端末 |
+| **高度拡張（P3）** |  |  |  |  |  |
+| 画像表示 | - | - | - | ✓ | iTerm2/Sixel/kitty |
+| クリップボード書込 | - | - | - | ✓ | OSC 52 |
+| 詳細キーボード報告 | - | - | - | ✓* | *MOK/kitty protocol |
+| 通知 | - | - | - | ✓ | Bell/Visual/Desktop |
+
+### 自動検出アルゴリズム
+
+ライブラリは以下の順序で端末環境を検出する（`detect_environment_capabilities`実装）：
+
+#### 1. 環境変数の検査
+
+```
+優先順位:
+1. TERM_PROGRAM (iTerm.app, Apple_Terminal, WezTerm, ghostty, WarpTerminal)
+2. LC_TERMINAL (Apple_Terminal, iTerm2)
+3. 専用変数 (KITTY_PID, WEZTERM_EXECUTABLE, VTE_VERSION, GNOME_TERMINAL_*)
+4. COLORTERM (truecolor判定)
+5. TERM (xterm-kitty, xterm-ghostty, sixel対応判定)
+6. TMUX (多重化検出)
+```
+
+#### 2. Secondary DA（デバイス属性）プローブ
+
+`CSI > 0 c` を送信し、端末の応答を解析：
+
+| 応答パターン | 端末 | プロファイル |
+|------------|------|-------------|
+| `ESC[>1;95;0c` | Apple Terminal | P1 |
+| `ESC[>0;95;0c` | Warp | P1 |
+| `ESC[>64;*` | iTerm2 | P3 (iTerm inline画像) |
+| `ESC[>1;4000;*` | kitty | P3 (kitty graphics) |
+| `ESC[>1;277;*` | WezTerm | P3 (kitty graphics) |
+| `ESC[>1;10;*` | Ghostty | P3 |
+| `ESC[>61;*` または `ESC[>65;*` | VTE系 | P2 |
+
+#### 3. フォールバックロジック
+
+環境変数とDAプローブの両方で識別できない場合：
+
+1. `TERM`に`sixel`を含む → Sixelサポート端末としてP3
+2. `TERM`が`mlterm`等の既知Sixel端末 → P3
+3. 上記いずれでもない → P0（最小保証）
+
+#### 4. 多重化環境の特別扱い
+
+`TMUX`環境変数または`TERM`に`tmux`/`screen`を含む場合：
+- 画像機能を無効化（`images = TERSE_IMAGE_NONE`）
+- その他の機能は内側端末の能力に従う
+
+### プロファイル交渉の内部処理
+
+`terse_open()`呼び出し時のフロー：
+
+```
+1. requested_profile チェック
+   ├─ TERSE_PROFILE_AUTO → 自動検出実行
+   └─ P0/P1/P2/P3 → 検出後に上限として制限
+
+2. 環境検出（detect_environment_capabilities）
+   ├─ 環境変数スキャン
+   ├─ DAプローブ（200msタイムアウト）
+   └─ 検出済み能力の構築
+
+3. プロファイルクランプ（clamp_capabilities_to_request）
+   ├─ requested < detected → 要求プロファイルに縮退
+   └─ requested >= detected → 検出能力をそのまま使用
+
+4. ランタイムオーバーライド適用
+   ├─ disabled_caps → 個別機能無効化
+   └─ enabled_caps → 個別機能強制有効化
+
+5. 能力構造体を handle に保存
+   ├─ detected_capabilities（検出結果の保存）
+   └─ capabilities（実効能力）
+```
+
+### ランタイム能力オーバーライド
+
+アプリケーションは自動検出結果を上書き可能：
+
+#### 無効化フラグ（`disabled_caps`）
+
+```c
+// P1機能のみ使いたい（P2以上を無効化）
+terse_capabilities_disable(handle,
+    TERSE_CAP_DISABLE_MOUSE |
+    TERSE_CAP_DISABLE_BRACKETED_PASTE |
+    TERSE_CAP_DISABLE_IMAGE_INLINE);
+```
+
+#### 有効化フラグ（`enabled_caps`）
+
+```c
+// 自動検出が保守的すぎる場合に強制有効化
+terse_capabilities_enable(handle,
+    TERSE_CAP_ENABLE_TRUECOLOR |
+    TERSE_CAP_ENABLE_TEXT_STYLES);
+```
+
+#### リセット
+
+```c
+// 自動検出結果に戻す
+terse_capabilities_reset_overrides(handle);
+```
+
+#### 内部再計算ロジック（`recompute_capabilities`）
+
+```
+1. detected_capabilities をコピー
+2. enabled_caps を優先適用
+3. disabled_caps で除外
+4. プロファイルレベルを再評価
+   - 有効機能数に応じてP0〜P3を決定
+5. 色サポートレベルを再計算
+   - has_truecolor → TERSE_COLOR_TRUECOLOR
+   - has_sgr_extended → TERSE_COLOR_PALETTE256
+   - has_sgr_basic → TERSE_COLOR_BASIC16
+   - いずれもfalse → TERSE_COLOR_NONE
+```
+
+---
+
+## 機能縮退メカニズム（詳細）
+
+### 縮退の原則
+
+1. **安全側への縮退**：未対応機能は無効果（no-op）または最も近い下位機能へ
+2. **明示的エラー回避**：縮退はエラーとせず成功扱い
+3. **情報保持の最大化**：可能な限り元の意図を保持
+4. **予測可能性**：同一環境では常に同じ縮退結果
+
+### 色の縮退アルゴリズム
+
+#### TrueColor → 256色パレット
+
+```
+algorithm truecolor_to_palette256(r, g, b):
+  # グレースケール検出
+  if r == g == b:
+    if r < 8: return 16  # 最暗（ほぼ黒）
+    if r > 248: return 231  # 最明（ほぼ白）
+    return 232 + (r - 8) / 10  # グレー階調（232-255）
+
+  # RGB 6x6x6 キューブ
+  rc = cube_component_from_truecolor(r)  # 0-5
+  gc = cube_component_from_truecolor(g)
+  bc = cube_component_from_truecolor(b)
+  return 16 + rc*36 + gc*6 + bc
+
+function cube_component_from_truecolor(value):
+  if value < 48: return 0
+  if value < 114: return 1
+  return (value - 35) / 40
+```
+
+実装参照：`truecolor_to_palette_index()` in `terse.c:1184-1199`
+
+#### 256色パレット → Basic16
+
+```
+algorithm palette256_to_basic16(index):
+  # 標準16色（0-15）はそのまま
+  if index < 16: return index
+
+  # グレー階調（232-255） → 白/黒/灰色
+  if index >= 232:
+    gray = index - 232  # 0-23
+    if gray < 6: return 0   # 黒
+    if gray > 18: return 15  # 明白
+    if gray < 12: return 8   # 暗灰
+    return 7  # 明灰
+
+  # RGB キューブ（16-231） → 最近傍Basic16
+  r = ((index - 16) / 36) % 6
+  g = ((index - 16) / 6) % 6
+  b = (index - 16) % 6
+
+  # 6階調を8bit値に逆変換してBasic16マッチング
+  r8 = cube_component_to_value(r)
+  g8 = cube_component_to_value(g)
+  b8 = cube_component_to_value(b)
+
+  return find_nearest_basic16_color(r8, g8, b8)
+```
+
+実装参照：`palette256_to_basic16()` in `terse.c:1201-1252`
+
+#### Basic16 → 既定色
+
+Basic16が未対応の場合、色指定は完全に無視され既定の前景色/背景色となる。
+
+### 装飾の縮退
+
+装飾効果は個別にサポート判定される：
+
+```
+requested_effects = BOLD | ITALIC | UNDERLINE
+supported_effects = capabilities.effects
+
+effective_effects = requested_effects & supported_effects
+
+# 例：端末がITALICをサポートしない場合
+# requested: BOLD|ITALIC → effective: BOLD のみ
+```
+
+未対応の装飾ビットは**無視**され、SGRシーケンスに含まれない。
+
+### マウスモードの縮退
+
+```
+algorithm select_mouse_mode(requested, supported):
+  if supported == TERSE_MOUSE_NONE:
+    return TERSE_MOUSE_NONE  # 完全無効
+
+  if requested == TERSE_MOUSE_SGR and supported >= TERSE_MOUSE_SGR:
+    return TERSE_MOUSE_SGR  # 推奨
+
+  if requested >= TERSE_MOUSE_VT200 and supported >= TERSE_MOUSE_VT200:
+    return TERSE_MOUSE_VT200
+
+  if requested >= TERSE_MOUSE_X10 and supported >= TERSE_MOUSE_X10:
+    return TERSE_MOUSE_X10
+
+  return TERSE_MOUSE_NONE  # フォールバック
+```
+
+実装では`enable_mouse()`呼び出し時に`capabilities.mouse`を確認：
+- `TERSE_MOUSE_NONE`の場合は即座にno-op成功
+- それ以外の場合は対応する制御シーケンスを送信
+
+### 画像プロトコルの縮退
+
+```
+function select_image_protocol(request, capabilities):
+  available = capabilities.images
+
+  # リクエストに明示指定があればそれを優先
+  if request.format == SIXEL and available == TERSE_IMAGE_SIXEL:
+    return SIXEL
+  if request.format == ITERM_INLINE and available == TERSE_IMAGE_ITERM_INLINE:
+    return ITERM_INLINE
+  if request.format == KITTY and available == TERSE_IMAGE_KITTY:
+    return KITTY
+
+  # AUTO指定または未対応の場合は能力に応じて選択
+  if available == TERSE_IMAGE_NONE:
+    return NONE  # 無効果
+
+  # 優先順位：iTerm2 > kitty > Sixel
+  if available == TERSE_IMAGE_ITERM_INLINE:
+    return ITERM_INLINE
+  if available == TERSE_IMAGE_KITTY:
+    return KITTY
+  if available == TERSE_IMAGE_SIXEL:
+    return SIXEL
+
+  return NONE
+```
+
+実装参照：`terse_display_image()` in `terse.c`
+
+### 縮退時のログ出力
+
+ライブラリは縮退を**エラーとして扱わない**ため、`terse_get_last_error()`は`TERSE_ERROR_NONE`を返す。
+
+アプリケーションが縮退を追跡したい場合：
+
+```c
+terse_capabilities_t caps = terse_get_capabilities(handle);
+
+// 色縮退の検出
+if (caps.colors < TERSE_COLOR_TRUECOLOR) {
+    log_warning("TrueColor not supported, degraded to %d", caps.colors);
+}
+
+// 画像縮退の検出
+if (caps.images == TERSE_IMAGE_NONE) {
+    log_info("Image display not available");
+}
+```
+
+---
+
+## 端末検出詳細仕様
+
+### 検出精度と信頼性
+
+| 端末 | 検出方法 | 信頼度 | 備考 |
+|------|----------|--------|------|
+| **Apple Terminal** | `TERM_PROGRAM` + DA | 高 | macOS標準 |
+| **iTerm2** | `TERM_PROGRAM` + DA | 高 | `>64;` DA応答 |
+| **kitty** | `TERM` + `KITTY_PID` + DA | 高 | `>1;4000;` DA |
+| **WezTerm** | `TERM_PROGRAM` + 専用変数 + DA | 高 | `>1;277;` DA |
+| **Ghostty** | `TERM_PROGRAM` + `TERM` + DA | 高 | `>1;10;` DA |
+| **Warp** | `TERM_PROGRAM` + DA | 高 | `>0;95;0c` DA |
+| **GNOME Terminal** | `VTE_VERSION` + 専用変数 + DA | 高 | `>61;` または `>65;` |
+| **tmux/screen** | `TMUX` + `TERM`部分文字列 | 高 | 内側端末を継承 |
+| **Sixel対応端末** | `TERM`部分文字列 | 中 | mlterm, contour等 |
+| **その他xterm系** | フォールバック | 低 | P0として扱う |
+
+### 検出シーケンスのタイミング
+
+#### DAプローブの詳細
+
+```
+1. raw modeへ切り替え（tcsetattr）
+2. "ESC [ > 0 c" を送信
+3. 最大200ms待機（poll/selectでポーリング）
+4. 応答を最大128バイト読み取り
+5. raw mode復帰
+6. 応答パターンをマッチング
+```
+
+実装参照：`terse_platform_probe_secondary_da()` in `terse_posix.c:113-151`
+
+#### タイムアウト処理
+
+- 200ms以内に応答がない → 空文字列として扱い、環境変数のみで判定
+- パイプや非TTY入力 → プローブスキップ
+
+### 誤検出の回避
+
+#### tmux/screen環境での制限
+
+```
+detected = detect_environment_capabilities(...)
+
+if is_multiplexer_session(term):
+    # 内側端末の能力を継承するが画像は無効化
+    detected.images = TERSE_IMAGE_NONE
+```
+
+理由：tmux/screenは画像プロトコルを透過しないため、誤って有効にすると出力が破壊される。
+
+#### 保守的な検出ポリシー
+
+- 不明な端末 → P0
+- 部分的な一致 → より低いプロファイル
+- 環境変数とDAの不一致 → 環境変数を優先
+
+### デバッグとテストのための環境変数
+
+```bash
+# DAプローブ結果を直接指定（テスト用）
+export TERSE_SECONDARY_DA_HINT=$'\x1b[>1;4000;13c'
+
+# 端末種別を強制指定
+export TERM_PROGRAM=iTerm.app
+
+# TrueColor対応を明示
+export COLORTERM=truecolor
+```
+
+---
+
 ## テスト指針
 
 ### 方針

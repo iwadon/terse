@@ -1,142 +1,359 @@
-# P0 Demo Application
+# Terse Sample Programs
 
-`samples/p0_demo.c` demonstrates the minimal P0 surface:
+This directory contains demonstration programs showcasing the features of the Terse library across all profile levels (P0-P3).
 
-- opens a handle with default capabilities (no optional styles/colors)
-- moves the cursor, writes text, and uses `terse_clear_*` calls
-- captures and restores cursor state with `terse_capture_state` / `terse_restore_state`
-- reads events in a simple loop, illustrating `TERSE_EVENT_NONE` and character events
-- shows how `terse_get_last_error` can be used to log transport/config errors
+## Building the Samples
 
-Build and run:
+### Prerequisites
+- CMake 3.10 or later
+- Ninja (or your preferred CMake generator)
+- C compiler (GCC, Clang, etc.)
 
+### Build Instructions
+
+1. **Configure the build**:
+   ```sh
+   cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+   ```
+
+2. **Build all samples**:
+   ```sh
+   ninja -C build
+   ```
+
+   The compiled samples will be located in `build/samples/`.
+
+3. **Run a sample**:
+   ```sh
+   ./build/samples/p0_demo
+   ./build/samples/p1_color_demo
+   # etc.
+   ```
+
+## Samples by Category
+
+### Profile P0: Basic Output
+
+#### `p0_demo`
+**Purpose**: Demonstrates fundamental terminal operations available at P0 profile level.
+
+**Features**:
+- Cursor movement with `terse_move_to()`
+- Text output with `terse_write_text()`
+- Screen clearing with `terse_clear_screen()`
+- State capture/restore for cursor position
+- Basic event reading
+
+**Usage**:
 ```sh
-cc -I../c/include -L../build/c -lterse p0_demo.c -o p0_demo
-./p0_demo
+./build/samples/p0_demo
 ```
 
-(Adjust include/library paths based on your build layout.)
+**What to expect**: The demo displays text at various positions, captures and restores cursor state, then enters an interactive mode where you can press keys (press 'q' to quit).
 
-## Style Demonstration
+---
 
-`p0_demo.c` shows how to:
+### Profile P1: Colors and Styles
 
-- use the basic cursor/output APIs at P0
-- capture/restore cursor position and visibility
-- handle `terse_read_event` timeouts and EOFs
+#### `p1_color_demo`
+**Purpose**: Showcases comprehensive color support including 16-color, 256-color palette, and TrueColor.
 
-## P1 Style Demo
+**Features**:
+- Basic 16 colors (normal and bright variants)
+- Full 256-color palette display
+- TrueColor (24-bit RGB) gradients
+- Foreground and background color combinations
 
-`p1_style_demo.c` focuses on text effects (P1 capabilities):
-
-- enables text styles via `TERSE_CAP_ENABLE_TEXT_STYLES`
-- renders bold, faint, italic, underline, inverse, blink, and strike examples
-- uses `terse_reset_style` between samples to restore defaults
-
-Build and run:
-
+**Usage**:
 ```sh
-cc -I../c/include -L../build/c -lterse p1_style_demo.c -o p1_style_demo
-./p1_style_demo
+./build/samples/p1_color_demo
 ```
 
-## P1 Color Demo
+**What to expect**: A colorful display showing:
+- 16x16 grid of basic color combinations
+- 256-color palette cube (indices 16-231)
+- Smooth TrueColor gradient
 
-`p1_color_demo.c` focuses on color output (P1 capabilities):
+**Requirements**: Terminal with color support (most modern terminals).
 
-- enables SGR basic/extended/truecolor via `enabled_caps`
-- renders a basic16 foreground/background grid with `terse_color_basic`
-- shows the 6×6×6 palette cube and a truecolor gradient using the helper constructors
-- uses `terse_reset_style` between sections to keep the terminal tidy
+#### `p1_style_demo`
+**Purpose**: Demonstrates text styling effects.
 
-Build and run:
+**Features**:
+- Bold, Faint, Italic
+- Underline, Strike-through
+- Inverse (reverse video)
+- Blink
+- Combined effects
 
+**Usage**:
 ```sh
-cc -I../c/include -L../build/c -lterse p1_color_demo.c -o p1_color_demo
-./p1_color_demo
+./build/samples/p1_style_demo
 ```
 
-## P2 Features Demo
+**What to expect**: Various text styling effects displayed sequentially with brief pauses between each.
 
-`p2_features_demo.c` showcases the new P2 APIs:
+---
 
-- enables SGR mouse tracking (`terse_enable_mouse(…, TERSE_MOUSE_SGR)`)
-- enables bracketed paste notifications
-- updates terminal title and emits OSC 8 hyperlinks
-- prints a running log of mouse / paste / key events
+### Profile P2: Advanced Input/Output
 
-Build and run:
+#### `p2_features_demo`
+**Purpose**: Shows P2-level features including mouse tracking, bracketed paste, hyperlinks, and window title.
 
+**Features**:
+- Mouse event tracking (clicks, movements, scrolling)
+- Bracketed paste mode
+- Window title setting
+- Hyperlink support (OSC 8)
+
+**Usage**:
 ```sh
-cc -I../c/include -L../build/c -lterse p2_features_demo.c -o p2_features_demo
-./p2_features_demo
+./build/samples/p2_features_demo
 ```
 
-## P3 Notifications Demo
+**What to expect**: Interactive demo that reports mouse events, paste operations, and displays a hyperlink. Press 'q' to quit.
 
-`p3_notifications_demo.c` walks through the notification APIs (P3):
+**Note**: Requires raw terminal mode (handled by the demo).
 
-- requests the bell, visual bell, and desktop notification capabilities
-- inspects negotiated notifications via `terse_get_capabilities`
-- provides a REPL (`b <msg>`, `v`, `g`) that calls `terse_notify` for each mode
-- opens the handle with `TERSE_PROFILE_AUTO` so terminal detection chooses the highest supported profile
+---
 
-Build and run (make sure the library is built first):
+### Profile P3: Extended Features
 
+#### `p3_notifications_demo`
+**Purpose**: Demonstrates various notification mechanisms.
+
+**Features**:
+- Desktop notifications (OSC 9 or OSC 777)
+- Visual bell
+- Audible bell (BEL)
+
+**Usage**:
 ```sh
-cc -I../c/include -L../build/c -lterse p3_notifications_demo.c -o p3_notifications_demo
-./p3_notifications_demo
+./build/samples/p3_notifications_demo
 ```
 
-On macOS Terminal/iTerm2, `b Hello!` should surface a desktop notification if OSC 9 is allowed by the terminal. The command still succeeds silently when the capability is absent.
+**What to expect**: Interactive shell where you can trigger notifications:
+- `b <message>` - Send desktop notification
+- `v` - Visual bell
+- `g` - Audible bell
+- `q` - Quit
 
-## P3 Image Demo
+**Requirements**: Terminal with notification support (iTerm2, WezTerm, etc.).
 
-`p3_image_demo.c` renders an arbitrary image using the iTerm2 inline protocol:
+#### `p3_image_demo`
+**Purpose**: Displays images using iTerm2 inline image protocol (OSC 1337).
 
-- requests inline image support via `TERSE_CAP_ENABLE_IMAGE_INLINE`
-- loads the given file into memory and sends it with `terse_display_image_inline`
-- verifies that the negotiated capabilities include `TERSE_IMAGE_ITERM_INLINE` before transmitting
+**Features**:
+- iTerm2 inline image display
+- File loading and rendering
 
-Build and run (iTerm2 or WezTerm recommended):
-
+**Usage**:
 ```sh
-cc -I../c/include -L../build/c -lterse p3_image_demo.c -o p3_image_demo
-./p3_image_demo path/to/image.png
+./build/samples/p3_image_demo <image-file>
 ```
 
-If the terminal does not advertise inline images, the demo exits gracefully without sending the OSC 1337 sequence.
+**What to expect**: The specified image file is displayed inline in the terminal.
 
-## Line Editing Demo
+**Requirements**: iTerm2 or WezTerm with inline image support.
 
-`line_edit_demo.c` provides a minimal readline-style editor using only P0 APIs:
+#### `p3_sixel_demo`
+**Purpose**: Demonstrates Sixel graphics protocol with auto-generated test patterns.
 
-- terminal raw mode handled locally with `termios`
-- cursor moves with `terse_move_to` and `terse_move_by` (indirectly via re-render)
-- text styles toggled via `terse_set_style` with `terse_style_t`, and cleared via `terse_reset_style`
-- state captured/restored with `terse_capture_state` / `terse_restore_state`
-- input normalized by `terse_read_event`
+**Features**:
+- Sixel graphics rendering
+- RGB gradient generation
+- Graceful degradation with `TERSE_IMAGE_FLAG_ALLOW_DEGRADE`
+- Auto-format detection
 
-Build:
-
+**Usage**:
 ```sh
-cc -I../c/include -L../build/c -lterse line_edit_demo.c -o line_edit_demo
-./line_edit_demo
+./build/samples/p3_sixel_demo
 ```
 
-## Event Logger Demo
+**What to expect**: Three test images displayed using different rendering strategies:
+1. Strict Sixel-only mode
+2. Sixel with degradation allowed
+3. Auto-format selection
 
-`event_logger_demo.c` prints every event returned by `terse_read_event`, making it easy to verify key normalization and modifier handling:
+**Requirements**: Terminal with Sixel support (xterm, mlterm, WezTerm, etc.).
 
-- configures termios raw mode and opens TERSE with `TERSE_PROFILE_AUTO`
-- logs characters (with scalar, UTF-8 text, width, modifiers), navigation keys, function keys, mouse events, paste notifications, and raw sequences
-- exits on `Ctrl+C`, so you can experiment freely with combinations such as `Shift+Enter`, kitty CSI-u, or modifyOtherKeys sequences
+#### `p3_kitty_graphics_demo`
+**Purpose**: Demonstrates kitty graphics protocol.
 
-Build and run:
+**Features**:
+- Kitty graphics protocol rendering
+- RGB test pattern generation
+- Strict vs. degraded rendering modes
+- Auto-protocol detection
 
+**Usage**:
 ```sh
-cc -I../c/include -L../build/c -lterse event_logger_demo.c -o event_logger_demo
-./event_logger_demo
+./build/samples/p3_kitty_graphics_demo
 ```
 
-Press `Ctrl+C` to stop the demo.
+**What to expect**: Multiple test renders showing protocol behavior in different modes.
+
+**Requirements**: kitty terminal or compatible terminal.
+
+#### `p3_image_protocol_fallback_demo`
+**Purpose**: Comprehensive demonstration of image protocol priority and fallback behavior.
+
+**Features**:
+- Protocol priority testing (Kitty > iTerm2 > Sixel)
+- Graceful degradation with `TERSE_IMAGE_FLAG_ALLOW_DEGRADE`
+- Auto-format selection
+- Terminal capability detection and reporting
+
+**Usage**:
+```sh
+./build/samples/p3_image_protocol_fallback_demo
+```
+
+**What to expect**: Detailed testing of each protocol individually, followed by auto-detection and degradation tests. Includes capability reporting.
+
+---
+
+### Input Handling
+
+#### `event_logger_demo`
+**Purpose**: Comprehensive event logger that displays all input events with detailed information.
+
+**Features**:
+- Keyboard event logging (characters, modifiers, function keys)
+- Mouse event logging (clicks, moves, scrolls)
+- Raw sequence capture
+- Window resize events
+- Enhanced keyboard protocol support (modifyOtherKeys, kitty protocol)
+
+**Usage**:
+```sh
+./build/samples/event_logger_demo
+```
+
+**What to expect**: Every keyboard press, mouse action, and terminal event is logged with full details. Press Ctrl+C to exit.
+
+**Note**: Raw terminal mode is automatically configured.
+
+#### `input_complete_demo`
+**Purpose**: Demonstrates comprehensive input event handling with user-friendly display.
+
+**Features**:
+- All keyboard event types
+- Function keys (F1-F12)
+- Navigation keys (Home, End, PageUp, PageDown, Insert, Delete)
+- Arrow keys with modifiers
+- Enhanced keyboard protocol support
+
+**Usage**:
+```sh
+./build/samples/input_complete_demo
+```
+
+**What to expect**: Interactive demo showing formatted event information. Press ESC to exit.
+
+#### `mouse_click_demo`
+**Purpose**: Interactive mouse tracking demonstration with visual feedback.
+
+**Features**:
+- Mouse click tracking and visualization
+- Different marks for left (●), right (○), and middle (◆) buttons
+- Scroll wheel detection
+- Window resize handling
+- Up to 100 marks displayed
+
+**Usage**:
+```sh
+./build/samples/mouse_click_demo
+```
+
+**What to expect**: Click anywhere in the terminal to place marks. Press 'c' to clear, 'q' to quit.
+
+**Requirements**: Terminal with mouse support.
+
+#### `line_edit_demo`
+**Purpose**: Full-featured line editing with Unicode support.
+
+**Features**:
+- Character insertion and deletion
+- Cursor movement (arrows, Home, End)
+- Combining character support
+- Emacs-style keybindings:
+  - Ctrl+A: Beginning of line
+  - Ctrl+E: End of line
+  - Ctrl+U: Delete to beginning
+  - Ctrl+K: Delete to end
+  - Ctrl+W: Delete previous word
+- Bracketed paste mode
+- Colored prompt
+- Bar cursor shape
+
+**Usage**:
+```sh
+./build/samples/line_edit_demo [--shift-jis|--sjis]
+```
+
+**What to expect**: Interactive line editor with full editing capabilities. Press Enter to submit, Ctrl+C to cancel.
+
+**Optional**: Pass `--shift-jis` to use Shift_JIS codec instead of UTF-8.
+
+---
+
+## Common Features Across Demos
+
+Most demos share these characteristics:
+
+### Raw Terminal Mode
+Demos requiring input handling (event loggers, line editor, mouse demo) automatically configure raw terminal mode and restore the original terminal state on exit.
+
+### Error Handling
+All demos include comprehensive error checking and report detailed error information using `terse_get_last_error()`.
+
+### Capability Detection
+Advanced demos (P2/P3) check terminal capabilities before enabling features and gracefully degrade when features are unavailable.
+
+### Signal Handling
+Interactive demos handle SIGINT (Ctrl+C) gracefully, ensuring proper cleanup.
+
+---
+
+## Troubleshooting
+
+### No Color Display
+- Verify your terminal supports colors: `echo $TERM`
+- Try setting `TERM=xterm-256color` or `TERM=xterm-truecolor`
+
+### Mouse Events Not Working
+- Ensure your terminal supports mouse tracking (most modern terminals do)
+- Check if another program is capturing mouse events
+
+### Images Not Displaying
+- Check terminal compatibility:
+  - iTerm2: `p3_image_demo`
+  - Sixel: `p3_sixel_demo` (xterm, mlterm, WezTerm)
+  - Kitty: `p3_kitty_graphics_demo` (kitty terminal)
+- Use `p3_image_protocol_fallback_demo` to test protocol detection
+
+### Function Keys Not Recognized
+- Some terminals require enhanced keyboard protocol support
+- Try `input_complete_demo` which enables enhanced protocols when available
+
+---
+
+## Further Reading
+
+- **API Documentation**: `docs/terse-api-user.md`
+- **Profile Specifications**: `docs/terse-specs.md`
+- **Implementation Status**: `docs/progress-overview.md`
+- **Graphics Features**: `docs/graphics-roadmap.md`
+
+---
+
+## Contributing
+
+When adding new samples:
+
+1. Add the source file to this directory
+2. Register it in `samples/CMakeLists.txt`
+3. Update this README with a description
+4. Include usage examples and requirements
+5. Test on multiple terminal emulators
