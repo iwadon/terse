@@ -372,7 +372,10 @@ terse_platform_drain_escape_sequence(int fd, unsigned char *buffer, size_t max)
 		len += (size_t)n;
 		if (len >= 3) {
 			unsigned char c = buffer[len - 1];
-			if (c >= '@' && c <= '~') {
+			// Special case: ESC [ [ needs one more byte (Linux console)
+			if (len == 3 && buffer[1] == '[' && buffer[2] == '[') {
+				// Continue reading
+			} else if (c >= '@' && c <= '~') {
 				break;
 			}
 		}

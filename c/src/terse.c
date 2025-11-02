@@ -3872,6 +3872,22 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 		unsigned char seq[TERSE_EVENT_RAW_MAX] = { 0 };
 		seq[0] = first;
 		size_t len = terse_platform_drain_escape_sequence(fd, seq, TERSE_EVENT_RAW_MAX);
+
+		// Linux console function keys: ESC [ [ A through ESC [ [ L (F1-F12)
+		// Check BEFORE CSI parsing to prevent misinterpreting as arrow keys
+		if (len == 4 && seq[1] == '[' && seq[2] == '[') {
+			char code = (char)seq[3];
+			int fn = 0;
+			if (code >= 'A' && code <= 'L') {
+				fn = 1 + (code - 'A');  // A=F1, B=F2, ..., L=F12
+			}
+			if (fn > 0 && fn <= 12) {
+				set_function_event(out_event, fn, 0);
+				clear_error(handle);
+				return TERSE_EVENT_OK;
+			}
+		}
+
 		int values[8] = { 0 };
 		size_t value_count = 0;
 		char final = 0;

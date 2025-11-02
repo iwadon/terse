@@ -4,12 +4,14 @@ add_executable(terse_unit_test
 	unit/terse_clipboard_test.c
 	unit/terse_close_test.c
 	unit/terse_cursor_shape_test.c
+	unit/terse_function_keys_test.c
 	unit/terse_get_cursor_position_test.c
 	unit/terse_get_size_test.c
 	unit/terse_hyperlink_test.c
 	unit/terse_image_test.c
 	unit/terse_keyboard_features_test.c
 	unit/terse_mouse_test.c
+	unit/terse_nav_keys_verify.c
 	unit/terse_notification_test.c
 	unit/terse_open_test.c
 	unit/terse_options_test.c
