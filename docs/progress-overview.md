@@ -30,12 +30,12 @@ P0のライフサイクル・出力・入力・サイズ取得・エラー返却
 | P3: カーソル形状 | P3 | ✅ 実装済み | `DECSCUSR`（ブロック/下線/バー＋点滅）切替。|
 | P3: 通知 | P3 | ✅ 実装済み | ベル（BEL）/視覚（DECSCNMトグル）/デスクトップ（`OSC 9;1;...`）。環境検出でBELL/デスクトップを付与。|
 | サンプル | P0-P3 | ✅ 実装済み | `samples/` に P0〜P3 デモ（色/スタイル/拡張機能/通知等）。|
-| Codec/セル幅 | P0 | ✅ 実装済み | UTF-8/Shift_JIS 変換、復号エラー時の置換、East Asian Width に基づく `Char.width` 推定とテスト完了。|
+| Codec/セル幅 | P0 | ✅ 実装済み | UTF-8/Shift_JIS 変換、復号エラー時の置換、East Asian Width に基づく `Char.width` 推定とテスト完了。East Asian Ambiguous Width 文字の表示幅オプション（`east_asian_ambiguous_as_wide`）を実装。|
 | キーボード拡張 (modifyOtherKeys/kitty) | P0 | ✅ 実装済み | `terse_keyboard_enable/disable` で modifyOtherKeys level 2 および kitty CSI-u を opt-in（対応端末のみ）。|
 | 拡張キーレポート | P2+ | ⏳ 未着手 | `Shift+Enter` などの詳細修飾検出（xterm MOK, kitty 等）の検出/抽象化は今後。|
 
 ## Next Steps Snapshot
-- East Asian Ambiguous=Wide のオプション化、追加Codec（例：ISO-2022-JP）検討。
+- 追加Codec（例：ISO-2022-JP）検討。
 - 入力正規化の拡充：機能キー/Home/End/Page/Function(n) ほか、修飾一貫性の強化、タイムアウト/合成のチューニング。
 - 環境検出の強化：tmux/screen配下や追加端末のSecondary DAマッピング、VISUAL通知サポート検出の拡充。
 - 画像/クリップボードの互換拡大（iTerm2以外のSixel/kitty graphics対応を含む）と能力表の詳細化。設計ノートは `docs/graphics-roadmap.md` を参照。

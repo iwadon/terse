@@ -209,6 +209,7 @@ typedef struct terse_options {
 	const char *codec_name;
 	unsigned int disabled_caps;
 	unsigned int enabled_caps;
+	int east_asian_ambiguous_as_wide;
 } terse_options_t;
 
 typedef struct terse_size {
