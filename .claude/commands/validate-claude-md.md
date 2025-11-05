@@ -2,7 +2,25 @@
 description: Validate that CLAUDE.md follows principles-focused guidelines and identify time-sensitive content
 ---
 
-Review CLAUDE.md and check if it follows principles-focused guidelines.
+**Strategy**: Use `research` subagent (Haiku) for fast, low-cost analysis.
+
+Use the `research` subagent to execute the following analysis task:
+
+**Task objective**: Validate that CLAUDE.md follows principles-focused guidelines
+
+**Analysis items**:
+1. Detect time-sensitive content (specific numbers, counts, exhaustive lists)
+2. Evaluate principles-focused content (architectural principles, design decisions)
+3. Identify issues and suggest improvements
+
+**Expected results**:
+- List of issues (quote, reason, recommended fix)
+- Overall rating (High/Medium/Low)
+- Actionable improvement suggestions
+
+---
+
+Below are detailed validation criteria for the subagent:
 
 ## Validation Criteria
 

@@ -2,7 +2,27 @@
 description: Update CLAUDE.md with a principles-focused approach that avoids time-sensitive details
 ---
 
-Analyze this codebase and update CLAUDE.md with a principles-focused approach.
+**Strategy**: Use `implementation` subagent (Sonnet) for careful, high-quality CLAUDE.md creation.
+
+Use the `implementation` subagent to execute the following task:
+
+**Task objective**: Analyze codebase and create/update principles-focused CLAUDE.md
+
+**Requirements**:
+1. Investigate entire codebase (src/, tests/, docs/, etc.)
+2. Extract architectural principles and design decisions
+3. Eliminate time-sensitive content (numbers, lists)
+4. Create documentation that remains accurate after 6 months
+5. Include appropriate doc references
+
+**Expected results**:
+- Updated CLAUDE.md
+- Summary of changes (max 500 chars)
+- List of extracted key design principles
+
+---
+
+Below are detailed guidelines for the subagent:
 
 ## Core Philosophy
 

@@ -2,41 +2,41 @@
 description: Save session state and generate continuation prompt
 ---
 
-現在のセッション状態を保存し、次回セッション用のプロンプトを生成します。
+Save current session state and generate prompt for next session.
 
-## 実行内容
+## What It Does
 
-1. `.claude/session-state.md`に以下を保存:
-   - 現在のタスク概要
-   - 完了した作業（TodoListから）
-   - 次に実行すべきタスク
-   - 重要なコンテキスト（ファイルパス、エラーメッセージなど）
-   - 実行中のsubagentタスク（あれば）
+1. Save to `.claude/session-state.md`:
+   - Current task summary
+   - Completed work (from TodoList)
+   - Next tasks to execute
+   - Important context (file paths, error messages, etc.)
+   - Running subagent tasks (if any)
 
-2. 次回セッション用プロンプトを生成:
-   - 簡潔で明確（200-500文字）
-   - すぐに作業再開できる形式
-   - 必要なコンテキストを全て含む
+2. Generate continuation prompt:
+   - Concise and clear (200-500 chars)
+   - Ready to resume work immediately
+   - Contains all necessary context
 
-3. ユーザーに表示:
+3. Display to user:
    ```
-   ## セッション状態を保存しました
+   ## Session State Saved
 
-   **次回セッション用プロンプト:**
-   [コピー可能なプロンプト]
+   **Continuation prompt for next session:**
+   [Copy-pasteable prompt]
 
-   **手順:**
-   1. `/clear` を実行
-   2. 上記プロンプトを貼り付け
+   **Steps:**
+   1. Run `/clear`
+   2. Paste the above prompt
    ```
 
-## 使用タイミング
+## When to Use
 
-- コンテキストが少なくなってきた時
-- 大きなタスクの区切りの良いポイント
-- エラーで詰まった時（状態を保存して再開）
+- When context is running low
+- At good breakpoints in large tasks
+- When stuck on errors (save state and resume)
 
-## ヒント
+## Tip
 
-Subagent戦略（`/implement-with-agent`）を使えば、コンテキスト消費を大幅削減でき、
-このコマンドを使う頻度を減らせます。
+Use subagent strategy (`/implement-with-agent`) to significantly reduce context consumption
+and minimize need for this command.

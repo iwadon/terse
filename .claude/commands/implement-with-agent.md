@@ -3,150 +3,191 @@ description: Implement feature using subagent to minimize context consumption
 argument-hint: <implementation request>
 ---
 
-## ユーザー要求
+## User Request
 
 $ARGUMENTS
 
 ---
 
-**重要**: 上記のユーザー要求が空の場合は、以下を実行してください:
-- ユーザーに「どのような機能を実装したいですか? 具体的な要求内容を教えてください」と質問する
-- 実装の詳細(対象ファイル、機能の概要など)を確認してから作業を開始する
-- この時点では**タスク分析を行わず、実行手順にも進まない**こと
+**IMPORTANT**: If the user request is empty:
+- Ask the user: "What feature would you like to implement? Please provide specific requirements."
+- Confirm implementation details (target files, feature overview, etc.) before starting
+- Do NOT proceed to task analysis or execution at this point
 
 ---
 
-あなたは**アーキテクト**として振る舞い、実装の詳細はsubagentに委譲してください:
+You act as an **Architect** and delegate implementation details to subagents:
 
-## 実行手順
+## Execution Steps
 
-1. **タスク分析**(親Claudeが実行):
-   - 上記のユーザー要求を理解
-   - 高レベルのアプローチを決定
-   - 必要なファイル/関数を特定
-   - 実装を複数の独立したサブタスクに分割
+1. **Task Analysis** (Parent Claude):
+   - Understand the user request above
+   - Decide high-level approach
+   - Identify required files/functions
+   - Split implementation into independent subtasks
 
-2. **Subagentに委譲**(コンテキスト分離):
-   - 各サブタスクについて、`general-purpose`サブエージェントを使用して実装を委譲
-   - 各サブエージェントには詳細な実装指示を与える
-   - サブエージェントが自律的に作業(ファイル読取、検索、実装)
-   - 複数のサブタスクは順次実行(並列実行が必要な場合は明示的に指示)
+2. **Delegate to Subagents** (Context isolation):
+   - **Select appropriate subagent** based on subtask nature:
+     - **Refactoring** (multi-file, function/type rename) → `refactoring` (Sonnet)
+     - **New features** (Phase implementation, complex algorithms) → `implementation` (Sonnet)
+     - **Small fixes** (add comments, error messages, 1-3 files) → `quick-fix` (Haiku)
+     - **Code research** (understand existing code, pattern search) → `research` (Haiku)
+     - **Other** → `general-purpose`
+   - Provide detailed implementation instructions to each subagent
+   - Subagents work autonomously (read files, search, implement)
+   - Execute subtasks sequentially (or in parallel if explicitly needed)
 
-3. **結果レビュー**(親Claudeが実行):
-   - 各サブエージェントからの簡潔なサマリーを受取
-   - 必要に応じて追加指示
-   - 全体を統合してユーザーに報告
+3. **Review Results** (Parent Claude):
+   - Receive concise summaries from each subagent
+   - Provide additional instructions if needed
+   - Integrate and report to user
 
-## Subagentへの委譲方法
+## Delegation Method
 
-各サブタスクについて、以下の形式でサブエージェントを呼び出してください:
+For each subtask, **select the appropriate subagent** based on task nature, then invoke using this format:
 
-```
-`general-purpose`サブエージェントを使用して、以下のタスクを実行してください:
+### Task Classification Guide
 
-**ユーザーからの元の要求**: [ユーザー要求を要約]
+1. **Use `refactoring` agent (Sonnet)** when:
+   - Renaming functions/types/variables across multiple files
+   - Wide-reaching changes including test files
+   - Structural reorganization (file splits, function moves, etc.)
+   - Updating all call sites after API changes
 
-**このサブタスクの目的**: [具体的な実装内容]
+2. **Use `implementation` agent (Sonnet)** when:
+   - Adding new features (Phase implementations, etc.)
+   - Implementing complex algorithms
+   - Integrating multiple components
+   - Implementation with test creation
 
-**要件**:
-- [要件1]
-- [要件2]
+3. **Use `quick-fix` agent (Haiku)** when:
+   - Adding comments or documentation
+   - Improving error messages
+   - Small fixes within 1-3 files
+   - Fixing typos or formatting
 
-**実装場所**: [ファイルパス、関数名など]
+4. **Use `research` agent (Haiku)** when:
+   - Investigating/understanding existing implementation
+   - Searching for patterns or usage examples
+   - Analyzing codebase structure
+   - Gathering information before implementation
 
-**参考情報**: [既存の類似コード、関連ファイル]
+5. **Use `general-purpose` agent** when:
+   - Task doesn't fit the above categories
 
-**期待する結果**:
-- 実装の概要サマリー(500文字以内)
-- 変更したファイルのリスト
-- テスト結果(成功/失敗)
-- 発生した問題や注意点
-
-**重要**: 詳細なコードやファイル内容全体は返さないこと。サマリーのみ返すこと。
-```
-
-## 利点
-
-- ✅ 親セッションのコンテキスト消費を最小化
-- ✅ 各subagentが独立したコンテキストウィンドウで作業
-- ✅ 大規模な実装でもセッションが持続
-- ✅ 複数の独立タスクを段階的に実行可能
-- ✅ 失敗したタスクを再実行しても親セッションに影響なし
-
-## 注意事項
-
-- `.claude/agents/general-purpose.md`サブエージェントが定義されている必要があります
-- サブエージェントが存在しない場合は、`/agents`コマンドで作成してください
-- 特定のタスクに特化したサブエージェントがある場合は、そちらを優先的に使用してください
-
-## 使用例
+### Delegation Format
 
 ```
-/implement-with-agent enumサポートを全パイプライン(CST→HIR→MIR→VM)に実装してください
+Use the `[agent-name]` subagent to execute the following task:
 
-親Claude: タスクを4つに分割しました:
-  1. CST parser拡張
-  2. HIR lowering
-  3. MIR lowering
-  4. VM実装
+**Original user request**: [Summarize user request]
 
-それでは、各タスクをsubagentに委譲して実装します。
+**Subtask objective**: [Specific implementation details]
 
----
+**Requirements**:
+- [Requirement 1]
+- [Requirement 2]
 
-`general-purpose`サブエージェントを使用して、以下のタスクを実行してください:
+**Implementation location**: [File paths, function names, etc.]
 
-**このサブタスクの目的**: CST parserにenum構文のサポートを追加
+**Reference info**: [Similar existing code, related files]
 
-**要件**:
-- enum宣言の構文解析
-- enum値の解析
-- 既存のtype定義との統合
+**Expected results**:
+- Implementation summary (max 500 chars)
+- List of modified files
+- Test results (pass/fail)
+- Issues or notes
 
-**実装場所**: src/parser/cst.rs
-
-[各サブエージェントが順次実行され、結果を統合]
+**IMPORTANT**: Return only summary, not detailed code or full file contents.
 ```
 
-## Subagentの設定例
+## Benefits
 
-もし`general-purpose`サブエージェントがまだ存在しない場合は、以下のコマンドで作成できます:
+- ✅ Minimize parent session context consumption
+- ✅ Each subagent works in independent context window
+- ✅ Session persists even with large implementations
+- ✅ Execute multiple independent tasks incrementally
+- ✅ Retry failed tasks without affecting parent session
+
+## Important Notes
+
+- These subagents must be defined in `.claude/agents/`:
+  - `research.md` - Code investigation (Haiku)
+  - `quick-fix.md` - Small fixes (Haiku)
+  - `implementation.md` - New features (Sonnet)
+  - `refactoring.md` - Large-scale refactoring (Sonnet)
+  - `general-purpose.md` - General tasks
+- Command fails if subagents don't exist
+- **Proper agent selection is critical** for cost/quality balance:
+  - Haiku (`research`, `quick-fix`): Fast, low-cost, ideal for simple tasks
+  - Sonnet (`implementation`, `refactoring`): High-quality, high-cost, required for complex tasks
+
+## Usage Examples
+
+### Example 1: New Feature (implementation agent)
 
 ```
-/agents
+/implement-with-agent Implement Phase 7: Add Ctrl+Y (yank), Ctrl+T (transpose)
+
+Parent Claude: Using implementation agent based on task analysis.
+
+Use the `implementation` subagent to execute the following task:
+
+**Subtask objective**: Phase 7 - yank/transpose functionality
+
+**Requirements**:
+- Ctrl+Y (yank): Insert last deleted text
+- Ctrl+T (transpose): Swap characters before/after cursor
+- Follow existing key binding patterns
+- Add test cases
+
+**Implementation location**: src/tprompt.c, tests/test_keybindings.c
+
+[Subagent implements, tests, reports]
 ```
 
-または、`.claude/agents/general-purpose.md`を手動で作成:
+### Example 2: Refactoring (refactoring agent)
 
-```markdown
----
-name: general-purpose
-description: 汎用的な実装タスクを実行するサブエージェント
-tools: [Bash, Read, Write, Edit, Grep]
----
-
-あなたは汎用的な実装タスクを担当するサブエージェントです。
-
-## 作業方針
-
-1. **コンテキスト収集**:
-   - 必要なファイルを読み込み
-   - 既存パターンを理解
-   - 関連する実装を検索
-
-2. **実装**:
-   - 既存のコーディングスタイルに従う
-   - 最小限の変更で要件を満たす
-   - 適切なエラーハンドリング
-
-3. **検証**:
-   - 可能であればテストを実行
-   - 構文エラーがないことを確認
-
-4. **報告**:
-   - 実装の概要(500文字以内)
-   - 変更ファイルのリスト
-   - 問題点や注意事項
-
-**重要**: 詳細なコード全体は返さず、簡潔なサマリーのみ報告してください。
 ```
+/implement-with-agent Rename tprompt_cursor_move_foo to tprompt_cursor_foo
+
+Parent Claude: Using refactoring agent for multi-file changes.
+
+Use the `refactoring` subagent to execute the following task:
+
+**Subtask objective**: Improve function name consistency
+
+**Requirements**:
+- Update declaration in src/tprompt_internal.h
+- Update definition and all call sites in src/tprompt.c
+- Update all test files in tests/
+- Verify build and all tests pass
+
+[Subagent searches thoroughly, updates, verifies]
+```
+
+### Example 3: Research + Quick Fix (research + quick-fix)
+
+```
+/implement-with-agent Find all TODO comments, prioritize, and fix simple ones
+
+Parent Claude: Splitting into 2 phases.
+
+**Step 1**: Use `research` subagent to investigate TODOs
+**Step 2**: Use `quick-fix` subagent to fix simple ones
+
+[Each agent executes sequentially]
+```
+
+## Agent Selection Cheat Sheet
+
+| Task Type | Agent | Model | Reason |
+|-----------|-------|-------|--------|
+| Function rename (multi-file) | `refactoring` | Sonnet | Thorough search & update needed |
+| New Phase implementation | `implementation` | Sonnet | Complex integration & testing |
+| Add comments | `quick-fix` | Haiku | Simple & fast |
+| Improve error messages | `quick-fix` | Haiku | Low risk, fast |
+| TODO investigation | `research` | Haiku | Info gathering only, low cost |
+| Understand codebase | `research` | Haiku | Specialized for exploration |
+| Complex algorithm | `implementation` | Sonnet | Careful design needed |
+| API migration | `refactoring` | Sonnet | Update all call sites |
