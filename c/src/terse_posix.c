@@ -266,8 +266,9 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 		return -EPROTO;
 	}
 
-	*out_row = row;
-	*out_col = col;
+	// Terminal returns 1-based coordinates, convert to 0-based
+	*out_row = row - 1;
+	*out_col = col - 1;
 	return 0;
 }
 

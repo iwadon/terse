@@ -57,6 +57,7 @@ The library organizes terminal features into hierarchical profiles:
 - **terse_handle_t**: Opaque session handle created by `terse_open()` and destroyed by `terse_close()`
 - **State management**: `terse_capture_state/terse_restore_state` and `terse_push_state/terse_pop_state` for safely preserving cursor position, visibility, and styles
 - **Error handling**: Functions return negative `-errno` on failure; use `terse_get_last_error()` for detailed error category/code
+- **Coordinate system**: 0-based coordinates (0, 0) = top-left; internally converts to 1-based for terminal escape sequences
 
 ### Terminal Detection (c/src/terse_posix.c)
 Environment variable inspection (`TERM_PROGRAM`, `TERM`, `VTE_VERSION`, etc.) combined with Secondary Device Attributes (DA) sequences to identify specific terminals and their feature sets.

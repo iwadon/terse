@@ -23,7 +23,7 @@ static void demo_recording(terse_handle_t handle)
 	terse_test_start_recording(handle);
 
 	// Make various API calls
-	terse_move_to(handle, 5, 10);
+	terse_move_to(handle, 4, 9);
 	terse_write_text(handle, "Hello, World!");
 	terse_clear_screen(handle, TERSE_CLEAR_ALL);
 	terse_show_cursor(handle, 0);

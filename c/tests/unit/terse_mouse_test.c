@@ -94,16 +94,16 @@ TEST(TerseMouse, GeneratesEvents_FromSgrSequences)
 	EXPECT_EQ(TERSE_EVENT_OK, terse_read_event(handle, 10, &ev));
 	EXPECT_EQ(TERSE_EVENT_MOUSE_DOWN, ev.type);
 	EXPECT_EQ(TERSE_MOUSE_BUTTON_LEFT, ev.data.mouse.button);
-	EXPECT_EQ(5, ev.data.mouse.row);
-	EXPECT_EQ(12, ev.data.mouse.col);
+	EXPECT_EQ(4, ev.data.mouse.row);
+	EXPECT_EQ(11, ev.data.mouse.col);
 
 	const char move_seq[] = "\x1b[<32;13;6M";
 	EXPECT_EQ((ssize_t)(sizeof(move_seq) - 1), write(in_pipe[1], move_seq, sizeof(move_seq) - 1));
 	EXPECT_EQ(TERSE_EVENT_OK, terse_read_event(handle, 10, &ev));
 	EXPECT_EQ(TERSE_EVENT_MOUSE_MOVE, ev.type);
 	EXPECT_EQ(TERSE_MOUSE_BUTTON_LEFT, ev.data.mouse.button);
-	EXPECT_EQ(6, ev.data.mouse.row);
-	EXPECT_EQ(13, ev.data.mouse.col);
+	EXPECT_EQ(5, ev.data.mouse.row);
+	EXPECT_EQ(12, ev.data.mouse.col);
 
 	const char release_seq[] = "\x1b[<0;13;6m";
 	EXPECT_EQ((ssize_t)(sizeof(release_seq) - 1), write(in_pipe[1], release_seq, sizeof(release_seq) - 1));
@@ -111,7 +111,8 @@ TEST(TerseMouse, GeneratesEvents_FromSgrSequences)
 	EXPECT_EQ(TERSE_EVENT_MOUSE_UP, ev.type);
 	EXPECT_EQ(TERSE_MOUSE_BUTTON_LEFT, ev.data.mouse.button);
 
-	const char scroll_seq[] = "\x1b[<64;0;0M";
+	// Terminal sends 1-based coords, so col=1, row=1 becomes (0, 0) after conversion
+	const char scroll_seq[] = "\x1b[<64;1;1M";
 	EXPECT_EQ((ssize_t)(sizeof(scroll_seq) - 1), write(in_pipe[1], scroll_seq, sizeof(scroll_seq) - 1));
 	EXPECT_EQ(TERSE_EVENT_OK, terse_read_event(handle, 10, &ev));
 	EXPECT_EQ(TERSE_EVENT_MOUSE_SCROLL, ev.type);

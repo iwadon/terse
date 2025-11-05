@@ -126,6 +126,16 @@ terse_options_t options = {
 terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
 ```
 
+**Important: Terminal Mode Management**
+
+`terse_open()` does **not** automatically put the terminal into raw mode. Terse is designed to work with your application's terminal configuration rather than imposing its own settings.
+
+- For output-only operations (cursor movement, colors, clearing screen), raw mode is not required
+- For input operations (`terse_read_event()`), you must configure the terminal mode yourself using `tcsetattr()` or similar
+- This design allows your application to use terminal settings appropriate to its needs (e.g., custom VMIN/VTIME, signal handling)
+
+See the "P0: Input Events" section for details on terminal mode requirements for input handling.
+
 ### Closing a Session
 
 ```c
@@ -314,12 +324,27 @@ int terse_move_to(terse_handle_t handle, int row, int col);
 int terse_move_by(terse_handle_t handle, int drow, int dcol);
 ```
 
-**Coordinates:** 1-based (row=1, col=1 is top-left)
+**Coordinates:** 0-based (row=0, col=0 is top-left)
+
+**IMPORTANT:** Terse uses 0-based coordinates, like most programming languages.
+- Top-left corner: `(0, 0)`
+- First column: `col=0`
+- First row: `row=0`
+- Last row: `size.rows - 1`
+- Last column: `size.cols - 1`
+
+**Note:** Terminal escape sequences internally use 1-based coordinates, but the library handles this conversion automatically.
 
 **Example:**
 ```c
-terse_move_to(handle, 10, 20);  // Move to row 10, column 20
+terse_move_to(handle, 9, 19);   // Move to row 9, column 19 (10th row, 20th column)
 terse_move_by(handle, 2, -5);   // Move down 2, left 5
+
+// Move to top-left corner
+terse_move_to(handle, 0, 0);
+
+// Move to beginning of row 4 (5th row)
+terse_move_to(handle, 4, 0);
 ```
 
 ### Cursor Visibility
@@ -372,6 +397,10 @@ typedef struct terse_size {
 terse_size_t size = terse_get_size(handle);
 if (size.known) {
     printf("Terminal: %d rows x %d cols\n", size.rows, size.cols);
+
+    // Remember: coordinates are 0-based
+    // Bottom-right corner is at (size.rows-1, size.cols-1)
+    terse_move_to(handle, size.rows - 1, size.cols - 1);  // Move to bottom-right
 }
 ```
 
@@ -417,6 +446,39 @@ int terse_read_event(terse_handle_t handle, int timeout_ms,
 - `TERSE_EVENT_OK` (0): Event received
 - `TERSE_EVENT_NONE` (1): Timeout, no event
 - Negative value: Error
+
+**Terminal Mode Requirements:**
+
+`terse_read_event()` requires the terminal to be in an appropriate mode for non-canonical input. Terse does **not** configure the terminal mode automatically - this is your application's responsibility.
+
+Typical requirements:
+- Non-canonical mode (ICANON disabled)
+- No echo (ECHO disabled)
+- VMIN and VTIME configured for your desired blocking behavior
+
+**Example: Setting Raw Mode**
+```c
+#include <termios.h>
+
+int setup_raw_mode(int fd) {
+    struct termios raw;
+    if (tcgetattr(fd, &raw) < 0) {
+        return -1;
+    }
+
+    raw.c_lflag &= ~(ICANON | ECHO | ISIG);
+    raw.c_iflag &= ~(IXON | ICRNL);
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 0;
+
+    return tcsetattr(fd, TCSAFLUSH, &raw);
+}
+
+// Before using terse_read_event():
+setup_raw_mode(STDIN_FILENO);
+```
+
+**Note:** See `samples/event_logger_demo.c` for a complete example of terminal mode management.
 
 **Event Types:**
 ```c

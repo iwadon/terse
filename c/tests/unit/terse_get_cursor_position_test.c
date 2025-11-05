@@ -19,7 +19,7 @@ TEST(CursorPosition, Basic)
 	EXPECT_NE(NULL, handle);
 
 	// Move to a known position
-	EXPECT_EQ(0, terse_move_to(handle, 5, 10));
+	EXPECT_EQ(0, terse_move_to(handle, 4, 9));
 	EXPECT_EQ(0, terse_flush(handle));
 
 	// Query cursor position
@@ -28,8 +28,8 @@ TEST(CursorPosition, Basic)
 	// In a real terminal, this should return the position
 	// In CI/non-TTY environment, it might not work
 	if (pos.known) {
-		EXPECT_EQ(5, pos.row);
-		EXPECT_EQ(10, pos.col);
+		EXPECT_EQ(4, pos.row);
+		EXPECT_EQ(9, pos.col);
 	}
 
 	terse_close(handle);
@@ -49,7 +49,7 @@ TEST(CursorPosition, AfterText)
 	EXPECT_NE(NULL, handle);
 
 	// Move to position and write text
-	EXPECT_EQ(0, terse_move_to(handle, 1, 1));
+	EXPECT_EQ(0, terse_move_to(handle, 0, 0));
 	EXPECT_EQ(0, terse_write_text(handle, "Hello"));
 	EXPECT_EQ(0, terse_flush(handle));
 
@@ -57,8 +57,8 @@ TEST(CursorPosition, AfterText)
 	terse_cursor_position_t pos = terse_get_cursor_position(handle);
 
 	if (pos.known) {
-		EXPECT_EQ(1, pos.row);
-		EXPECT_EQ(6, pos.col);
+		EXPECT_EQ(0, pos.row);
+		EXPECT_EQ(5, pos.col);
 	}
 
 	terse_close(handle);

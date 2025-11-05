@@ -18,7 +18,7 @@ static void print_error(const char *label, terse_handle_t handle)
 
 static void show_effect(terse_handle_t handle, int row, unsigned int effects, const char *name)
 {
-	if (terse_move_to(handle, row, 1) < 0) {
+	if (terse_move_to(handle, row, 0) < 0) {
 		print_error("move_to", handle);
 		return;
 	}
@@ -41,21 +41,21 @@ static void show_effect(terse_handle_t handle, int row, unsigned int effects, co
 
 static void demo_effects(terse_handle_t handle)
 {
-	show_effect(handle, 1, TERSE_STYLE_BOLD, "Bold");
+	show_effect(handle, 0, TERSE_STYLE_BOLD, "Bold");
 	wait_briefly();
-	show_effect(handle, 3, TERSE_STYLE_FAINT, "Faint");
+	show_effect(handle, 2, TERSE_STYLE_FAINT, "Faint");
 	wait_briefly();
-	show_effect(handle, 5, TERSE_STYLE_ITALIC, "Italic");
+	show_effect(handle, 4, TERSE_STYLE_ITALIC, "Italic");
 	wait_briefly();
-	show_effect(handle, 7, TERSE_STYLE_UNDERLINE, "Underline");
+	show_effect(handle, 6, TERSE_STYLE_UNDERLINE, "Underline");
 	wait_briefly();
-	show_effect(handle, 9, TERSE_STYLE_INVERSE, "Inverse");
+	show_effect(handle, 8, TERSE_STYLE_INVERSE, "Inverse");
 	wait_briefly();
-	show_effect(handle, 11, TERSE_STYLE_BLINK, "Blink");
+	show_effect(handle, 10, TERSE_STYLE_BLINK, "Blink");
 	wait_briefly();
-	show_effect(handle, 13, TERSE_STYLE_STRIKE, "Strike");
+	show_effect(handle, 12, TERSE_STYLE_STRIKE, "Strike");
 	wait_briefly();
-	show_effect(handle, 15, TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE | TERSE_STYLE_STRIKE,
+	show_effect(handle, 14, TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE | TERSE_STYLE_STRIKE,
 		"Bold+Underline+Strike");
 }
 
@@ -84,7 +84,7 @@ int main(void)
 
 	demo_effects(handle);
 
-	if (terse_move_to(handle, 18, 1) == 0) {
+	if (terse_move_to(handle, 17, 0) == 0) {
 		if (terse_write_text(handle, "Press Ctrl+C to exit") < 0) {
 			print_error("write_text", handle);
 		}

@@ -24,7 +24,7 @@ static void print_error(const char *label, terse_handle_t handle)
 
 static void render_basic_grid(terse_handle_t handle, int start_row)
 {
-	if (terse_move_to(handle, start_row, 1) < 0) {
+	if (terse_move_to(handle, start_row, 0) < 0) {
 		print_error("move_to", handle);
 		return;
 	}
@@ -34,7 +34,7 @@ static void render_basic_grid(terse_handle_t handle, int start_row)
 	for (int bg_bright = 0; bg_bright < 2; ++bg_bright) {
 		for (int bg = 0; bg < 8; ++bg) {
 			int row = start_row + 2 + bg + (bg_bright * 9);
-			if (terse_move_to(handle, row, 1) < 0) {
+			if (terse_move_to(handle, row, 0) < 0) {
 				print_error("move_to", handle);
 				continue;
 			}
@@ -71,7 +71,7 @@ static void render_basic_grid(terse_handle_t handle, int start_row)
 
 static void render_palette_block(terse_handle_t handle, int start_row)
 {
-	if (terse_move_to(handle, start_row, 1) < 0) {
+	if (terse_move_to(handle, start_row, 0) < 0) {
 		print_error("move_to", handle);
 		return;
 	}
@@ -81,7 +81,7 @@ static void render_palette_block(terse_handle_t handle, int start_row)
 	int row = start_row + 2;
 	for (int cube_r = 0; cube_r < 6; ++cube_r) {
 		for (int cube_g = 0; cube_g < 6; ++cube_g) {
-			if (terse_move_to(handle, row, 1 + cube_g * 52) < 0) {
+			if (terse_move_to(handle, row, cube_g * 52) < 0) {
 				print_error("move_to", handle);
 				continue;
 			}
@@ -110,7 +110,7 @@ static void render_palette_block(terse_handle_t handle, int start_row)
 
 static void render_truecolor_gradient(terse_handle_t handle, int start_row)
 {
-	if (terse_move_to(handle, start_row, 1) < 0) {
+	if (terse_move_to(handle, start_row, 0) < 0) {
 		print_error("move_to", handle);
 		return;
 	}
@@ -120,7 +120,7 @@ static void render_truecolor_gradient(terse_handle_t handle, int start_row)
 	int rows = 12;
 	int cols = 36;
 	for (int r = 0; r < rows; ++r) {
-		if (terse_move_to(handle, start_row + 2 + r, 1) < 0) {
+		if (terse_move_to(handle, start_row + 2 + r, 0) < 0) {
 			print_error("move_to", handle);
 			break;
 		}
@@ -168,9 +168,9 @@ int main(void)
 		print_error("clear_screen", handle);
 	}
 
-	render_basic_grid(handle, 1);
-	render_palette_block(handle, 25);
-	render_truecolor_gradient(handle, 41);
+	render_basic_grid(handle, 0);
+	render_palette_block(handle, 24);
+	render_truecolor_gradient(handle, 40);
 
 	if (terse_show_cursor(handle, 1) < 0) {
 		print_error("show_cursor", handle);

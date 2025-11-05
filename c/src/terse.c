@@ -2114,8 +2114,9 @@ handle_sgr_mouse_sequence(terse_handle_t handle, terse_event_t *out_event, const
 		return 0;
 	}
 	int raw_cb = values[0];
-	int col = values[1];
-	int row = values[2];
+	// Terminal sends 1-based coordinates, convert to 0-based
+	int col = values[1] - 1;
+	int row = values[2] - 1;
 	if (col < 0 || row < 0) {
 		return 0;
 	}
@@ -2524,14 +2525,15 @@ int terse_state_override(terse_handle_t handle, const terse_state_t *state)
 	}
 	if (state->cursor_known) {
 		handle->cursor_known = 1;
-		handle->cursor_row = state->cursor_row > 0 ? state->cursor_row : 1;
-		handle->cursor_col = state->cursor_col > 0 ? state->cursor_col : 1;
+		// Clamp to 0-based minimum
+		handle->cursor_row = state->cursor_row >= 0 ? state->cursor_row : 0;
+		handle->cursor_col = state->cursor_col >= 0 ? state->cursor_col : 0;
 	} else {
 		handle->cursor_known = 0;
-		if (state->cursor_row > 0) {
+		if (state->cursor_row >= 0) {
 			handle->cursor_row = state->cursor_row;
 		}
-		if (state->cursor_col > 0) {
+		if (state->cursor_col >= 0) {
 			handle->cursor_col = state->cursor_col;
 		}
 	}
@@ -3000,11 +3002,12 @@ int terse_move_to(terse_handle_t handle, int row, int col)
 		return 0;
 	}
 
-	if (row < 1) {
-		row = 1;
+	// Clamp to 0-based coordinate minimum
+	if (row < 0) {
+		row = 0;
 	}
-	if (col < 1) {
-		col = 1;
+	if (col < 0) {
+		col = 0;
 	}
 	if (row == handle->cursor_row && col == handle->cursor_col) {
 		clear_error(handle);
@@ -3019,7 +3022,8 @@ int terse_move_to(terse_handle_t handle, int row, int col)
 #endif
 
 	char sequence[32];
-	int written = snprintf(sequence, sizeof(sequence), "\x1b[%d;%dH", row, col);
+	// Terminal escape sequences use 1-based coordinates, convert from 0-based
+	int written = snprintf(sequence, sizeof(sequence), "\x1b[%d;%dH", row + 1, col + 1);
 	if (written <= 0 || (size_t)written >= sizeof(sequence)) {
 		errno = EINVAL;
 		return -EINVAL;
@@ -3104,11 +3108,12 @@ int terse_move_by(terse_handle_t handle, int drow, int dcol)
 		new_col += dcol;
 	}
 
-	if (new_row < 1) {
-		new_row = 1;
+	// Clamp to 0-based coordinate minimum
+	if (new_row < 0) {
+		new_row = 0;
 	}
-	if (new_col < 1) {
-		new_col = 1;
+	if (new_col < 0) {
+		new_col = 0;
 	}
 	handle->cursor_row = new_row;
 	handle->cursor_col = new_col;
@@ -4616,11 +4621,12 @@ int terse_restore_state(terse_handle_t handle, const terse_state_t *state)
 	}
 	terse_state_t local = *state;
 	if (local.cursor_known) {
-		if (local.cursor_row < 1) {
-			local.cursor_row = 1;
+		// Clamp to 0-based minimum
+		if (local.cursor_row < 0) {
+			local.cursor_row = 0;
 		}
-		if (local.cursor_col < 1) {
-			local.cursor_col = 1;
+		if (local.cursor_col < 0) {
+			local.cursor_col = 0;
 		}
 	}
 	local.cursor_visible = state->cursor_visible ? 1 : 0;
@@ -4631,7 +4637,7 @@ int terse_restore_state(terse_handle_t handle, const terse_state_t *state)
 	int result = 0;
 
 	// Apply outputs BEFORE updating internal state to avoid duplicate skipping
-	if (local.cursor_known && handle->capabilities.has_move_absolute && local.cursor_row > 0 && local.cursor_col > 0) {
+	if (local.cursor_known && handle->capabilities.has_move_absolute && local.cursor_row >= 0 && local.cursor_col >= 0) {
 		int move_rc = terse_move_to(handle, local.cursor_row, local.cursor_col);
 		if (move_rc < 0 && result == 0) {
 			result = move_rc;

@@ -134,7 +134,7 @@ static void render_line(terse_handle_t handle, int row, const char *prompt, cons
 	char utf8_buffer[UTF8_BUFFER_CAPACITY];
 	glyphs_to_utf8(line->glyphs, line->length, utf8_buffer, sizeof(utf8_buffer));
 
-	if (terse_move_to(handle, row, 1) < 0) {
+	if (terse_move_to(handle, row, 0) < 0) {
 		print_error(handle, "move_to");
 		return;
 	}
@@ -157,7 +157,7 @@ static void render_line(terse_handle_t handle, int row, const char *prompt, cons
 	if (terse_write_text(handle, utf8_buffer) < 0) {
 		print_error(handle, "write_text");
 	}
-	int col = (int)strlen(prompt) + glyphs_display_width(line->glyphs, line->cursor) + 1;
+	int col = (int)strlen(prompt) + glyphs_display_width(line->glyphs, line->cursor);
 	if (terse_move_to(handle, row, col) < 0) {
 		print_error(handle, "move_to");
 	}
@@ -170,7 +170,7 @@ static void line_edit_loop(terse_handle_t handle)
 	int in_paste = 0;
 
 	const char *prompt = "edit> ";
-	render_line(handle, 2, prompt, &line);
+	render_line(handle, 1, prompt, &line);
 
 	while (1) {
 		terse_event_t event;
@@ -225,7 +225,7 @@ static void line_edit_loop(terse_handle_t handle)
 				} else {
 					continue;
 				}
-				render_line(handle, 2, prompt, &line);
+				render_line(handle, 1, prompt, &line);
 				continue;
 			}
 			if (line.length < BUFFER_CAPACITY) {
@@ -237,7 +237,7 @@ static void line_edit_loop(terse_handle_t handle)
 					glyph_t *base = &line.glyphs[line.cursor - 1];
 					if (base->combining_count < sizeof(base->combining) / sizeof(base->combining[0])) {
 						base->combining[base->combining_count++] = ch;
-						render_line(handle, 2, prompt, &line);
+						render_line(handle, 1, prompt, &line);
 					}
 					continue;
 				}
@@ -288,11 +288,11 @@ static void line_edit_loop(terse_handle_t handle)
 
 		// Skip re-rendering during paste for better performance
 		if (!in_paste) {
-			render_line(handle, 2, prompt, &line);
+			render_line(handle, 1, prompt, &line);
 		}
 	}
 
-	if (terse_move_to(handle, 4, 1) < 0) {
+	if (terse_move_to(handle, 3, 0) < 0) {
 		print_error(handle, "move_to");
 	}
 	if (terse_clear_line(handle, TERSE_CLEAR_AFTER) < 0) {
@@ -357,7 +357,7 @@ int main(int argc, char **argv)
 	if (terse_clear_screen(handle, TERSE_CLEAR_ALL) < 0) {
 		print_error(handle, "clear_screen");
 	}
-	if (terse_move_to(handle, 1, 1) < 0) {
+	if (terse_move_to(handle, 0, 0) < 0) {
 		print_error(handle, "move_to");
 	}
 	if (terse_write_text(handle, "Line Editing Demo (press Enter to finish, Ctrl+C to abort)\n") < 0) {

@@ -29,13 +29,13 @@ static void write_line(terse_handle_t handle, int row, int col, const char *text
 
 static void demo_output(terse_handle_t handle)
 {
-	write_line(handle, 1, 1, "P0 Demo: Basic output");
+	write_line(handle, 0, 0, "P0 Demo: Basic output");
 	wait_briefly();
-	write_line(handle, 3, 1, "Second line");
+	write_line(handle, 2, 0, "Second line");
 	wait_briefly();
-	write_line(handle, 5, 1, "Third line");
+	write_line(handle, 4, 0, "Third line");
 	wait_briefly();
-	write_line(handle, 7, 1, "Back to normal");
+	write_line(handle, 6, 0, "Back to normal");
 }
 
 static void demo_restore(terse_handle_t handle)
@@ -45,7 +45,7 @@ static void demo_restore(terse_handle_t handle)
 		print_error("capture_state", handle);
 		return;
 	}
-	if (terse_move_to(handle, 9, 1) < 0) {
+	if (terse_move_to(handle, 8, 0) < 0) {
 		print_error("move_to", handle);
 	}
 	if (terse_write_text(handle, "Moving cursor temporarily...") < 0) {

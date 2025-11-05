@@ -68,12 +68,12 @@ static void redraw_screen(terse_handle_t handle, const char *last_event_msg)
 	terse_clear_screen(handle, TERSE_CLEAR_ALL);
 
 	// Draw header
-	terse_move_to(handle, 1, 1);
+	terse_move_to(handle, 0, 0);
 	terse_write_text(handle, "Mouse Click Demo - Press 'q' to quit, 'c' to clear");
 
 	// Draw all marks
 	for (int i = 0; i < mark_count; i++) {
-		if (marks[i].row >= 3 && marks[i].row <= rows && marks[i].col >= 1 && marks[i].col <= cols) {
+		if (marks[i].row >= 2 && marks[i].row < rows && marks[i].col >= 0 && marks[i].col < cols) {
 			terse_move_to(handle, marks[i].row, marks[i].col);
 			switch (marks[i].button) {
 			case TERSE_MOUSE_BUTTON_LEFT:
@@ -93,14 +93,14 @@ static void redraw_screen(terse_handle_t handle, const char *last_event_msg)
 
 	// Draw status line at bottom
 	if (last_event_msg && last_event_msg[0]) {
-		terse_move_to(handle, rows, 1);
+		terse_move_to(handle, rows-1, 0);
 		terse_clear_line(handle, TERSE_CLEAR_ALL);
-		terse_move_to(handle, rows, 1);
+		terse_move_to(handle, rows-1, 0);
 		terse_write_text(handle, last_event_msg);
 	}
 
 	// Move cursor to bottom-right corner to keep it out of the way
-	terse_move_to(handle, rows, cols);
+	terse_move_to(handle, rows-1, cols-1);
 	terse_flush(handle);
 }
 
@@ -215,7 +215,7 @@ int main(void)
 	terse_disable_mouse(handle);
 	terse_show_cursor(handle, 1);
 	terse_clear_screen(handle, TERSE_CLEAR_ALL);
-	terse_move_to(handle, 1, 1);
+	terse_move_to(handle, 0, 0);
 	terse_flush(handle);
 	terse_close(handle);
 

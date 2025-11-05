@@ -3,6 +3,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -144,7 +145,7 @@ TEST(TerseOutputCapabilities, NoOutput_WhenMoveDisabled)
 	EXPECT_TRUE(flags != -1);
 	EXPECT_TRUE(fcntl(fds[0], F_SETFL, flags | O_NONBLOCK) == 0);
 
-	EXPECT_EQ(0, terse_move_to(handle, 5, 5));
+	EXPECT_EQ(0, terse_move_to(handle, 4, 4));
 	expect_no_bytes_available(fds[0]);
 	EXPECT_EQ(0, terse_move_by(handle, 3, -2));
 	expect_no_bytes_available(fds[0]);
@@ -243,13 +244,13 @@ TEST(TerseOutputState, SkipsDuplicateMoveTo)
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
 
-	EXPECT_EQ(0, terse_move_to(handle, 5, 10));
+	EXPECT_EQ(0, terse_move_to(handle, 4, 9));
 	char buf[32];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
 	EXPECT_TRUE(strstr(buf, "\x1b[5;10H") != NULL);
 
-	EXPECT_EQ(0, terse_move_to(handle, 5, 10));
+	EXPECT_EQ(0, terse_move_to(handle, 4, 9));
 	expect_no_bytes_available(fds[0]);
 
 	terse_close(handle);
@@ -327,22 +328,32 @@ TEST(TerseClearLine, EmitsModeSequence_OnBefore)
 	close(fds[0]);
 }
 
-TEST(TerseMoveTo, EmitsClampedAbsoluteSequence_OnZeroInput)
+TEST(TerseMoveTo, ConvertsZeroBasedToOneBased)
 {
 	int fds[2];
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
 
+	// Discard initialization  output
+	char init_buf[128];
+	(void)read_pipe(fds[0], init_buf, sizeof(init_buf));
+
+	// Move somewhere first, then to (0, 0) - this ensures the second move is not skipped
+	EXPECT_EQ(0, terse_move_to(handle, 5, 10));
+	(void)read_pipe(fds[0], init_buf, sizeof(init_buf)); // Discard
+
+	// Now move to API coords (0, 0) - should generate terminal coords (1, 1)
 	EXPECT_EQ(0, terse_move_to(handle, 0, 0));
-	terse_close(handle);
-	close(fds[1]);
 
 	char buf[32];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
+	// API (0, 0) becomes terminal (1, 1)
 	EXPECT_TRUE(strstr(buf, "\x1b[1;1H") != NULL);
 
+	terse_close(handle);
 	close(fds[0]);
+	close(fds[1]);
 }
 
 TEST(TerseMoveBy, EmitsDirectionalSequence_OnOffsets)
@@ -427,7 +438,7 @@ TEST(TerseStateCapture, RestoresCursorPositionAndVisibility)
 	};
 	terse_handle_t handle1 = terse_open(TERSE_P0, &opt1);
 	EXPECT_TRUE(handle1 != NULL);
-	EXPECT_EQ(0, terse_move_to(handle1, 4, 7));
+	EXPECT_EQ(0, terse_move_to(handle1, 3, 6));
 	EXPECT_EQ(0, terse_show_cursor(handle1, 0));
 	terse_style_t capture_style = make_effects_style(TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE);
 	EXPECT_EQ(0, terse_set_style(handle1, &capture_style));
