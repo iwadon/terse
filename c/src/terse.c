@@ -1,5 +1,6 @@
 #include "terse.h"
 #include "terse_platform.h"
+#include "terse_test.h"
 
 /* State history stack depth macro.  Small for sanity, yet enough for
  * typical nested UI layers.
@@ -1414,6 +1415,10 @@ make_effective_style(const terse_capabilities_t *caps, const terse_style_t *requ
 	return effective;
 }
 
+#ifdef TERSE_ENABLE_TEST_MODE
+typedef struct terse_test_state terse_test_state_t;
+#endif
+
 struct terse_handle {
 	terse_profile_t requested_profile;
 	terse_capabilities_t capabilities;
@@ -1445,6 +1450,9 @@ struct terse_handle {
 	int state_stack_top; // -1 when empty
 	unsigned char pending_byte;
 	int has_pending_byte;
+#ifdef TERSE_ENABLE_TEST_MODE
+	terse_test_state_t *test_state;
+#endif
 };
 
 static void
@@ -1569,6 +1577,48 @@ decode_utf8_stream(int fd, unsigned char first, unsigned int *out_scalar)
 	*out_scalar = decode_utf8_bytes(bytes, (size_t)expected);
 	return 0;
 }
+
+#ifdef TERSE_ENABLE_TEST_MODE
+typedef struct terse_test_state {
+	int recording;
+	terse_call_record_t *calls;
+	int call_count;
+	int call_capacity;
+	terse_capabilities_t mock_caps;
+	int mock_caps_enabled;
+	int mock_rows;
+	int mock_cols;
+	int mock_size_enabled;
+	terse_event_t *mock_events;
+	int mock_event_count;
+	int mock_event_read_index;
+} terse_test_state_t;
+
+static void
+record_call(terse_handle_t handle, terse_call_type_t type, const void *data, size_t data_size)
+{
+	if (!handle || !handle->test_state || !handle->test_state->recording) {
+		return;
+	}
+	terse_test_state_t *ts = handle->test_state;
+	if (ts->call_count >= ts->call_capacity) {
+		int new_capacity = (ts->call_capacity == 0) ? 16 : (ts->call_capacity * 2);
+		terse_call_record_t *new_calls = realloc(ts->calls, sizeof(terse_call_record_t) * (size_t)new_capacity);
+		if (!new_calls) {
+			return;
+		}
+		ts->calls = new_calls;
+		ts->call_capacity = new_capacity;
+	}
+	terse_call_record_t *rec = &ts->calls[ts->call_count];
+	memset(rec, 0, sizeof(*rec));
+	rec->type = type;
+	if (data && data_size > 0) {
+		memcpy(&rec->data, data, data_size < sizeof(rec->data) ? data_size : sizeof(rec->data));
+	}
+	ts->call_count++;
+}
+#endif
 
 static unsigned int
 convert_shift_jis_pair(terse_handle_t handle, unsigned char lead, unsigned char trail)
@@ -2257,6 +2307,22 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	refresh_size(handle);
 	handle->has_pending_byte = 0;
 
+#ifdef TERSE_ENABLE_TEST_MODE
+	handle->test_state = malloc(sizeof(terse_test_state_t));
+	if (handle->test_state) {
+		memset(handle->test_state, 0, sizeof(terse_test_state_t));
+		handle->test_state->recording = 0;
+		handle->test_state->calls = NULL;
+		handle->test_state->call_count = 0;
+		handle->test_state->call_capacity = 0;
+		handle->test_state->mock_caps_enabled = 0;
+		handle->test_state->mock_size_enabled = 0;
+		handle->test_state->mock_events = NULL;
+		handle->test_state->mock_event_count = 0;
+		handle->test_state->mock_event_read_index = 0;
+	}
+#endif
+
 	return handle;
 }
 
@@ -2266,6 +2332,13 @@ void terse_close(terse_handle_t handle)
 		if (handle->keyboard_enabled) {
 			(void)terse_keyboard_disable(handle, handle->keyboard_enabled);
 		}
+#ifdef TERSE_ENABLE_TEST_MODE
+		if (handle->test_state) {
+			free(handle->test_state->calls);
+			free(handle->test_state->mock_events);
+			free(handle->test_state);
+		}
+#endif
 	}
 	emit_reset_sequences(handle);
 	destroy_codec_handles(handle);
@@ -2278,6 +2351,11 @@ terse_get_capabilities(terse_handle_t handle)
 	if (!handle) {
 		return make_p0_capabilities();
 	}
+#ifdef TERSE_ENABLE_TEST_MODE
+	if (handle->test_state && handle->test_state->mock_caps_enabled) {
+		return handle->test_state->mock_caps;
+	}
+#endif
 	if (!handle->size.known) {
 		refresh_size(handle);
 	}
@@ -2844,6 +2922,14 @@ int terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 		return 0;
 	}
 
+#ifdef TERSE_ENABLE_TEST_MODE
+	if (handle->test_state && handle->test_state->recording) {
+		struct { terse_clear_mode_t mode; } rec_data;
+		rec_data.mode = mode;
+		record_call(handle, TERSE_CALL_CLEAR_SCREEN, &rec_data, sizeof(rec_data));
+	}
+#endif
+
 	const char *sequence = NULL;
 	switch (mode) {
 	case TERSE_CLEAR_AFTER:
@@ -2874,6 +2960,14 @@ int terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 		clear_error(handle);
 		return 0;
 	}
+
+#ifdef TERSE_ENABLE_TEST_MODE
+	if (handle->test_state && handle->test_state->recording) {
+		struct { terse_clear_mode_t mode; } rec_data;
+		rec_data.mode = mode;
+		record_call(handle, TERSE_CALL_CLEAR_LINE, &rec_data, sizeof(rec_data));
+	}
+#endif
 
 	const char *sequence = NULL;
 	switch (mode) {
@@ -2916,6 +3010,13 @@ int terse_move_to(terse_handle_t handle, int row, int col)
 		clear_error(handle);
 		return 0;
 	}
+
+#ifdef TERSE_ENABLE_TEST_MODE
+	if (handle->test_state && handle->test_state->recording) {
+		struct { int row; int col; } rec_data = { row, col };
+		record_call(handle, TERSE_CALL_MOVE_TO, &rec_data, sizeof(rec_data));
+	}
+#endif
 
 	char sequence[32];
 	int written = snprintf(sequence, sizeof(sequence), "\x1b[%d;%dH", row, col);
@@ -3218,6 +3319,15 @@ int terse_set_style(terse_handle_t handle, const terse_style_t *style)
 		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
 		return -EINVAL;
 	}
+
+#ifdef TERSE_ENABLE_TEST_MODE
+	if (handle->test_state && handle->test_state->recording) {
+		struct { terse_style_t style; } rec_data;
+		rec_data.style = *style;
+		record_call(handle, TERSE_CALL_SET_STYLE, &rec_data, sizeof(rec_data));
+	}
+#endif
+
 	terse_style_t requested = sanitize_style_request(style);
 	handle->style = requested;
 	terse_style_t effective = make_effective_style(&handle->capabilities, &requested);
@@ -3794,6 +3904,21 @@ int terse_write_text(terse_handle_t handle, const char *graphemes)
 		clear_error(handle);
 		return 0;
 	}
+
+#ifdef TERSE_ENABLE_TEST_MODE
+	if (handle->test_state && handle->test_state->recording) {
+		struct { char text[256]; } rec_data;
+		memset(&rec_data, 0, sizeof(rec_data));
+		size_t len = strlen(graphemes);
+		if (len >= sizeof(rec_data.text)) {
+			len = sizeof(rec_data.text) - 1;
+		}
+		memcpy(rec_data.text, graphemes, len);
+		rec_data.text[len] = '\0';
+		record_call(handle, TERSE_CALL_WRITE_TEXT, &rec_data, sizeof(rec_data));
+	}
+#endif
+
 	if (handle->codec_kind == TERSE_CODEC_UTF8) {
 		return write_literal(handle, graphemes);
 	}
@@ -4006,6 +4131,21 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
 		return -EINVAL;
 	}
+
+#ifdef TERSE_ENABLE_TEST_MODE
+	if (handle->test_state && handle->test_state->mock_events) {
+		if (handle->test_state->mock_event_read_index < handle->test_state->mock_event_count) {
+			*out_event = handle->test_state->mock_events[handle->test_state->mock_event_read_index++];
+			clear_error(handle);
+			return TERSE_EVENT_OK;
+		} else {
+			// All mock events have been read, return EAGAIN equivalent
+			errno = EAGAIN;
+			set_error(handle, TERSE_ERROR_TRANSPORT, EAGAIN);
+			return -EAGAIN;
+		}
+	}
+#endif
 
 	int fd = handle->options.input_fd;
 
@@ -4356,6 +4496,15 @@ terse_get_size(terse_handle_t handle)
 	if (ensure_handle(handle) < 0) {
 		return unknown;
 	}
+#ifdef TERSE_ENABLE_TEST_MODE
+	if (handle->test_state && handle->test_state->mock_size_enabled) {
+		terse_size_t mock_size;
+		mock_size.rows = handle->test_state->mock_rows;
+		mock_size.cols = handle->test_state->mock_cols;
+		mock_size.known = 1;
+		return mock_size;
+	}
+#endif
 	if (handle->options.disabled_caps & TERSE_CAP_DISABLE_SIZE) {
 		clear_error(handle);
 		return unknown;
@@ -4506,3 +4655,110 @@ int terse_restore_state(terse_handle_t handle, const terse_state_t *state)
 
 	return result;
 }
+
+#ifdef TERSE_ENABLE_TEST_MODE
+
+int terse_test_start_recording(terse_handle_t handle)
+{
+	if (!handle || !handle->test_state) {
+		errno = EINVAL;
+		return -EINVAL;
+	}
+	handle->test_state->recording = 1;
+	return 0;
+}
+
+int terse_test_stop_recording(terse_handle_t handle)
+{
+	if (!handle || !handle->test_state) {
+		errno = EINVAL;
+		return -EINVAL;
+	}
+	handle->test_state->recording = 0;
+	return 0;
+}
+
+const terse_call_record_t *terse_test_get_calls(terse_handle_t handle, int *out_count)
+{
+	if (!handle || !handle->test_state || !out_count) {
+		if (out_count) {
+			*out_count = 0;
+		}
+		return NULL;
+	}
+	*out_count = handle->test_state->call_count;
+	return handle->test_state->calls;
+}
+
+int terse_test_clear_calls(terse_handle_t handle)
+{
+	if (!handle || !handle->test_state) {
+		errno = EINVAL;
+		return -EINVAL;
+	}
+	handle->test_state->call_count = 0;
+	return 0;
+}
+
+int terse_test_mock_capabilities(terse_handle_t handle, const terse_capabilities_t *caps)
+{
+	if (!handle || !handle->test_state || !caps) {
+		errno = EINVAL;
+		return -EINVAL;
+	}
+	handle->test_state->mock_caps = *caps;
+	handle->test_state->mock_caps_enabled = 1;
+	return 0;
+}
+
+int terse_test_mock_size(terse_handle_t handle, int rows, int cols)
+{
+	if (!handle || !handle->test_state) {
+		errno = EINVAL;
+		return -EINVAL;
+	}
+	handle->test_state->mock_rows = rows;
+	handle->test_state->mock_cols = cols;
+	handle->test_state->mock_size_enabled = 1;
+	return 0;
+}
+
+int terse_test_mock_events(terse_handle_t handle, const terse_event_t *events, int count)
+{
+	if (!handle || !handle->test_state || !events || count < 0) {
+		errno = EINVAL;
+		return -EINVAL;
+	}
+	free(handle->test_state->mock_events);
+	handle->test_state->mock_events = NULL;
+	handle->test_state->mock_event_count = 0;
+	handle->test_state->mock_event_read_index = 0;
+
+	if (count > 0) {
+		handle->test_state->mock_events = malloc(sizeof(terse_event_t) * (size_t)count);
+		if (!handle->test_state->mock_events) {
+			errno = ENOMEM;
+			return -ENOMEM;
+		}
+		memcpy(handle->test_state->mock_events, events, sizeof(terse_event_t) * (size_t)count);
+		handle->test_state->mock_event_count = count;
+	}
+	return 0;
+}
+
+int terse_test_reset_mocks(terse_handle_t handle)
+{
+	if (!handle || !handle->test_state) {
+		errno = EINVAL;
+		return -EINVAL;
+	}
+	handle->test_state->mock_caps_enabled = 0;
+	handle->test_state->mock_size_enabled = 0;
+	free(handle->test_state->mock_events);
+	handle->test_state->mock_events = NULL;
+	handle->test_state->mock_event_count = 0;
+	handle->test_state->mock_event_read_index = 0;
+	return 0;
+}
+
+#endif // TERSE_ENABLE_TEST_MODE

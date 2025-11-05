@@ -6,6 +6,7 @@ include(CMakePackageConfigHelpers)
 include(CTest)
 
 option(TERSE_ENABLE_ICONV "Enable iconv-based codec conversions" ON)
+option(TERSE_ENABLE_TEST_MODE "Enable test mode and mocking features" OFF)
 
 # テストのデフォルト: トップレベルプロジェクトならON、サブプロジェクトならOFF
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)

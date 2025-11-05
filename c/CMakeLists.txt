@@ -32,6 +32,10 @@ else()
 endif()
 target_compile_definitions(terse PUBLIC TERSE_HAVE_ICONV=1)
 
+if(TERSE_ENABLE_TEST_MODE)
+  target_compile_definitions(terse PUBLIC TERSE_ENABLE_TEST_MODE=1)
+endif()
+
 install(TARGETS terse
   EXPORT terseTargets
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"

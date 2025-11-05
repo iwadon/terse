@@ -22,6 +22,7 @@ ninja -C build terse        # Build library only
 ### Build Options
 - `-DTERSE_ENABLE_ICONV=ON` (default): Use system iconv for charset conversions
 - `-DTERSE_ENABLE_ICONV=OFF`: Use built-in mini iconv (Shift_JIS ↔ UTF-8 only)
+- `-DTERSE_ENABLE_TEST_MODE=ON`: Enable test mode with API recording and mocking capabilities
 
 ### Testing
 ```sh
@@ -97,6 +98,15 @@ All unit tests located in `c/tests/unit/`:
 - Tests are registered via `add_test()` in `c/tests/CMakeLists.txt`
 - Run all tests: `ctest --test-dir build --output-on-failure`
 - Test coverage includes: open/close, output primitives, input parsing, styles, mouse, clipboard, images, notifications, keyboard features
+
+### Test Mode
+Build with `-DTERSE_ENABLE_TEST_MODE=ON` to enable test mode features:
+- **API Call Recording**: Records all rendering and control API calls (move_to, write_text, set_style, etc.) for verification in automated tests
+- **Capability Mocking**: Override terminal capabilities to test graceful degradation (colors, mouse, images)
+- **Size Mocking**: Inject custom terminal dimensions to test UI layout at different sizes
+- **Event Mocking**: Inject synthetic input events (keyboard, mouse, resize) for automated UI testing
+
+Example usage in `samples/test_mode_demo.c` demonstrates recording API calls and mocking capabilities/size/events for regression testing and automated verification.
 
 ## Coding Style
 

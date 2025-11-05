@@ -13,7 +13,8 @@
 9. [P1: Colors and Styles](#p1-colors-and-styles)
 10. [P2: Advanced Input/Output](#p2-advanced-inputoutput)
 11. [P3: Extended Features](#p3-extended-features)
-12. [Best Practices](#best-practices)
+12. [Test Mode and Mocking](#test-mode-and-mocking)
+13. [Best Practices](#best-practices)
 
 ---
 
@@ -1109,6 +1110,241 @@ if (caps.notifications & TERSE_NOTIFICATION_SUPPORT_DESKTOP) {
                  "Important message");
 }
 ```
+
+---
+
+## Test Mode and Mocking
+
+### Overview
+
+Terse provides a test mode for automated testing and verification. When enabled at build time, the library records API calls and allows mocking of capabilities, terminal size, and input events.
+
+### Building with Test Mode
+
+```bash
+cmake -S . -B build -DTERSE_ENABLE_TEST_MODE=ON -G Ninja
+ninja -C build
+```
+
+**Note:** Test mode is disabled by default in production builds.
+
+### Recording API Calls
+
+Test mode can record all rendering and control API calls for verification:
+
+```c
+#ifdef TERSE_ENABLE_TEST_MODE
+#include "terse_test.h"
+
+// Start recording
+terse_test_start_recording(handle);
+
+// Execute rendering operations
+terse_move_to(handle, 5, 10);
+terse_write_text(handle, "Hello");
+terse_clear_screen(handle, TERSE_CLEAR_ALL);
+
+// Stop recording
+terse_test_stop_recording(handle);
+
+// Retrieve recorded calls
+int count = 0;
+const terse_call_record_t *calls = terse_test_get_calls(handle, &count);
+
+// Verify calls
+assert(count == 3);
+assert(calls[0].type == TERSE_CALL_MOVE_TO);
+assert(calls[0].data.move_to.row == 5);
+assert(calls[0].data.move_to.col == 10);
+
+assert(calls[1].type == TERSE_CALL_WRITE_TEXT);
+assert(strcmp(calls[1].data.write_text.text, "Hello") == 0);
+
+assert(calls[2].type == TERSE_CALL_CLEAR_SCREEN);
+assert(calls[2].data.clear_screen.mode == TERSE_CLEAR_ALL);
+
+// Clear recorded calls
+terse_test_clear_calls(handle);
+#endif
+```
+
+**Recorded Call Types:**
+- `TERSE_CALL_WRITE_TEXT`
+- `TERSE_CALL_MOVE_TO`
+- `TERSE_CALL_CLEAR_SCREEN`
+- `TERSE_CALL_CLEAR_LINE`
+- `TERSE_CALL_SHOW_CURSOR`
+- `TERSE_CALL_SET_STYLE`
+- `TERSE_CALL_ENABLE_MOUSE`
+- `TERSE_CALL_DISABLE_MOUSE`
+- `TERSE_CALL_SET_TITLE`
+- `TERSE_CALL_FLUSH`
+
+### Mocking Capabilities
+
+Override terminal capabilities for testing:
+
+```c
+#ifdef TERSE_ENABLE_TEST_MODE
+// Create mock capabilities
+terse_capabilities_t mock_caps = {
+    .profile = TERSE_P1,
+    .colors = TERSE_COLOR_BASIC16,
+    .mouse = TERSE_MOUSE_NONE,
+    .images = TERSE_IMAGE_NONE
+};
+
+// Apply mock
+terse_test_mock_capabilities(handle, &mock_caps);
+
+// Test behavior with limited capabilities
+terse_capabilities_t caps = terse_get_capabilities(handle);
+assert(caps.colors == TERSE_COLOR_BASIC16);
+assert(caps.mouse == TERSE_MOUSE_NONE);
+
+// Reset to actual capabilities
+terse_test_reset_mocks(handle);
+#endif
+```
+
+### Mocking Terminal Size
+
+Test UI layout with different terminal sizes:
+
+```c
+#ifdef TERSE_ENABLE_TEST_MODE
+// Mock 80x24 terminal
+terse_test_mock_size(handle, 24, 80);
+
+terse_size_t size = terse_get_size(handle);
+assert(size.rows == 24);
+assert(size.cols == 80);
+assert(size.known == 1);
+
+// Mock 120x40 terminal
+terse_test_mock_size(handle, 40, 120);
+
+size = terse_get_size(handle);
+assert(size.rows == 40);
+assert(size.cols == 120);
+
+// Reset to actual size
+terse_test_reset_mocks(handle);
+#endif
+```
+
+### Mocking Input Events
+
+Inject synthetic input events for testing event handling:
+
+```c
+#ifdef TERSE_ENABLE_TEST_MODE
+// Prepare synthetic events
+terse_event_t events[3];
+
+// Event 1: Character 'a'
+events[0].type = TERSE_EVENT_CHAR;
+events[0].data.ch.scalar = 'a';
+events[0].data.ch.width = 1;
+events[0].data.ch.mods = 0;
+
+// Event 2: Arrow Up with Shift
+events[1].type = TERSE_EVENT_ARROW_UP;
+events[1].data.key.mods = TERSE_MOD_SHIFT;
+
+// Event 3: Resize to 25x80
+events[2].type = TERSE_EVENT_RESIZE;
+events[2].data.resize.rows = 25;
+events[2].data.resize.cols = 80;
+
+// Inject events
+terse_test_mock_events(handle, events, 3);
+
+// Read injected events
+terse_event_t event;
+assert(terse_read_event(handle, 0, &event) == TERSE_EVENT_OK);
+assert(event.type == TERSE_EVENT_CHAR);
+assert(event.data.ch.scalar == 'a');
+
+assert(terse_read_event(handle, 0, &event) == TERSE_EVENT_OK);
+assert(event.type == TERSE_EVENT_ARROW_UP);
+assert(event.data.key.mods == TERSE_MOD_SHIFT);
+
+assert(terse_read_event(handle, 0, &event) == TERSE_EVENT_OK);
+assert(event.type == TERSE_EVENT_RESIZE);
+assert(event.data.resize.rows == 25);
+
+// No more events
+assert(terse_read_event(handle, 0, &event) == TERSE_EVENT_NONE);
+
+// Reset to real input
+terse_test_reset_mocks(handle);
+#endif
+```
+
+### Use Cases
+
+**1. UI Regression Testing:**
+```c
+// Record baseline rendering
+terse_test_start_recording(handle);
+render_ui(handle);
+terse_test_stop_recording(handle);
+int baseline_count;
+const terse_call_record_t *baseline = terse_test_get_calls(handle, &baseline_count);
+// Save baseline for comparison...
+
+// Later: verify no unexpected changes
+terse_test_clear_calls(handle);
+terse_test_start_recording(handle);
+render_ui(handle);
+terse_test_stop_recording(handle);
+int current_count;
+const terse_call_record_t *current = terse_test_get_calls(handle, &current_count);
+assert(current_count == baseline_count);
+// Compare call sequences...
+```
+
+**2. Capability Fallback Testing:**
+```c
+// Test with TrueColor
+terse_capabilities_t truecolor_caps = {...};
+truecolor_caps.colors = TERSE_COLOR_TRUECOLOR;
+terse_test_mock_capabilities(handle, &truecolor_caps);
+test_color_rendering(handle);
+
+// Test with 16 colors
+terse_capabilities_t basic_caps = {...};
+basic_caps.colors = TERSE_COLOR_BASIC16;
+terse_test_mock_capabilities(handle, &basic_caps);
+test_color_rendering(handle);
+
+// Test with no color
+terse_capabilities_t no_color_caps = {...};
+no_color_caps.colors = TERSE_COLOR_NONE;
+terse_test_mock_capabilities(handle, &no_color_caps);
+test_color_rendering(handle);
+```
+
+**3. Automated Event Handler Testing:**
+```c
+// Inject key sequence: "hello" + Enter
+terse_event_t events[6];
+events[0] = (terse_event_t){.type = TERSE_EVENT_CHAR, .data.ch.scalar = 'h'};
+events[1] = (terse_event_t){.type = TERSE_EVENT_CHAR, .data.ch.scalar = 'e'};
+events[2] = (terse_event_t){.type = TERSE_EVENT_CHAR, .data.ch.scalar = 'l'};
+events[3] = (terse_event_t){.type = TERSE_EVENT_CHAR, .data.ch.scalar = 'l'};
+events[4] = (terse_event_t){.type = TERSE_EVENT_CHAR, .data.ch.scalar = 'o'};
+events[5] = (terse_event_t){.type = TERSE_EVENT_ENTER};
+
+terse_test_mock_events(handle, events, 6);
+
+// Run event loop and verify input buffer state
+run_event_loop(handle);
+assert(strcmp(input_buffer, "hello") == 0);
+```
+
+**Example:** See `samples/test_mode_demo.c` for a complete working example.
 
 ---
 

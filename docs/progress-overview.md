@@ -33,6 +33,7 @@ P0のライフサイクル・出力・入力・サイズ取得・エラー返却
 | Codec/セル幅 | P0 | ✅ 実装済み | UTF-8/Shift_JIS 変換、復号エラー時の置換、East Asian Width に基づく `Char.width` 推定とテスト完了。East Asian Ambiguous Width 文字の表示幅オプション（`east_asian_ambiguous_as_wide`）を実装。|
 | キーボード拡張 (modifyOtherKeys/kitty) | P0 | ✅ 実装済み | `terse_keyboard_enable/disable` で modifyOtherKeys level 2 および kitty CSI-u を opt-in（対応端末のみ）。|
 | 拡張キーレポート | P2+ | ⏳ 未着手 | `Shift+Enter` などの詳細修飾検出（xterm MOK, kitty 等）の検出/抽象化は今後。|
+| テストモード (API記録・モック) | - | ✅ 実装済み | `TERSE_ENABLE_TEST_MODE` ビルドオプションで有効化。API呼び出し記録（write_text/move_to/clear/set_style等）、能力・サイズ・イベントのモック機能を提供。`samples/test_mode_demo.c` 参照。|
 
 ## Next Steps Snapshot
 - 追加Codec（例：ISO-2022-JP）検討。
