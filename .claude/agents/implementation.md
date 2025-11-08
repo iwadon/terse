@@ -1,8 +1,8 @@
 ---
 name: implementation
 description: Complex feature implementation requiring careful design and testing (Sonnet)
+tools: Read, Write, Edit, Grep, Glob, Bash
 model: sonnet
-tools: [Read, Write, Edit, Grep, Glob, Bash]
 ---
 
 # Implementation Agent (Sonnet)

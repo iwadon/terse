@@ -1,8 +1,8 @@
 ---
 name: research
 description: Fast code research and investigation using Haiku for cost-effective analysis
+tools: Read, Grep, Glob, Bash
 model: haiku
-tools: [Read, Grep, Glob, Bash]
 ---
 
 # Research Agent (Haiku)

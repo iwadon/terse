@@ -1,8 +1,8 @@
 ---
 name: quick-fix
 description: Fast fixes for small, well-defined changes using Haiku (comments, error messages, single-file edits)
+tools: Read, Write, Edit, Bash
 model: haiku
-tools: [Read, Write, Edit, Bash]
 ---
 
 # Quick Fix Agent (Haiku)

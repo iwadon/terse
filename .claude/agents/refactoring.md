@@ -1,8 +1,8 @@
 ---
 name: refactoring
 description: Large-scale code refactoring requiring thorough search and careful changes (Sonnet)
+tools: Read, Write, Edit, Grep, Glob, Bash
 model: sonnet
-tools: [Read, Write, Edit, Grep, Glob, Bash]
 ---
 
 # Refactoring Agent (Sonnet)
