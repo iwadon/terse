@@ -36,7 +36,7 @@ static void print_bytes(const char *label, const unsigned char *data, size_t len
 			printf("\\x%02X", ch);
 		}
 	}
-	printf("\n");
+	printf("\r\n");
 }
 
 static size_t read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int timeout_ms)
