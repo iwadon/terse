@@ -1,14 +1,24 @@
+#if !defined(__human68k__) && !defined(__HUMAN68K__)
 #define _POSIX_C_SOURCE 200809L
+#endif
 
 #include <ctype.h>
 #include <errno.h>
-#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <termios.h>
 #include <time.h>
+
+#if defined(__human68k__) || defined(__HUMAN68K__)
+/* Human68k platform */
+#include <x68k/dos.h>
+#include <x68k/iocs.h>
+#else
+/* POSIX platform */
+#include <poll.h>
+#include <termios.h>
 #include <unistd.h>
+#endif
 
 static void print_env(const char *name)
 {
@@ -39,6 +49,7 @@ static void print_bytes(const char *label, const unsigned char *data, size_t len
 	printf("\r\n");
 }
 
+#if !defined(__human68k__) && !defined(__HUMAN68K__)
 static size_t read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int timeout_ms)
 {
 	size_t total = 0;
@@ -81,9 +92,14 @@ static size_t read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capa
 
 	return total;
 }
+#endif
 
 static void probe_device_attributes(void)
 {
+#if defined(__human68k__) || defined(__HUMAN68K__)
+	printf("Device attribute probing not supported on Human68k.\n");
+	printf("Console I/O is handled through DOS/IOCS calls.\n");
+#else
 	if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO)) {
 		printf("stdin/stdout are not TTYs; skipping DA probe.\n");
 		return;
@@ -140,6 +156,7 @@ static void probe_device_attributes(void)
 	if (tcsetattr(STDIN_FILENO, TCSANOW, &original) != 0) {
 		perror("restore termios");
 	}
+#endif
 }
 
 int main(void)
@@ -161,8 +178,13 @@ int main(void)
 	print_env("VSCODE_INJECTION");
 
 	print_header("TTY Status");
+#if defined(__human68k__) || defined(__HUMAN68K__)
+	printf("stdin isatty : n/a (DOS console)\n");
+	printf("stdout isatty: n/a (DOS console)\n");
+#else
 	printf("stdin isatty : %s\n", isatty(STDIN_FILENO) ? "yes" : "no");
 	printf("stdout isatty: %s\n", isatty(STDOUT_FILENO) ? "yes" : "no");
+#endif
 
 	print_header("Device Attribute Probes");
 	probe_device_attributes();
