@@ -32,7 +32,6 @@ You act as an **Architect** and delegate implementation details to subagents:
      - **New features** (Phase implementation, complex algorithms) → `implementation` (Sonnet)
      - **Small fixes** (add comments, error messages, 1-3 files) → `quick-fix` (Haiku)
      - **Code research** (understand existing code, pattern search) → `research` (Haiku)
-     - **Other** → `general-purpose`
    - Provide detailed implementation instructions to each subagent
    - Subagents work autonomously (read files, search, implement)
    - Execute subtasks sequentially (or in parallel if explicitly needed)
@@ -72,8 +71,6 @@ For each subtask, **select the appropriate subagent** based on task nature, then
    - Analyzing codebase structure
    - Gathering information before implementation
 
-5. **Use `general-purpose` agent** when:
-   - Task doesn't fit the above categories
 
 ### Delegation Format
 
@@ -116,7 +113,6 @@ Use the `[agent-name]` subagent to execute the following task:
   - `quick-fix.md` - Small fixes (Haiku)
   - `implementation.md` - New features (Sonnet)
   - `refactoring.md` - Large-scale refactoring (Sonnet)
-  - `general-purpose.md` - General tasks
 - Command fails if subagents don't exist
 - **Proper agent selection is critical** for cost/quality balance:
   - Haiku (`research`, `quick-fix`): Fast, low-cost, ideal for simple tasks
