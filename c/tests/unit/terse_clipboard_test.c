@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 static void set_nonblocking(int fd)
@@ -19,7 +20,8 @@ static ssize_t read_pipe_data(int fd, char *buffer, size_t size)
 	memset(buffer, 0, size);
 	ssize_t n = read(fd, buffer, size);
 	if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-		usleep(1000);
+		struct timespec ts = {.tv_sec = 0, .tv_nsec = 1000000};
+		nanosleep(&ts, NULL);
 		n = read(fd, buffer, size);
 	}
 	return n;

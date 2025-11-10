@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 static void create_pipe_handle(terse_handle_t *out_handle, int fds[2])
@@ -32,7 +33,8 @@ static ssize_t read_pipe(int fd, char *buffer, size_t size)
 	memset(buffer, 0, size);
 	ssize_t n = read(fd, buffer, size);
 	if (n < 0 && errno == EAGAIN) {
-		usleep(1000); // allow write side to flush
+		struct timespec ts = {.tv_sec = 0, .tv_nsec = 1000000};
+		nanosleep(&ts, NULL); // allow write side to flush
 		n = read(fd, buffer, size);
 	}
 	return n;
