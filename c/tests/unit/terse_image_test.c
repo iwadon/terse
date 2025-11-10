@@ -169,6 +169,10 @@ TEST(TerseImage, WritesSixelSequenceWhenAvailable)
 	char *saved_kitty = save_env_value("KITTY_PID");
 	char *saved_da = save_env_value("TERSE_SECONDARY_DA_HINT");
 	char *saved_tmux = save_env_value("TMUX");
+	char *saved_colorterm = save_env_value("COLORTERM");
+	char *saved_gnome_screen = save_env_value("GNOME_TERMINAL_SCREEN");
+	char *saved_gnome_service = save_env_value("GNOME_TERMINAL_SERVICE");
+	char *saved_vte_version = save_env_value("VTE_VERSION");
 	setenv("TERM", "xterm-sixel", 1);
 	unsetenv("TERM_PROGRAM");
 	unsetenv("LC_TERMINAL");
@@ -176,6 +180,10 @@ TEST(TerseImage, WritesSixelSequenceWhenAvailable)
 	unsetenv("KITTY_PID");
 	unsetenv("TERSE_SECONDARY_DA_HINT");
 	unsetenv("TMUX");
+	unsetenv("COLORTERM");
+	unsetenv("GNOME_TERMINAL_SCREEN");
+	unsetenv("GNOME_TERMINAL_SERVICE");
+	unsetenv("VTE_VERSION");
 	int out_pipe[2];
 	int in_pipe[2];
 	EXPECT_TRUE(pipe(out_pipe) == 0);
@@ -221,6 +229,10 @@ TEST(TerseImage, WritesSixelSequenceWhenAvailable)
 	restore_env_value("KITTY_PID", saved_kitty);
 	restore_env_value("TERSE_SECONDARY_DA_HINT", saved_da);
 	restore_env_value("TMUX", saved_tmux);
+	restore_env_value("COLORTERM", saved_colorterm);
+	restore_env_value("GNOME_TERMINAL_SCREEN", saved_gnome_screen);
+	restore_env_value("GNOME_TERMINAL_SERVICE", saved_gnome_service);
+	restore_env_value("VTE_VERSION", saved_vte_version);
 }
 
 TEST(TerseImage, DegradesWhenFormatMismatch)
@@ -271,6 +283,10 @@ TEST(TerseImage, WritesKittySequenceWhenAvailable)
 	char *saved_kitty = save_env_value("KITTY_PID");
 	char *saved_da = save_env_value("TERSE_SECONDARY_DA_HINT");
 	char *saved_tmux = save_env_value("TMUX");
+	char *saved_colorterm = save_env_value("COLORTERM");
+	char *saved_gnome_screen = save_env_value("GNOME_TERMINAL_SCREEN");
+	char *saved_gnome_service = save_env_value("GNOME_TERMINAL_SERVICE");
+	char *saved_vte_version = save_env_value("VTE_VERSION");
 	setenv("TERM", "xterm-256color", 1);
 	setenv("TERM_PROGRAM", "WezTerm", 1);
 	unsetenv("LC_TERMINAL");
@@ -278,6 +294,10 @@ TEST(TerseImage, WritesKittySequenceWhenAvailable)
 	unsetenv("KITTY_PID");
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;277;0c", 1);
 	unsetenv("TMUX");
+	unsetenv("COLORTERM");
+	unsetenv("GNOME_TERMINAL_SCREEN");
+	unsetenv("GNOME_TERMINAL_SERVICE");
+	unsetenv("VTE_VERSION");
 	int out_pipe[2];
 	int in_pipe[2];
 	EXPECT_TRUE(pipe(out_pipe) == 0);
@@ -324,6 +344,10 @@ TEST(TerseImage, WritesKittySequenceWhenAvailable)
 	restore_env_value("KITTY_PID", saved_kitty);
 	restore_env_value("TERSE_SECONDARY_DA_HINT", saved_da);
 	restore_env_value("TMUX", saved_tmux);
+	restore_env_value("COLORTERM", saved_colorterm);
+	restore_env_value("GNOME_TERMINAL_SCREEN", saved_gnome_screen);
+	restore_env_value("GNOME_TERMINAL_SERVICE", saved_gnome_service);
+	restore_env_value("VTE_VERSION", saved_vte_version);
 }
 
 TEST(TerseImage, ErrorsWhenFormatMismatchWithoutDegrade)

@@ -177,9 +177,17 @@ TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
 	char *saved_term = save_env("TERM");
 	char *saved_term_program = save_env("TERM_PROGRAM");
 	char *saved_lc_terminal = save_env("LC_TERMINAL");
+	char *saved_colorterm = save_env("COLORTERM");
+	char *saved_gnome_screen = save_env("GNOME_TERMINAL_SCREEN");
+	char *saved_gnome_service = save_env("GNOME_TERMINAL_SERVICE");
+	char *saved_vte_version = save_env("VTE_VERSION");
 	setenv("TERM", "xterm-kitty", 1);
 	unsetenv("TERM_PROGRAM");
 	unsetenv("LC_TERMINAL");
+	unsetenv("COLORTERM");
+	unsetenv("GNOME_TERMINAL_SCREEN");
+	unsetenv("GNOME_TERMINAL_SERVICE");
+	unsetenv("VTE_VERSION");
 
 	int fds[2];
 	EXPECT_TRUE(pipe(fds) == 0);
@@ -217,4 +225,8 @@ TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
 	restore_env("TERM", saved_term);
 	restore_env("TERM_PROGRAM", saved_term_program);
 	restore_env("LC_TERMINAL", saved_lc_terminal);
+	restore_env("COLORTERM", saved_colorterm);
+	restore_env("GNOME_TERMINAL_SCREEN", saved_gnome_screen);
+	restore_env("GNOME_TERMINAL_SERVICE", saved_gnome_service);
+	restore_env("VTE_VERSION", saved_vte_version);
 }
