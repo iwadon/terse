@@ -2,6 +2,21 @@ add_library(terse
   src/terse.c
 )
 
+include(CheckIncludeFile)
+
+# Auto-detect Human68k platform if not explicitly set
+if(NOT DEFINED TERSE_PLATFORM_HUMAN68K)
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "m68k" AND CMAKE_SYSTEM_NAME STREQUAL "Generic")
+    # Check if Human68k headers are available
+    set(CMAKE_REQUIRED_QUIET TRUE)
+    check_include_file("x68k/dos.h" HAVE_X68K_DOS_H)
+    if(HAVE_X68K_DOS_H)
+      set(TERSE_PLATFORM_HUMAN68K ON)
+      message(STATUS "Auto-detected Human68k platform")
+    endif()
+  endif()
+endif()
+
 if(TERSE_PLATFORM_HUMAN68K)
   target_sources(terse PRIVATE src/terse_human68k.c)
 elseif(UNIX)
@@ -9,8 +24,6 @@ elseif(UNIX)
 else()
   target_sources(terse PRIVATE src/terse_platform_stub.c)
 endif()
-
-include(CheckIncludeFile)
 check_include_file(poll.h HAVE_POLL_H)
 if(HAVE_POLL_H)
   target_compile_definitions(terse PRIVATE TERSE_HAVE_POLL_H=1)
