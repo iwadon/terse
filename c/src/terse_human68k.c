@@ -46,7 +46,7 @@ terse_platform_probe_secondary_da(int input_fd, int output_fd, unsigned char *bu
 	return 0;
 }
 
-int
+terse_error_t
 terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, int *out_col)
 {
 	(void)input_fd;  /* Human68k doesn't use fd for console I/O */
@@ -54,7 +54,7 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 
 	if (!out_row || !out_col) {
 		errno = EINVAL;
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 
 	/*
@@ -66,7 +66,7 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 	int result = _dos_c_locate(-1, 0);
 	if (result == -1) {
 		errno = EIO;
-		return -EIO;
+		return TERSE_ERR_IO;
 	}
 
 	/* Extract position from packed result */
@@ -79,7 +79,7 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 	return 0;
 }
 
-int
+terse_error_t
 terse_platform_wait_for_input(int fd, int timeout_ms)
 {
 	(void)fd;  /* Human68k doesn't use fd for console I/O */
@@ -128,7 +128,7 @@ terse_platform_drain_escape_sequence(int fd, unsigned char *buffer, size_t max)
 	return 0;
 }
 
-int
+terse_error_t
 terse_platform_write_bytes(int fd, const char *bytes, size_t len)
 {
 	(void)fd;  /* Human68k doesn't use fd for console I/O */

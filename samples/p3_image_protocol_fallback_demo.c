@@ -158,8 +158,8 @@ int main(void)
 		int rc = terse_display_image(handle, &request);
 		if (rc < 0) {
 			fprintf(stderr, "Result: FAILED (%s)\n", strerror(-rc));
-			terse_error_info_t err = terse_get_last_error(handle);
-			fprintf(stderr, "Error category: %d, code: %d\n", err.category, err.code);
+			terse_error_t err = terse_get_last_error(handle);
+			fprintf(stderr, "Error: %d\n", err);
 			if (rc == -ENOTSUP) {
 				printf("(This protocol is not supported by your terminal)\n");
 			}

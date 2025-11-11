@@ -243,8 +243,8 @@ int main(void)
 			continue;
 		}
 		if (rc < 0) {
-			terse_error_info_t info = terse_get_last_error(handle);
-			fprintf(stderr, "read_event failed: category=%d code=%d\r\n", info.category, info.code);
+			terse_error_t err = terse_get_last_error(handle);
+			fprintf(stderr, "read_event failed: %d\r\n", err);
 			break;
 		}
 

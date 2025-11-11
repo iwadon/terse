@@ -57,8 +57,8 @@ static void install_signal_handlers(void)
 
 static void print_error(const char *label, terse_handle_t handle)
 {
-	terse_error_info_t err = terse_get_last_error(handle);
-	fprintf(stderr, "%s failed: category=%d code=%d\r\n", label, err.category, err.code);
+	terse_error_t err = terse_get_last_error(handle);
+	fprintf(stderr, "%s failed: %d\r\n", label, err);
 }
 
 static void describe_mouse_event(const terse_event_t *ev)

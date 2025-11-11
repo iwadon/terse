@@ -37,7 +37,7 @@ terse_platform_probe_secondary_da(int input_fd, int output_fd, unsigned char *bu
 	return 0;
 }
 
-int
+terse_error_t
 terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, int *out_col)
 {
 	(void)input_fd;
@@ -45,16 +45,16 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 	(void)out_row;
 	(void)out_col;
 	errno = ENOSYS;
-	return -ENOSYS;
+	return TERSE_ERR_NOT_IMPLEMENTED;
 }
 
-int
+terse_error_t
 terse_platform_wait_for_input(int fd, int timeout_ms)
 {
 	(void)fd;
 	(void)timeout_ms;
 	errno = ENOTSUP;
-	return -ENOTSUP;
+	return TERSE_ERR_UNSUPPORTED;
 }
 
 ssize_t
@@ -63,7 +63,7 @@ terse_platform_read_byte(int fd, unsigned char *out)
 	(void)fd;
 	(void)out;
 	errno = ENOTSUP;
-	return -ENOTSUP;
+	return TERSE_ERR_UNSUPPORTED;
 }
 
 size_t
@@ -75,12 +75,12 @@ terse_platform_drain_escape_sequence(int fd, unsigned char *buffer, size_t max)
 	return 0;
 }
 
-int
+terse_error_t
 terse_platform_write_bytes(int fd, const char *bytes, size_t len)
 {
 	(void)fd;
 	(void)bytes;
 	(void)len;
 	errno = ENOTSUP;
-	return -ENOTSUP;
+	return TERSE_ERR_UNSUPPORTED;
 }

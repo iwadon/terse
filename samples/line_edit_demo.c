@@ -55,8 +55,8 @@ static int install_raw_terminal(void)
 
 static void print_error(terse_handle_t handle, const char *label)
 {
-	terse_error_info_t err = terse_get_last_error(handle);
-	fprintf(stderr, "%s failed: category=%d code=%d\n", label, err.category, err.code);
+	terse_error_t err = terse_get_last_error(handle);
+	fprintf(stderr, "%s failed: %d\n", label, err);
 }
 
 static size_t encode_utf8(unsigned int scalar, char *dest)

@@ -31,7 +31,7 @@ TEST(TerseClose, EmitsResetSequences_OnClose)
 	int fds[2];
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
-	EXPECT_EQ(0, terse_show_cursor(handle, 0));
+	EXPECT_EQ(TERSE_OK, terse_show_cursor(handle, 0));
 	char initial[32];
 	ssize_t initial_n = read_pipe(fds[0], initial, sizeof(initial));
 	EXPECT_TRUE(initial_n > 0);
@@ -48,9 +48,8 @@ TEST(TerseClose, EmitsResetSequences_OnClose)
 	EXPECT_TRUE(total >= 6);
 	EXPECT_TRUE(strstr(buf, "\x1b[?25h") != NULL);
 	EXPECT_TRUE(strstr(buf, "\x1b[0m") != NULL);
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
-	EXPECT_EQ(0, err.code);
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_OK, err);
 
 	close(fds[0]);
 }
@@ -76,9 +75,8 @@ TEST(TerseClose, SkipsReset_WhenBasicOutputDisabled)
 	close(fds[1]);
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n == 0);
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
-	EXPECT_EQ(0, err.code);
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_OK, err);
 	close(fds[0]);
 }
 

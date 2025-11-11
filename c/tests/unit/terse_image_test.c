@@ -375,10 +375,9 @@ TEST(TerseImage, ErrorsWhenFormatMismatchWithoutDegrade)
 		.height = 0,
 		.flags = TERSE_IMAGE_FLAG_INLINE,
 	};
-	EXPECT_EQ(-ENOTSUP, terse_display_image(handle, &request));
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_CONFIG, err.category);
-	EXPECT_EQ(ENOTSUP, err.code);
+	EXPECT_EQ(TERSE_ERR_UNSUPPORTED, terse_display_image(handle, &request));
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERR_UNSUPPORTED, err);
 	terse_close(handle);
 	close(out_pipe[0]);
 	close(out_pipe[1]);
@@ -390,10 +389,9 @@ TEST(TerseImage, ErrorsOnInvalidRequest)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
 	EXPECT_TRUE(handle != NULL);
-	EXPECT_EQ(-EINVAL, terse_display_image(handle, NULL));
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_CONFIG, err.category);
-	EXPECT_EQ(EINVAL, err.code);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_display_image(handle, NULL));
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
 	terse_close(handle);
 }
 
@@ -410,9 +408,8 @@ TEST(TerseImage, ErrorsOnMissingData)
 		.height = 0,
 		.flags = 0,
 	};
-	EXPECT_EQ(-EINVAL, terse_display_image(handle, &request));
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_CONFIG, err.category);
-	EXPECT_EQ(EINVAL, err.code);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_display_image(handle, &request));
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
 	terse_close(handle);
 }

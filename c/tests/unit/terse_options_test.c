@@ -7,15 +7,14 @@
 TEST(TerseValidateOptions, ReturnsZero_OnNull)
 {
 	errno = 0;
-	EXPECT_EQ(0, terse_validate_options(NULL));
+	EXPECT_EQ(TERSE_OK, terse_validate_options(NULL));
 	EXPECT_EQ(0, errno);
 }
 
 TEST(TerseErrorInfo, ReturnsStateError_OnNullHandle)
 {
-	terse_error_info_t info = terse_get_last_error(NULL);
-	EXPECT_EQ(TERSE_ERROR_STATE, info.category);
-	EXPECT_EQ(EINVAL, info.code);
+	terse_error_t err = terse_get_last_error(NULL);
+	EXPECT_EQ(TERSE_ERR_INVALID_HANDLE, err);
 }
 
 TEST(TerseValidateOptions, ReturnsEbaf_OnNegativeInputFd)
@@ -28,8 +27,8 @@ TEST(TerseValidateOptions, ReturnsEbaf_OnNegativeInputFd)
 		.enabled_caps = 0,
 	};
 	errno = 0;
-	int rc = terse_validate_options(&options);
-	EXPECT_EQ(-EBADF, rc);
+	terse_error_t rc = terse_validate_options(&options);
+	EXPECT_EQ(TERSE_ERR_INVALID_HANDLE, rc);
 	EXPECT_EQ(EBADF, errno);
 }
 
@@ -68,7 +67,7 @@ TEST(TerseGetOptions, CopiesHandleOptions_OnValidHandle)
 	EXPECT_TRUE(handle != NULL);
 
 	terse_options_t got;
-	EXPECT_EQ(0, terse_get_options(handle, &got));
+	EXPECT_EQ(TERSE_OK, terse_get_options(handle, &got));
 	EXPECT_EQ(options.input_fd, got.input_fd);
 	EXPECT_EQ(options.output_fd, got.output_fd);
 	EXPECT_TRUE(got.codec_name == options.codec_name);
@@ -135,7 +134,7 @@ TEST(TerseGetOptions, ReturnsEINVAL_OnNullOut)
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
 	EXPECT_TRUE(handle != NULL);
 	errno = 0;
-	EXPECT_EQ(-EINVAL, terse_get_options(handle, NULL));
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_get_options(handle, NULL));
 	EXPECT_EQ(EINVAL, errno);
 	terse_close(handle);
 }

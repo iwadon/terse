@@ -24,8 +24,8 @@ int main(void)
 		printf("Initial cursor position: row=%d, col=%d\n", pos.row, pos.col);
 	} else {
 		printf("Failed to get cursor position (not supported or error)\n");
-		terse_error_info_t err = terse_get_last_error(handle);
-		printf("Error category: %d, code: %d\n", err.category, err.code);
+		terse_error_t err = terse_get_last_error(handle);
+		printf("Error: %d\n", err);
 	}
 
 	/* Move cursor and check position */

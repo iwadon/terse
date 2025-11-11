@@ -21,8 +21,8 @@ TEST(TerseWriteText, Succeeds_OnPipeOutput)
 	EXPECT_TRUE(handle != NULL);
 
 	const char *message = "hello";
-	EXPECT_EQ(0, terse_write_text(handle, message));
-	EXPECT_EQ(0, terse_flush(handle));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, message));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
 
 	char buffer[16] = { 0 };
 	ssize_t n = read(fds[0], buffer, sizeof(buffer));
@@ -51,7 +51,7 @@ TEST(TerseWriteText, EncodesShiftJis_OnWideCharacter)
 	EXPECT_TRUE(handle != NULL);
 
 	const char *message = "あ"; // U+3042
-	EXPECT_EQ(0, terse_write_text(handle, message));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, message));
 
 	unsigned char buffer[4] = { 0 };
 	ssize_t n = read(fds[0], buffer, sizeof(buffer));
@@ -80,7 +80,7 @@ TEST(TerseWriteText, WritesReplacement_OnUnencodable)
 	EXPECT_TRUE(handle != NULL);
 
 	const char *message = "😊"; // Not representable in Shift_JIS
-	EXPECT_EQ(0, terse_write_text(handle, message));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, message));
 
 	char buffer[4] = { 0 };
 	ssize_t n = read(fds[0], buffer, sizeof(buffer));

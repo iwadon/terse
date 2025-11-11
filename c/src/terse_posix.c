@@ -150,23 +150,23 @@ terse_platform_probe_secondary_da(int input_fd, int output_fd, unsigned char *bu
 	return length;
 }
 
-int
+terse_error_t
 terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, int *out_col)
 {
 	if (!out_row || !out_col) {
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if (input_fd < 0 || output_fd < 0) {
-		return -EBADF;
+		return TERSE_ERR_INVALID_HANDLE;
 	}
 	if (!isatty(input_fd) || !isatty(output_fd)) {
-		return -ENOTTY;
+		return TERSE_ERR_NOT_TTY;
 	}
 
 	// Save current terminal settings and switch to raw mode
 	struct termios original;
 	if (tcgetattr(input_fd, &original) != 0) {
-		return -errno;
+		return TERSE_ERR_IO;
 	}
 	struct termios raw = original;
 	raw.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
@@ -176,14 +176,14 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 	raw.c_cc[VMIN] = 0;
 	raw.c_cc[VTIME] = 0;
 	if (tcsetattr(input_fd, TCSANOW, &raw) != 0) {
-		return -errno;
+		return TERSE_ERR_IO;
 	}
 
 	// Send CPR (Cursor Position Report) request: CSI 6 n
 	const char request[] = "\x1b[6n";
 	if (write(output_fd, request, sizeof(request) - 1) < 0) {
 		(void)tcsetattr(input_fd, TCSANOW, &original);
-		return -errno;
+		return TERSE_ERR_IO;
 	}
 
 	// Read response: CSI row ; col R
@@ -217,7 +217,7 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 				continue;
 			}
 			(void)tcsetattr(input_fd, TCSANOW, &original);
-			return -errno;
+			return TERSE_ERR_IO;
 		}
 		if (ready == 0) {
 			remaining -= poll_timeout;
@@ -244,7 +244,7 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 
 	// Parse response: ESC [ row ; col R
 	if (length < 6 || buffer[0] != 0x1b || buffer[1] != '[' || buffer[length - 1] != 'R') {
-		return -EPROTO;
+		return TERSE_ERR_PROTOCOL;
 	}
 
 	// Parse row and col
@@ -255,7 +255,7 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 		i++;
 	}
 	if (i >= length || buffer[i] != ';') {
-		return -EPROTO;
+		return TERSE_ERR_PROTOCOL;
 	}
 	i++; // skip ';'
 	while (i < length && buffer[i] >= '0' && buffer[i] <= '9') {
@@ -263,7 +263,7 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 		i++;
 	}
 	if (i >= length || buffer[i] != 'R') {
-		return -EPROTO;
+		return TERSE_ERR_PROTOCOL;
 	}
 
 	// Terminal returns 1-based coordinates, convert to 0-based
@@ -272,7 +272,7 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 	return 0;
 }
 
-int
+terse_error_t
 terse_platform_wait_for_input(int fd, int timeout_ms)
 {
 #ifdef TERSE_HAVE_POLL_H
@@ -289,7 +289,8 @@ terse_platform_wait_for_input(int fd, int timeout_ms)
 			}
 			int err = errno;
 			errno = err;
-			return -err;
+			// Map errno to terse_error_t
+			return (err == EAGAIN || err == EWOULDBLOCK) ? -TERSE_ERR_WOULD_BLOCK : -TERSE_ERR_IO;
 		}
 		return ready;
 	}
@@ -312,7 +313,8 @@ terse_platform_wait_for_input(int fd, int timeout_ms)
 			}
 			int err = errno;
 			errno = err;
-			return -err;
+			// Map errno to terse_error_t
+			return (err == EAGAIN || err == EWOULDBLOCK) ? -TERSE_ERR_WOULD_BLOCK : -TERSE_ERR_IO;
 		}
 		return ready;
 	}
@@ -384,12 +386,12 @@ terse_platform_drain_escape_sequence(int fd, unsigned char *buffer, size_t max)
 	return len;
 }
 
-int
+terse_error_t
 terse_platform_write_bytes(int fd, const char *bytes, size_t len)
 {
 	if (!bytes) {
 		errno = EINVAL;
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	while (len > 0) {
 		ssize_t written = write(fd, bytes, len);
@@ -399,11 +401,12 @@ terse_platform_write_bytes(int fd, const char *bytes, size_t len)
 			}
 			int err = errno;
 			errno = err;
-			return -err;
+			// Map errno to terse_error_t
+			return (err == EAGAIN || err == EWOULDBLOCK) ? -TERSE_ERR_WOULD_BLOCK : -TERSE_ERR_IO;
 		}
 		if (written == 0) {
 			errno = EPIPE;
-			return -EPIPE;
+			return -TERSE_ERR_IO;
 		}
 		bytes += (size_t)written;
 		len -= (size_t)written;

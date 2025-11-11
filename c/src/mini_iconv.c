@@ -1,6 +1,7 @@
 #include "mini_iconv.h"
 
 #include "mini_iconv_tables.h"
+#include "terse.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -140,7 +141,7 @@ static int
 mini_iconv_decode_utf8(const unsigned char *in, size_t inleft, uint32_t *out_codepoint, size_t *consumed)
 {
 	if (inleft == 0) {
-		return EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	unsigned char b0 = in[0];
 	if (b0 < 0x80) {
@@ -150,11 +151,11 @@ mini_iconv_decode_utf8(const unsigned char *in, size_t inleft, uint32_t *out_cod
 	}
 	if ((b0 & 0xe0) == 0xc0) {
 		if (inleft < 2) {
-			return EINVAL;
+			return TERSE_ERR_INVALID_ARGUMENT;
 		}
 		unsigned char b1 = in[1];
 		if ((b1 & 0xc0) != 0x80 || (b0 & 0xfe) == 0xc0) {
-			return EILSEQ;
+			return TERSE_ERR_INVALID_ENCODING;
 		}
 		*out_codepoint = ((uint32_t)(b0 & 0x1f) << 6) | (uint32_t)(b1 & 0x3f);
 		*consumed = 2;
@@ -162,16 +163,16 @@ mini_iconv_decode_utf8(const unsigned char *in, size_t inleft, uint32_t *out_cod
 	}
 	if ((b0 & 0xf0) == 0xe0) {
 		if (inleft < 3) {
-			return EINVAL;
+			return TERSE_ERR_INVALID_ARGUMENT;
 		}
 		unsigned char b1 = in[1];
 		unsigned char b2 = in[2];
 		if ((b1 & 0xc0) != 0x80 || (b2 & 0xc0) != 0x80) {
-			return EILSEQ;
+			return TERSE_ERR_INVALID_ENCODING;
 		}
 		uint32_t codepoint = ((uint32_t)(b0 & 0x0f) << 12) | ((uint32_t)(b1 & 0x3f) << 6) | (uint32_t)(b2 & 0x3f);
 		if (codepoint < 0x800 || (codepoint >= 0xd800 && codepoint <= 0xdfff)) {
-			return EILSEQ;
+			return TERSE_ERR_INVALID_ENCODING;
 		}
 		*out_codepoint = codepoint;
 		*consumed = 3;
@@ -179,23 +180,23 @@ mini_iconv_decode_utf8(const unsigned char *in, size_t inleft, uint32_t *out_cod
 	}
 	if ((b0 & 0xf8) == 0xf0) {
 		if (inleft < 4) {
-			return EINVAL;
+			return TERSE_ERR_INVALID_ARGUMENT;
 		}
 		unsigned char b1 = in[1];
 		unsigned char b2 = in[2];
 		unsigned char b3 = in[3];
 		if ((b1 & 0xc0) != 0x80 || (b2 & 0xc0) != 0x80 || (b3 & 0xc0) != 0x80) {
-			return EILSEQ;
+			return TERSE_ERR_INVALID_ENCODING;
 		}
 		uint32_t codepoint = ((uint32_t)(b0 & 0x07) << 18) | ((uint32_t)(b1 & 0x3f) << 12) | ((uint32_t)(b2 & 0x3f) << 6) | (uint32_t)(b3 & 0x3f);
 		if (codepoint < 0x10000 || codepoint > 0x10ffff) {
-			return EILSEQ;
+			return TERSE_ERR_INVALID_ENCODING;
 		}
 		*out_codepoint = codepoint;
 		*consumed = 4;
 		return 0;
 	}
-	return EILSEQ;
+	return TERSE_ERR_INVALID_ENCODING;
 }
 
 static size_t
@@ -235,7 +236,7 @@ mini_iconv_sjis_to_utf8(iconv_t handle, char **inbuf, size_t *inbytesleft, char 
 
 		size_t utf8_len = mini_iconv_utf8_length(codepoint);
 		if (out_remaining < utf8_len) {
-			errno = E2BIG;
+			errno = TERSE_ERR_BUFFER_TOO_SMALL;
 			goto error;
 		}
 
@@ -291,7 +292,7 @@ mini_iconv_utf8_to_sjis(iconv_t handle, char **inbuf, size_t *inbytesleft, char 
 
 		size_t needed = (sjis_value <= 0xff) ? 1 : 2;
 		if (out_remaining < needed) {
-			errno = E2BIG;
+			errno = TERSE_ERR_BUFFER_TOO_SMALL;
 			goto error;
 		}
 

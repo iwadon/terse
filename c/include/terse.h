@@ -254,22 +254,35 @@ typedef enum terse_mouse_button {
 	TERSE_MOUSE_BUTTON_SCROLL_DOWN
 } terse_mouse_button_t;
 
-typedef enum terse_error_category {
-	TERSE_ERROR_NONE = 0,
-	TERSE_ERROR_TRANSPORT,
-	TERSE_ERROR_PROTOCOL,
-	TERSE_ERROR_RESOURCE,
-	TERSE_ERROR_CONFIG,
-	TERSE_ERROR_STATE,
-	/* State history stack overflow/underflow */
-	TERSE_ERROR_STACK_OVERFLOW,
-	TERSE_ERROR_STACK_UNDERFLOW
-} terse_error_category_t;
+typedef enum terse_error {
+	TERSE_OK = 0,
 
-typedef struct terse_error_info {
-	terse_error_category_t category;
-	int code;
-} terse_error_info_t;
+	/* Argument/Configuration Errors (1-99) */
+	TERSE_ERR_INVALID_ARGUMENT = 1,
+	TERSE_ERR_UNSUPPORTED = 2,
+	TERSE_ERR_OVERFLOW = 3,
+
+	/* State Errors (100-199) */
+	TERSE_ERR_INVALID_HANDLE = 100,
+	TERSE_ERR_NOT_IMPLEMENTED = 101,
+	TERSE_ERR_STACK_OVERFLOW = 102,
+	TERSE_ERR_STACK_UNDERFLOW = 103,
+
+	/* I/O Transport Errors (200-299) */
+	TERSE_ERR_IO = 200,
+	TERSE_ERR_WOULD_BLOCK = 201,
+	TERSE_ERR_NOT_TTY = 202,
+
+	/* Protocol Errors (300-399) */
+	TERSE_ERR_PROTOCOL = 300,
+
+	/* Resource Errors (400-499) */
+	TERSE_ERR_OUT_OF_MEMORY = 400,
+
+	/* Encoding Errors (500-599) */
+	TERSE_ERR_INVALID_ENCODING = 500,
+	TERSE_ERR_BUFFER_TOO_SMALL = 501,
+} terse_error_t;
 
 enum {
 	TERSE_MOD_SHIFT = (1 << 0),
@@ -347,52 +360,52 @@ terse_handle_t terse_open(terse_profile_t requested_profile, const terse_options
 void terse_close(terse_handle_t handle);
 
 terse_capabilities_t terse_get_capabilities(terse_handle_t handle);
-int terse_capabilities_enable(terse_handle_t handle, unsigned int enable_mask);
-int terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask);
-int terse_capabilities_reset_overrides(terse_handle_t handle);
-int terse_state_override(terse_handle_t handle, const terse_state_t *state);
-int terse_state_clear(terse_handle_t handle);
+terse_error_t terse_capabilities_enable(terse_handle_t handle, unsigned int enable_mask);
+terse_error_t terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask);
+terse_error_t terse_capabilities_reset_overrides(terse_handle_t handle);
+terse_error_t terse_state_override(terse_handle_t handle, const terse_state_t *state);
+terse_error_t terse_state_clear(terse_handle_t handle);
 // Stack helpers for temporary state snapshots.
-int terse_push_state(terse_handle_t handle);
-int terse_pop_state(terse_handle_t handle);
+terse_error_t terse_push_state(terse_handle_t handle);
+terse_error_t terse_pop_state(terse_handle_t handle);
 
-int terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
-int terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);
-int terse_move_to(terse_handle_t handle, int row, int col);
-int terse_move_by(terse_handle_t handle, int drow, int dcol);
-int terse_show_cursor(terse_handle_t handle, int visible);
-int terse_write_text(terse_handle_t handle, const char *graphemes);
-int terse_flush(terse_handle_t handle);
-int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event);
+terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
+terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);
+terse_error_t terse_move_to(terse_handle_t handle, int row, int col);
+terse_error_t terse_move_by(terse_handle_t handle, int drow, int dcol);
+terse_error_t terse_show_cursor(terse_handle_t handle, int visible);
+terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes);
+terse_error_t terse_flush(terse_handle_t handle);
+terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event);
 terse_size_t terse_get_size(terse_handle_t handle);
 terse_cursor_position_t terse_get_cursor_position(terse_handle_t handle);
-int terse_get_options(terse_handle_t handle, terse_options_t *out_options);
-int terse_validate_options(const terse_options_t *options);
-terse_error_info_t terse_get_last_error(terse_handle_t handle);
+terse_error_t terse_get_options(terse_handle_t handle, terse_options_t *out_options);
+terse_error_t terse_validate_options(const terse_options_t *options);
+terse_error_t terse_get_last_error(terse_handle_t handle);
 
-int terse_keyboard_enable(terse_handle_t handle, unsigned int feature_mask);
-int terse_keyboard_disable(terse_handle_t handle, unsigned int feature_mask);
+terse_error_t terse_keyboard_enable(terse_handle_t handle, unsigned int feature_mask);
+terse_error_t terse_keyboard_disable(terse_handle_t handle, unsigned int feature_mask);
 unsigned int terse_keyboard_get_enabled(terse_handle_t handle);
 unsigned int terse_keyboard_get_supported(terse_handle_t handle);
-int terse_capture_state(terse_handle_t handle, terse_state_t *out_state);
-int terse_restore_state(terse_handle_t handle, const terse_state_t *state);
+terse_error_t terse_capture_state(terse_handle_t handle, terse_state_t *out_state);
+terse_error_t terse_restore_state(terse_handle_t handle, const terse_state_t *state);
 terse_style_t terse_style_default(void);
 terse_color_t terse_color_default(void);
 terse_color_t terse_color_basic(terse_basic_color_t color, int bright);
 terse_color_t terse_color_palette(unsigned char index);
 terse_color_t terse_color_truecolor(unsigned char r, unsigned char g, unsigned char b);
-int terse_set_style(terse_handle_t handle, const terse_style_t *style);
-int terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope);
-int terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode);
-int terse_disable_mouse(terse_handle_t handle);
-int terse_enable_bracketed_paste(terse_handle_t handle);
-int terse_disable_bracketed_paste(terse_handle_t handle);
-int terse_set_title(terse_handle_t handle, const char *title);
-int terse_set_hyperlink(terse_handle_t handle, const char *url, const char *label);
-int terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, int blinking);
-int terse_set_clipboard(terse_handle_t handle, const char *data);
-int terse_display_image(terse_handle_t handle, const terse_image_request_t *request);
-int terse_display_image_inline(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
-int terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const char *payload);
+terse_error_t terse_set_style(terse_handle_t handle, const terse_style_t *style);
+terse_error_t terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope);
+terse_error_t terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode);
+terse_error_t terse_disable_mouse(terse_handle_t handle);
+terse_error_t terse_enable_bracketed_paste(terse_handle_t handle);
+terse_error_t terse_disable_bracketed_paste(terse_handle_t handle);
+terse_error_t terse_set_title(terse_handle_t handle, const char *title);
+terse_error_t terse_set_hyperlink(terse_handle_t handle, const char *url, const char *label);
+terse_error_t terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, int blinking);
+terse_error_t terse_set_clipboard(terse_handle_t handle, const char *data);
+terse_error_t terse_display_image(terse_handle_t handle, const terse_image_request_t *request);
+terse_error_t terse_display_image_inline(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
+terse_error_t terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const char *payload);
 
 #endif // TERSE_H_INCLUDED

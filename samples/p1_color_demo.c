@@ -16,9 +16,9 @@ static const char *const k_basic_names[8] = {
 
 static void print_error(const char *label, terse_handle_t handle)
 {
-	terse_error_info_t err = terse_get_last_error(handle);
-	if (err.category != TERSE_ERROR_NONE) {
-		fprintf(stderr, "%s failed: category=%d code=%d\n", label, err.category, err.code);
+	terse_error_t err = terse_get_last_error(handle);
+	if (err != TERSE_OK) {
+		fprintf(stderr, "%s failed: %d\n", label, err);
 	}
 }
 

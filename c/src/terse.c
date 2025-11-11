@@ -1439,8 +1439,7 @@ struct terse_handle {
 	int mouse_enabled;
 	terse_mouse_button_t mouse_button;
 	int paste_enabled;
-	terse_error_category_t last_error;
-	int last_errno;
+	terse_error_t last_error;
 	unsigned int runtime_enabled;
 	unsigned int runtime_disabled;
 	unsigned int keyboard_supported;
@@ -1467,7 +1466,7 @@ static void set_key_event(terse_event_t *event, terse_event_type_t type, int mod
 static void set_raw_event(terse_event_t *event, const unsigned char *bytes, size_t length);
 static int write_literal(terse_handle_t handle, const char *literal);
 static int write_sequence(terse_handle_t handle, const char *sequence, size_t length);
-static void set_error(terse_handle_t handle, terse_error_category_t category, int code);
+static void set_error(terse_handle_t handle, terse_error_t error);
 static int send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
 static int send_sixel_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
 static int send_kitty_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
@@ -1568,7 +1567,7 @@ decode_utf8_stream(int fd, unsigned char first, unsigned int *out_scalar)
 		if (n <= 0) {
 			if (n == 0) {
 				errno = EPIPE;
-				return -EPIPE;
+				return TERSE_ERR_IO;
 			}
 			return (int)n;
 		}
@@ -1664,7 +1663,7 @@ decode_shift_jis_stream(terse_handle_t handle, int fd, unsigned char first, unsi
 		if (n <= 0) {
 			if (n == 0) {
 				errno = EPIPE;
-				return -EPIPE;
+				return TERSE_ERR_IO;
 			}
 			return (int)n;
 		}
@@ -2017,8 +2016,8 @@ send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t
 		free(name_encoded);
 		free(data_encoded);
 		errno = ENOMEM;
-		set_error(handle, TERSE_ERROR_RESOURCE, ENOMEM);
-		return -ENOMEM;
+		set_error(handle, TERSE_ERR_OUT_OF_MEMORY);
+		return TERSE_ERR_OUT_OF_MEMORY;
 	}
 	char header[256];
 	int header_len = snprintf(header,
@@ -2030,20 +2029,20 @@ send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t
 	if (header_len <= 0 || (size_t)header_len >= sizeof(header)) {
 		free(data_encoded);
 		errno = EOVERFLOW;
-		set_error(handle, TERSE_ERROR_CONFIG, EOVERFLOW);
-		return -EOVERFLOW;
+		set_error(handle, TERSE_ERR_OVERFLOW);
+		return TERSE_ERR_OVERFLOW;
 	}
 	if (write_sequence(handle, header, (size_t)header_len) < 0) {
 		free(data_encoded);
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	if (write_sequence(handle, data_encoded, data_len) < 0) {
 		free(data_encoded);
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	free(data_encoded);
 	if (write_literal(handle, "\x07") < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	clear_error(handle);
 	return 0;
@@ -2056,7 +2055,7 @@ send_sixel_image(terse_handle_t handle, const unsigned char *data, size_t size, 
 	static const char prefix[] = "\x1bPq";
 	static const char suffix[] = "\x1b\\";
 	if (write_sequence(handle, prefix, sizeof(prefix) - 1) < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	const size_t chunk_size = 1024;
 	size_t offset = 0;
@@ -2064,12 +2063,12 @@ send_sixel_image(terse_handle_t handle, const unsigned char *data, size_t size, 
 		size_t remaining = size - offset;
 		size_t to_write = remaining > chunk_size ? chunk_size : remaining;
 		if (write_sequence(handle, (const char *)data + offset, to_write) < 0) {
-			return -handle->last_errno;
+			return handle->last_error;
 		}
 		offset += to_write;
 	}
 	if (write_sequence(handle, suffix, sizeof(suffix) - 1) < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	clear_error(handle);
 	return 0;
@@ -2083,22 +2082,22 @@ send_kitty_image(terse_handle_t handle, const unsigned char *data, size_t size, 
 	char *encoded = base64_encode(data, size, &encoded_len);
 	if (!encoded) {
 		errno = ENOMEM;
-		set_error(handle, TERSE_ERROR_RESOURCE, ENOMEM);
-		return -ENOMEM;
+		set_error(handle, TERSE_ERR_OUT_OF_MEMORY);
+		return TERSE_ERR_OUT_OF_MEMORY;
 	}
 	const char prefix[] = "\x1b_Ga=T,f=100,m=1;";
 	if (write_sequence(handle, prefix, sizeof(prefix) - 1) < 0) {
 		free(encoded);
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	if (write_sequence(handle, encoded, encoded_len) < 0) {
 		free(encoded);
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	free(encoded);
 	const char suffix[] = "\x1b\\";
 	if (write_sequence(handle, suffix, sizeof(suffix) - 1) < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	clear_error(handle);
 	return 0;
@@ -2161,19 +2160,18 @@ handle_sgr_mouse_sequence(terse_handle_t handle, terse_event_t *out_event, const
 }
 
 static void
-set_error(terse_handle_t handle, terse_error_category_t category, int code)
+set_error(terse_handle_t handle, terse_error_t error)
 {
 	if (!handle) {
 		return;
 	}
-	handle->last_error = category;
-	handle->last_errno = code;
+	handle->last_error = error;
 }
 
 static void
 clear_error(terse_handle_t handle)
 {
-	set_error(handle, TERSE_ERROR_NONE, 0);
+	set_error(handle, TERSE_OK);
 }
 
 static terse_capabilities_t
@@ -2209,14 +2207,14 @@ make_p0_capabilities(void)
 
 static void emit_reset_sequences(terse_handle_t handle);
 
-int terse_validate_options(const terse_options_t *options)
+terse_error_t terse_validate_options(const terse_options_t *options)
 {
 	if (!options) {
 		return 0;
 	}
 	if (options->input_fd < 0 || options->output_fd < 0) {
 		errno = EBADF;
-		return -EBADF;
+		return TERSE_ERR_INVALID_HANDLE;
 	}
 	return 0;
 }
@@ -2369,7 +2367,7 @@ ensure_handle(terse_handle_t handle)
 {
 	if (!handle) {
 		errno = EINVAL;
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	return 0;
 }
@@ -2381,7 +2379,7 @@ apply_runtime_overrides(terse_handle_t handle)
 	clear_error(handle);
 }
 
-int terse_capabilities_enable(terse_handle_t handle, unsigned int enable_mask)
+terse_error_t terse_capabilities_enable(terse_handle_t handle, unsigned int enable_mask)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -2397,7 +2395,7 @@ int terse_capabilities_enable(terse_handle_t handle, unsigned int enable_mask)
 	return 0;
 }
 
-int terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask)
+terse_error_t terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -2413,7 +2411,7 @@ int terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask)
 	return 0;
 }
 
-int terse_capabilities_reset_overrides(terse_handle_t handle)
+terse_error_t terse_capabilities_reset_overrides(terse_handle_t handle)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -2425,7 +2423,7 @@ int terse_capabilities_reset_overrides(terse_handle_t handle)
 	return 0;
 }
 
-int terse_keyboard_enable(terse_handle_t handle, unsigned int feature_mask)
+terse_error_t terse_keyboard_enable(terse_handle_t handle, unsigned int feature_mask)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -2462,7 +2460,7 @@ int terse_keyboard_enable(terse_handle_t handle, unsigned int feature_mask)
 	return 0;
 }
 
-int terse_keyboard_disable(terse_handle_t handle, unsigned int feature_mask)
+terse_error_t terse_keyboard_disable(terse_handle_t handle, unsigned int feature_mask)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -2512,7 +2510,7 @@ unsigned int terse_keyboard_get_supported(terse_handle_t handle)
 	return handle->keyboard_supported;
 }
 
-int terse_state_override(terse_handle_t handle, const terse_state_t *state)
+terse_error_t terse_state_override(terse_handle_t handle, const terse_state_t *state)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -2520,8 +2518,8 @@ int terse_state_override(terse_handle_t handle, const terse_state_t *state)
 	}
 	if (!state) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if (state->cursor_known) {
 		handle->cursor_known = 1;
@@ -2550,7 +2548,7 @@ int terse_state_override(terse_handle_t handle, const terse_state_t *state)
 	return 0;
 }
 
-int terse_state_clear(terse_handle_t handle)
+terse_error_t terse_state_clear(terse_handle_t handle)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -2568,14 +2566,14 @@ int terse_state_clear(terse_handle_t handle)
 }
 
 // ---------- State history helpers ----------
-int terse_push_state(terse_handle_t handle)
+terse_error_t terse_push_state(terse_handle_t handle)
 {
 	if (!handle) {
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if (handle->state_stack_top >= TERSE_STATE_STACK_MAX - 1) {
-		set_error(handle, TERSE_ERROR_STACK_OVERFLOW, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_STACK_OVERFLOW);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	terse_state_t *stack_state = &handle->state_stack[handle->state_stack_top + 1];
 	stack_state->cursor_known = handle->cursor_known;
@@ -2588,14 +2586,14 @@ int terse_push_state(terse_handle_t handle)
 	return 0;
 }
 
-int terse_pop_state(terse_handle_t handle)
+terse_error_t terse_pop_state(terse_handle_t handle)
 {
 	if (!handle) {
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if (handle->state_stack_top < 0) {
-		set_error(handle, TERSE_ERROR_STACK_UNDERFLOW, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_STACK_UNDERFLOW);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	const terse_state_t *state = &handle->state_stack[handle->state_stack_top];
 	handle->cursor_known = state->cursor_known;
@@ -2620,16 +2618,16 @@ write_literal(terse_handle_t handle, const char *literal)
 	}
 	if (!literal) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	int out = terse_platform_write_bytes(handle->options.output_fd, literal, strlen(literal));
 	if (out < 0) {
-		set_error(handle, TERSE_ERROR_TRANSPORT, -out);
-	} else {
-		clear_error(handle);
+		set_error(handle, TERSE_ERR_IO);
+		return handle->last_error;
 	}
-	return out;
+	clear_error(handle);
+	return 0;
 }
 
 static int
@@ -2637,11 +2635,11 @@ write_sequence(terse_handle_t handle, const char *sequence, size_t length)
 {
 	int out = terse_platform_write_bytes(handle->options.output_fd, sequence, length);
 	if (out < 0) {
-		set_error(handle, TERSE_ERROR_TRANSPORT, -out);
-	} else {
-		clear_error(handle);
+		set_error(handle, TERSE_ERR_IO);
+		return handle->last_error;
 	}
-	return out;
+	clear_error(handle);
+	return 0;
 }
 
 static int
@@ -2913,7 +2911,7 @@ function_number_from_code(int code)
 	}
 }
 
-int terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
+terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -2945,14 +2943,14 @@ int terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 		break;
 	default:
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 
 	return write_literal(handle, sequence);
 }
 
-int terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
+terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -2984,14 +2982,14 @@ int terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 		break;
 	default:
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 
 	return write_literal(handle, sequence);
 }
 
-int terse_move_to(terse_handle_t handle, int row, int col)
+terse_error_t terse_move_to(terse_handle_t handle, int row, int col)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3026,11 +3024,11 @@ int terse_move_to(terse_handle_t handle, int row, int col)
 	int written = snprintf(sequence, sizeof(sequence), "\x1b[%d;%dH", row + 1, col + 1);
 	if (written <= 0 || (size_t)written >= sizeof(sequence)) {
 		errno = EINVAL;
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 
-	int out = write_sequence(handle, sequence, (size_t)written);
-	if (out == 0) {
+	terse_error_t out = write_sequence(handle, sequence, (size_t)written);
+	if (out == TERSE_OK) {
 		handle->cursor_row = row;
 		handle->cursor_col = col;
 		handle->cursor_known = 1;
@@ -3038,7 +3036,7 @@ int terse_move_to(terse_handle_t handle, int row, int col)
 	return out;
 }
 
-int terse_move_by(terse_handle_t handle, int drow, int dcol)
+terse_error_t terse_move_by(terse_handle_t handle, int drow, int dcol)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3061,7 +3059,7 @@ int terse_move_by(terse_handle_t handle, int drow, int dcol)
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dA", -drow);
 		if (len <= 0) {
 			errno = EINVAL;
-			return -EINVAL;
+			return TERSE_ERR_INVALID_ARGUMENT;
 		}
 		int w = write_sequence(handle, seq, (size_t)len);
 		if (w < 0) {
@@ -3073,7 +3071,7 @@ int terse_move_by(terse_handle_t handle, int drow, int dcol)
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dB", drow);
 		if (len <= 0) {
 			errno = EINVAL;
-			return -EINVAL;
+			return TERSE_ERR_INVALID_ARGUMENT;
 		}
 		int w = write_sequence(handle, seq, (size_t)len);
 		if (w < 0) {
@@ -3087,7 +3085,7 @@ int terse_move_by(terse_handle_t handle, int drow, int dcol)
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dD", -dcol);
 		if (len <= 0) {
 			errno = EINVAL;
-			return -EINVAL;
+			return TERSE_ERR_INVALID_ARGUMENT;
 		}
 		int w = write_sequence(handle, seq, (size_t)len);
 		if (w < 0) {
@@ -3099,7 +3097,7 @@ int terse_move_by(terse_handle_t handle, int drow, int dcol)
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dC", dcol);
 		if (len <= 0) {
 			errno = EINVAL;
-			return -EINVAL;
+			return TERSE_ERR_INVALID_ARGUMENT;
 		}
 		int w = write_sequence(handle, seq, (size_t)len);
 		if (w < 0) {
@@ -3122,7 +3120,7 @@ int terse_move_by(terse_handle_t handle, int drow, int dcol)
 	return 0;
 }
 
-int terse_show_cursor(terse_handle_t handle, int visible)
+terse_error_t terse_show_cursor(terse_handle_t handle, int visible)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3152,11 +3150,11 @@ append_param(char *seq, size_t size, size_t *pos, int *first, const char *fmt, .
 	int written = vsnprintf(seq + *pos, size - *pos, fmt, ap);
 	va_end(ap);
 	if (written < 0) {
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if ((size_t)written >= size - *pos) {
 		errno = EOVERFLOW;
-		return -EOVERFLOW;
+		return TERSE_ERR_OVERFLOW;
 	}
 	*pos += (size_t)written;
 	*first = 0;
@@ -3282,23 +3280,23 @@ emit_style_sequence(terse_handle_t handle, const terse_style_t *style)
 	int prefix = snprintf(seq, sizeof(seq), "\x1b[");
 	if (prefix < 0 || (size_t)prefix >= sizeof(seq)) {
 		errno = EOVERFLOW;
-		set_error(handle, TERSE_ERROR_CONFIG, EOVERFLOW);
-		return -EOVERFLOW;
+		set_error(handle, TERSE_ERR_OVERFLOW);
+		return TERSE_ERR_OVERFLOW;
 	}
 	size_t pos = (size_t)prefix;
 	int rc = append_effects(seq, sizeof(seq), &pos, &first, style->effects);
 	if (rc < 0) {
-		set_error(handle, TERSE_ERROR_CONFIG, -rc);
+		set_error(handle, TERSE_ERR_IO);
 		return rc;
 	}
 	rc = append_color(seq, sizeof(seq), &pos, &first, 1, &style->foreground);
 	if (rc < 0) {
-		set_error(handle, TERSE_ERROR_CONFIG, -rc);
+		set_error(handle, TERSE_ERR_IO);
 		return rc;
 	}
 	rc = append_color(seq, sizeof(seq), &pos, &first, 0, &style->background);
 	if (rc < 0) {
-		set_error(handle, TERSE_ERROR_CONFIG, -rc);
+		set_error(handle, TERSE_ERR_IO);
 		return rc;
 	}
 	if (first) {
@@ -3306,14 +3304,14 @@ emit_style_sequence(terse_handle_t handle, const terse_style_t *style)
 	}
 	if (pos >= sizeof(seq) - 1) {
 		errno = EOVERFLOW;
-		set_error(handle, TERSE_ERROR_CONFIG, EOVERFLOW);
-		return -EOVERFLOW;
+		set_error(handle, TERSE_ERR_OVERFLOW);
+		return TERSE_ERR_OVERFLOW;
 	}
 	seq[pos++] = 'm';
 	return write_sequence(handle, seq, pos);
 }
 
-int terse_set_style(terse_handle_t handle, const terse_style_t *style)
+terse_error_t terse_set_style(terse_handle_t handle, const terse_style_t *style)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3321,8 +3319,8 @@ int terse_set_style(terse_handle_t handle, const terse_style_t *style)
 	}
 	if (!style) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 
 #ifdef TERSE_ENABLE_TEST_MODE
@@ -3369,7 +3367,7 @@ write_reset_sequence(terse_handle_t handle, terse_reset_scope_t scope)
 	}
 }
 
-int terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope)
+terse_error_t terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3377,8 +3375,8 @@ int terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope)
 	}
 	if (scope < TERSE_RESET_ALL || scope > TERSE_RESET_EFFECTS_ONLY) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	int result = 0;
 	if (handle->capabilities.has_basic_output) {
@@ -3454,7 +3452,7 @@ set_mouse_mode(terse_handle_t handle, terse_mouse_mode_t mode, int enable)
 	const char *const *seqs = enable ? enable_seqs[index] : disable_seqs[index];
 	for (int i = 0; i < 2 && seqs[i]; ++i) {
 		if (write_literal(handle, seqs[i]) < 0) {
-			return -handle->last_errno;
+			return handle->last_error;
 		}
 	}
 	return 0;
@@ -3469,7 +3467,7 @@ clamp_mouse_mode(terse_mouse_mode_t requested, terse_mouse_mode_t available)
 	return requested;
 }
 
-int terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode)
+terse_error_t terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3477,8 +3475,8 @@ int terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode)
 	}
 	if (mode <= TERSE_MOUSE_NONE || mode > TERSE_MOUSE_SGR) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if (handle->capabilities.mouse == TERSE_MOUSE_NONE || !handle->capabilities.has_basic_output) {
 		handle->mouse_mode = TERSE_MOUSE_NONE;
@@ -3499,7 +3497,7 @@ int terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode)
 		}
 	}
 	if (set_mouse_mode(handle, actual, 1) < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	handle->mouse_mode = actual;
 	handle->mouse_enabled = 1;
@@ -3508,7 +3506,7 @@ int terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode)
 	return 0;
 }
 
-int terse_disable_mouse(terse_handle_t handle)
+terse_error_t terse_disable_mouse(terse_handle_t handle)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3520,7 +3518,7 @@ int terse_disable_mouse(terse_handle_t handle)
 	}
 	if (handle->capabilities.has_basic_output) {
 		if (set_mouse_mode(handle, handle->mouse_mode, 0) < 0) {
-			return -handle->last_errno;
+			return handle->last_error;
 		}
 	}
 	handle->mouse_enabled = 0;
@@ -3537,7 +3535,7 @@ set_bracketed_paste(terse_handle_t handle, int enable)
 	return write_literal(handle, seq);
 }
 
-int terse_enable_bracketed_paste(terse_handle_t handle)
+terse_error_t terse_enable_bracketed_paste(terse_handle_t handle)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3553,14 +3551,14 @@ int terse_enable_bracketed_paste(terse_handle_t handle)
 		return 0;
 	}
 	if (set_bracketed_paste(handle, 1) < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	handle->paste_enabled = 1;
 	clear_error(handle);
 	return 0;
 }
 
-int terse_disable_bracketed_paste(terse_handle_t handle)
+terse_error_t terse_disable_bracketed_paste(terse_handle_t handle)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3572,7 +3570,7 @@ int terse_disable_bracketed_paste(terse_handle_t handle)
 	}
 	if (handle->capabilities.has_basic_output) {
 		if (set_bracketed_paste(handle, 0) < 0) {
-			return -handle->last_errno;
+			return handle->last_error;
 		}
 	}
 	handle->paste_enabled = 0;
@@ -3580,7 +3578,7 @@ int terse_disable_bracketed_paste(terse_handle_t handle)
 	return 0;
 }
 
-int terse_set_title(terse_handle_t handle, const char *title)
+terse_error_t terse_set_title(terse_handle_t handle, const char *title)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3594,19 +3592,19 @@ int terse_set_title(terse_handle_t handle, const char *title)
 		return 0;
 	}
 	if (write_literal(handle, "\x1b]0;") < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	if (write_sequence(handle, title, strlen(title)) < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	if (write_literal(handle, "\x07") < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	clear_error(handle);
 	return 0;
 }
 
-int terse_set_hyperlink(terse_handle_t handle, const char *url, const char *label)
+terse_error_t terse_set_hyperlink(terse_handle_t handle, const char *url, const char *label)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3623,25 +3621,25 @@ int terse_set_hyperlink(terse_handle_t handle, const char *url, const char *labe
 		return 0;
 	}
 	if (write_literal(handle, "\x1b]8;;") < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	if (write_sequence(handle, url, strlen(url)) < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	if (write_literal(handle, "\x07") < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	if (write_sequence(handle, label, strlen(label)) < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	if (write_literal(handle, "\x1b]8;;\x07") < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	clear_error(handle);
 	return 0;
 }
 
-int terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, int blinking)
+terse_error_t terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, int blinking)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3649,8 +3647,8 @@ int terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, in
 	}
 	if (shape < TERSE_CURSOR_SHAPE_DEFAULT || shape > TERSE_CURSOR_SHAPE_BAR) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if (!handle->capabilities.has_cursor_shape || !handle->capabilities.has_basic_output) {
 		clear_error(handle);
@@ -3678,13 +3676,13 @@ int terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, in
 	int len = snprintf(seq, sizeof(seq), "\x1b[%d q", value);
 	if (len <= 0 || len >= (int)sizeof(seq)) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	return write_literal(handle, seq);
 }
 
-int terse_set_clipboard(terse_handle_t handle, const char *data)
+terse_error_t terse_set_clipboard(terse_handle_t handle, const char *data)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3692,8 +3690,8 @@ int terse_set_clipboard(terse_handle_t handle, const char *data)
 	}
 	if (!data) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if (!handle->capabilities.has_clipboard_write || !handle->capabilities.has_basic_output) {
 		clear_error(handle);
@@ -3703,26 +3701,26 @@ int terse_set_clipboard(terse_handle_t handle, const char *data)
 	char *encoded = base64_encode((const unsigned char *)data, strlen(data), &encoded_len);
 	if (!encoded) {
 		errno = ENOMEM;
-		set_error(handle, TERSE_ERROR_RESOURCE, ENOMEM);
-		return -ENOMEM;
+		set_error(handle, TERSE_ERR_OUT_OF_MEMORY);
+		return TERSE_ERR_OUT_OF_MEMORY;
 	}
 	if (write_literal(handle, "\x1b]52;;") < 0) {
 		free(encoded);
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	if (write_sequence(handle, encoded, encoded_len) < 0) {
 		free(encoded);
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	free(encoded);
 	if (write_literal(handle, "\x07") < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	clear_error(handle);
 	return 0;
 }
 
-int terse_display_image_inline(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
+terse_error_t terse_display_image_inline(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
 {
 	terse_image_request_t request = {
 		.data = data,
@@ -3736,7 +3734,7 @@ int terse_display_image_inline(terse_handle_t handle, const unsigned char *data,
 	return terse_display_image(handle, &request);
 }
 
-int terse_display_image(terse_handle_t handle, const terse_image_request_t *request)
+terse_error_t terse_display_image(terse_handle_t handle, const terse_image_request_t *request)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3744,13 +3742,13 @@ int terse_display_image(terse_handle_t handle, const terse_image_request_t *requ
 	}
 	if (!request) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if (!request->data || request->size == 0) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	unsigned int flags = request->flags;
 	if (flags == 0) {
@@ -3763,8 +3761,8 @@ int terse_display_image(terse_handle_t handle, const terse_image_request_t *requ
 			return 0;
 		}
 		errno = ENOTSUP;
-		set_error(handle, TERSE_ERROR_CONFIG, ENOTSUP);
-		return -ENOTSUP;
+		set_error(handle, TERSE_ERR_UNSUPPORTED);
+		return TERSE_ERR_UNSUPPORTED;
 	}
 	terse_image_support_t available = handle->capabilities.images;
 	if (available == TERSE_IMAGE_NONE) {
@@ -3773,8 +3771,8 @@ int terse_display_image(terse_handle_t handle, const terse_image_request_t *requ
 			return 0;
 		}
 		errno = ENOTSUP;
-		set_error(handle, TERSE_ERROR_CONFIG, ENOTSUP);
-		return -ENOTSUP;
+		set_error(handle, TERSE_ERR_UNSUPPORTED);
+		return TERSE_ERR_UNSUPPORTED;
 	}
 	terse_image_support_t target = available;
 	switch (request->format) {
@@ -3792,8 +3790,8 @@ int terse_display_image(terse_handle_t handle, const terse_image_request_t *requ
 			return 0;
 		}
 		errno = ENOTSUP;
-		set_error(handle, TERSE_ERROR_CONFIG, ENOTSUP);
-		return -ENOTSUP;
+		set_error(handle, TERSE_ERR_UNSUPPORTED);
+		return TERSE_ERR_UNSUPPORTED;
 	case TERSE_IMAGE_FORMAT_KITTY:
 		if (available == TERSE_IMAGE_KITTY) {
 			target = TERSE_IMAGE_KITTY;
@@ -3804,12 +3802,12 @@ int terse_display_image(terse_handle_t handle, const terse_image_request_t *requ
 			return 0;
 		}
 		errno = ENOTSUP;
-		set_error(handle, TERSE_ERROR_CONFIG, ENOTSUP);
-		return -ENOTSUP;
+		set_error(handle, TERSE_ERR_UNSUPPORTED);
+		return TERSE_ERR_UNSUPPORTED;
 	default:
 		errno = ENOTSUP;
-		set_error(handle, TERSE_ERROR_CONFIG, ENOTSUP);
-		return -ENOTSUP;
+		set_error(handle, TERSE_ERR_UNSUPPORTED);
+		return TERSE_ERR_UNSUPPORTED;
 	}
 	const char *name = request->name;
 	if (!name || !*name) {
@@ -3831,12 +3829,12 @@ int terse_display_image(terse_handle_t handle, const terse_image_request_t *requ
 			return 0;
 		}
 		errno = ENOTSUP;
-		set_error(handle, TERSE_ERROR_CONFIG, ENOTSUP);
-		return -ENOTSUP;
+		set_error(handle, TERSE_ERR_UNSUPPORTED);
+		return TERSE_ERR_UNSUPPORTED;
 	}
 }
 
-int terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const char *payload)
+terse_error_t terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const char *payload)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3855,8 +3853,8 @@ int terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const ch
 		break;
 	default:
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if (!handle->capabilities.has_basic_output || (handle->capabilities.notifications & required) == 0) {
 		clear_error(handle);
@@ -3865,36 +3863,36 @@ int terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const ch
 	if (kind == TERSE_NOTIFICATION_KIND_DESKTOP) {
 		if (!payload || payload_has_disallowed_chars(payload)) {
 			errno = EINVAL;
-			set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-			return -EINVAL;
+			set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+			return TERSE_ERR_INVALID_ARGUMENT;
 		}
 		if (write_literal(handle, "\x1b]9;1;") < 0) {
-			return -handle->last_errno;
+			return handle->last_error;
 		}
 		if (write_sequence(handle, payload, strlen(payload)) < 0) {
-			return -handle->last_errno;
+			return handle->last_error;
 		}
 		if (write_literal(handle, "\x07") < 0) {
-			return -handle->last_errno;
+			return handle->last_error;
 		}
 		clear_error(handle);
 		return 0;
 	}
 	if (kind == TERSE_NOTIFICATION_KIND_VISUAL) {
 		if (write_literal(handle, "\x1b[?5h\x1b[?5l") < 0) {
-			return -handle->last_errno;
+			return handle->last_error;
 		}
 		clear_error(handle);
 		return 0;
 	}
 	if (write_literal(handle, "\x07") < 0) {
-		return -handle->last_errno;
+		return handle->last_error;
 	}
 	clear_error(handle);
 	return 0;
 }
 
-int terse_write_text(terse_handle_t handle, const char *graphemes)
+terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -3902,8 +3900,8 @@ int terse_write_text(terse_handle_t handle, const char *graphemes)
 	}
 	if (!graphemes) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if (!handle->capabilities.has_basic_output) {
 		clear_error(handle);
@@ -3930,8 +3928,8 @@ int terse_write_text(terse_handle_t handle, const char *graphemes)
 	if (handle->codec_kind == TERSE_CODEC_SHIFT_JIS) {
 		if (handle->utf8_to_codec == (iconv_t)-1) {
 			errno = EINVAL;
-			set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-			return -EINVAL;
+			set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+			return TERSE_ERR_INVALID_ARGUMENT;
 		}
 		const char *input = graphemes;
 		size_t in_left = strlen(graphemes);
@@ -3946,7 +3944,7 @@ int terse_write_text(terse_handle_t handle, const char *graphemes)
 			size_t produced = (size_t)(out_ptr - (char *)outbuf);
 			if (produced > 0) {
 				if (write_sequence(handle, (const char *)outbuf, produced) < 0) {
-					return -handle->last_errno;
+					return handle->last_error;
 				}
 			}
 			input = (const char *)in_ptr;
@@ -3962,13 +3960,15 @@ int terse_write_text(terse_handle_t handle, const char *graphemes)
 					}
 					const char replacement = '?';
 					if (write_sequence(handle, &replacement, 1) < 0) {
-						return -handle->last_errno;
+						return handle->last_error;
 					}
 					reset_iconv_state(handle->utf8_to_codec);
 					continue;
 				}
-				set_error(handle, TERSE_ERROR_CONFIG, errno);
-				return -errno;
+				// Map errno to terse_error_t
+				terse_error_t err = (errno == EILSEQ) ? TERSE_ERR_INVALID_ENCODING : TERSE_ERR_IO;
+				set_error(handle, err);
+				return err;
 			}
 		}
 		reset_iconv_state(handle->utf8_to_codec);
@@ -3978,7 +3978,7 @@ int terse_write_text(terse_handle_t handle, const char *graphemes)
 	return write_literal(handle, graphemes);
 }
 
-int terse_flush(terse_handle_t handle)
+terse_error_t terse_flush(terse_handle_t handle)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -4037,7 +4037,7 @@ static int
 read_input_byte(terse_handle_t handle, int timeout_ms, unsigned char *out)
 {
 	if (!handle || !out) {
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if (handle->has_pending_byte) {
 		*out = handle->pending_byte;
@@ -4125,7 +4125,7 @@ handle_escape_prefixed_char(terse_handle_t handle, terse_event_t *event, const u
 	return 1;
 }
 
-int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event)
+terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -4133,8 +4133,8 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 	}
 	if (!out_event) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 
 #ifdef TERSE_ENABLE_TEST_MODE
@@ -4146,8 +4146,8 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 		} else {
 			// All mock events have been read, return EAGAIN equivalent
 			errno = EAGAIN;
-			set_error(handle, TERSE_ERROR_TRANSPORT, EAGAIN);
-			return -EAGAIN;
+			set_error(handle, TERSE_ERR_WOULD_BLOCK);
+			return TERSE_ERR_WOULD_BLOCK;
 		}
 	}
 #endif
@@ -4161,8 +4161,8 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 		return TERSE_EVENT_NONE;
 	}
 	if (rc < 0) {
-		int err = -rc;
-		set_error(handle, TERSE_ERROR_TRANSPORT, err);
+		// rc is already a terse_error_t
+		set_error(handle, (terse_error_t)(-rc));
 		return rc;
 	}
 
@@ -4171,8 +4171,8 @@ int terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_e
 		unsigned char next = 0;
 		int peek = read_input_byte(handle, 0, &next);
 		if (peek < 0) {
-			int err = -peek;
-			set_error(handle, TERSE_ERROR_TRANSPORT, err);
+			// peek is already a terse_error_t
+			set_error(handle, (terse_error_t)(-peek));
 			return peek;
 		}
 		if (peek > 0 && next == '\n') {
@@ -4548,7 +4548,8 @@ terse_get_cursor_position(terse_handle_t handle)
 	                                              handle->options.output_fd,
 	                                              &row, &col);
 	if (rc < 0) {
-		set_error(handle, TERSE_ERROR_TRANSPORT, -rc);
+		// rc is already a terse_error_t
+		set_error(handle, (terse_error_t)(-rc));
 		return unknown;
 	}
 
@@ -4557,7 +4558,7 @@ terse_get_cursor_position(terse_handle_t handle)
 	return pos;
 }
 
-int terse_get_options(terse_handle_t handle, terse_options_t *out_options)
+terse_error_t terse_get_options(terse_handle_t handle, terse_options_t *out_options)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -4565,29 +4566,24 @@ int terse_get_options(terse_handle_t handle, terse_options_t *out_options)
 	}
 	if (!out_options) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	*out_options = handle->options;
 	clear_error(handle);
 	return 0;
 }
 
-terse_error_info_t
+terse_error_t
 terse_get_last_error(terse_handle_t handle)
 {
-	terse_error_info_t info = { TERSE_ERROR_NONE, 0 };
 	if (!handle) {
-		info.category = TERSE_ERROR_STATE;
-		info.code = EINVAL;
-		return info;
+		return TERSE_ERR_INVALID_HANDLE;
 	}
-	info.category = handle->last_error;
-	info.code = handle->last_errno;
-	return info;
+	return handle->last_error;
 }
 
-int terse_capture_state(terse_handle_t handle, terse_state_t *out_state)
+terse_error_t terse_capture_state(terse_handle_t handle, terse_state_t *out_state)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -4595,8 +4591,8 @@ int terse_capture_state(terse_handle_t handle, terse_state_t *out_state)
 	}
 	if (!out_state) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	out_state->cursor_known = handle->cursor_known;
 	out_state->cursor_visible = handle->cursor_visible;
@@ -4608,7 +4604,7 @@ int terse_capture_state(terse_handle_t handle, terse_state_t *out_state)
 	return 0;
 }
 
-int terse_restore_state(terse_handle_t handle, const terse_state_t *state)
+terse_error_t terse_restore_state(terse_handle_t handle, const terse_state_t *state)
 {
 	int rc = ensure_handle(handle);
 	if (rc < 0) {
@@ -4616,8 +4612,8 @@ int terse_restore_state(terse_handle_t handle, const terse_state_t *state)
 	}
 	if (!state) {
 		errno = EINVAL;
-		set_error(handle, TERSE_ERROR_CONFIG, EINVAL);
-		return -EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	terse_state_t local = *state;
 	if (local.cursor_known) {
@@ -4668,7 +4664,7 @@ int terse_test_start_recording(terse_handle_t handle)
 {
 	if (!handle || !handle->test_state) {
 		errno = EINVAL;
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	handle->test_state->recording = 1;
 	return 0;
@@ -4678,7 +4674,7 @@ int terse_test_stop_recording(terse_handle_t handle)
 {
 	if (!handle || !handle->test_state) {
 		errno = EINVAL;
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	handle->test_state->recording = 0;
 	return 0;
@@ -4700,7 +4696,7 @@ int terse_test_clear_calls(terse_handle_t handle)
 {
 	if (!handle || !handle->test_state) {
 		errno = EINVAL;
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	handle->test_state->call_count = 0;
 	return 0;
@@ -4710,7 +4706,7 @@ int terse_test_mock_capabilities(terse_handle_t handle, const terse_capabilities
 {
 	if (!handle || !handle->test_state || !caps) {
 		errno = EINVAL;
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	handle->test_state->mock_caps = *caps;
 	handle->test_state->mock_caps_enabled = 1;
@@ -4721,7 +4717,7 @@ int terse_test_mock_size(terse_handle_t handle, int rows, int cols)
 {
 	if (!handle || !handle->test_state) {
 		errno = EINVAL;
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	handle->test_state->mock_rows = rows;
 	handle->test_state->mock_cols = cols;
@@ -4733,7 +4729,7 @@ int terse_test_mock_events(terse_handle_t handle, const terse_event_t *events, i
 {
 	if (!handle || !handle->test_state || !events || count < 0) {
 		errno = EINVAL;
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	free(handle->test_state->mock_events);
 	handle->test_state->mock_events = NULL;
@@ -4744,7 +4740,7 @@ int terse_test_mock_events(terse_handle_t handle, const terse_event_t *events, i
 		handle->test_state->mock_events = malloc(sizeof(terse_event_t) * (size_t)count);
 		if (!handle->test_state->mock_events) {
 			errno = ENOMEM;
-			return -ENOMEM;
+			return TERSE_ERR_OUT_OF_MEMORY;
 		}
 		memcpy(handle->test_state->mock_events, events, sizeof(terse_event_t) * (size_t)count);
 		handle->test_state->mock_event_count = count;
@@ -4756,7 +4752,7 @@ int terse_test_reset_mocks(terse_handle_t handle)
 {
 	if (!handle || !handle->test_state) {
 		errno = EINVAL;
-		return -EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	handle->test_state->mock_caps_enabled = 0;
 	handle->test_state->mock_size_enabled = 0;

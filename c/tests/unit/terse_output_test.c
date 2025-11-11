@@ -86,7 +86,7 @@ TEST(TerseClearScreen, EmitsAfterSequence_OnAfter)
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
 
-	EXPECT_EQ(0, terse_clear_screen(handle, TERSE_CLEAR_AFTER));
+	EXPECT_EQ(TERSE_OK, terse_clear_screen(handle, TERSE_CLEAR_AFTER));
 	terse_close(handle);
 	close(fds[1]);
 
@@ -117,11 +117,10 @@ TEST(TerseOutputCapabilities, NoOutput_WhenClearScreenDisabled)
 	EXPECT_TRUE(flags != -1);
 	EXPECT_TRUE(fcntl(fds[0], F_SETFL, flags | O_NONBLOCK) == 0);
 
-	EXPECT_EQ(0, terse_clear_screen(handle, TERSE_CLEAR_ALL));
+	EXPECT_EQ(TERSE_OK, terse_clear_screen(handle, TERSE_CLEAR_ALL));
 	expect_no_bytes_available(fds[0]);
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
-	EXPECT_EQ(0, err.code);
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_OK, err);
 
 	terse_close(handle);
 	close(fds[0]);
@@ -147,13 +146,12 @@ TEST(TerseOutputCapabilities, NoOutput_WhenMoveDisabled)
 	EXPECT_TRUE(flags != -1);
 	EXPECT_TRUE(fcntl(fds[0], F_SETFL, flags | O_NONBLOCK) == 0);
 
-	EXPECT_EQ(0, terse_move_to(handle, 4, 4));
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 4, 4));
 	expect_no_bytes_available(fds[0]);
-	EXPECT_EQ(0, terse_move_by(handle, 3, -2));
+	EXPECT_EQ(TERSE_OK, terse_move_by(handle, 3, -2));
 	expect_no_bytes_available(fds[0]);
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
-	EXPECT_EQ(0, err.code);
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_OK, err);
 
 	terse_close(handle);
 	close(fds[0]);
@@ -179,11 +177,10 @@ TEST(TerseOutputCapabilities, NoOutput_WhenCursorHiddenUnsupported)
 	EXPECT_TRUE(flags != -1);
 	EXPECT_TRUE(fcntl(fds[0], F_SETFL, flags | O_NONBLOCK) == 0);
 
-	EXPECT_EQ(0, terse_show_cursor(handle, 0));
+	EXPECT_EQ(TERSE_OK, terse_show_cursor(handle, 0));
 	expect_no_bytes_available(fds[0]);
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
-	EXPECT_EQ(0, err.code);
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_OK, err);
 
 	terse_close(handle);
 	close(fds[0]);
@@ -209,11 +206,10 @@ TEST(TerseOutputCapabilities, NoOutput_WhenBasicOutputDisabled)
 	EXPECT_TRUE(flags != -1);
 	EXPECT_TRUE(fcntl(fds[0], F_SETFL, flags | O_NONBLOCK) == 0);
 
-	EXPECT_EQ(0, terse_write_text(handle, "hello"));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "hello"));
 	expect_no_bytes_available(fds[0]);
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
-	EXPECT_EQ(0, err.code);
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_OK, err);
 
 	terse_close(handle);
 	close(fds[0]);
@@ -226,13 +222,13 @@ TEST(TerseOutputState, SkipsDuplicateCursorHide)
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
 
-	EXPECT_EQ(0, terse_show_cursor(handle, 0));
+	EXPECT_EQ(TERSE_OK, terse_show_cursor(handle, 0));
 	char buf[32];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
 	EXPECT_TRUE(strstr(buf, "\x1b[?25l") != NULL);
 
-	EXPECT_EQ(0, terse_show_cursor(handle, 0));
+	EXPECT_EQ(TERSE_OK, terse_show_cursor(handle, 0));
 	expect_no_bytes_available(fds[0]);
 
 	terse_close(handle);
@@ -246,13 +242,13 @@ TEST(TerseOutputState, SkipsDuplicateMoveTo)
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
 
-	EXPECT_EQ(0, terse_move_to(handle, 4, 9));
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 4, 9));
 	char buf[32];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
 	EXPECT_TRUE(strstr(buf, "\x1b[5;10H") != NULL);
 
-	EXPECT_EQ(0, terse_move_to(handle, 4, 9));
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 4, 9));
 	expect_no_bytes_available(fds[0]);
 
 	terse_close(handle);
@@ -264,11 +260,10 @@ TEST(TerseOutputError, ReturnsConfigError_OnInvalidMode)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
 	EXPECT_TRUE(handle != NULL);
-	int rc = terse_clear_screen(handle, 99);
-	EXPECT_EQ(-EINVAL, rc);
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_CONFIG, err.category);
-	EXPECT_EQ(EINVAL, err.code);
+	terse_error_t rc = terse_clear_screen(handle, 99);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
 	terse_close(handle);
 }
 
@@ -285,11 +280,10 @@ TEST(TerseOutputError, ReturnsTransportError_OnWriteFailure)
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
 	EXPECT_TRUE(handle != NULL);
 	close(fds[1]);
-	int rc = terse_write_text(handle, "hi");
-	EXPECT_EQ(-EBADF, rc);
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_TRANSPORT, err.category);
-	EXPECT_EQ(EBADF, err.code);
+	terse_error_t rc = terse_write_text(handle, "hi");
+	EXPECT_EQ(TERSE_ERR_IO, rc);
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERR_IO, err);
 	terse_close(handle);
 	close(fds[0]);
 }
@@ -300,7 +294,7 @@ TEST(TerseClearScreen, EmitsAllSequence_OnAll)
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
 
-	EXPECT_EQ(0, terse_clear_screen(handle, TERSE_CLEAR_ALL));
+	EXPECT_EQ(TERSE_OK, terse_clear_screen(handle, TERSE_CLEAR_ALL));
 	terse_close(handle);
 	close(fds[1]);
 
@@ -318,7 +312,7 @@ TEST(TerseClearLine, EmitsModeSequence_OnBefore)
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
 
-	EXPECT_EQ(0, terse_clear_line(handle, TERSE_CLEAR_BEFORE));
+	EXPECT_EQ(TERSE_OK, terse_clear_line(handle, TERSE_CLEAR_BEFORE));
 	terse_close(handle);
 	close(fds[1]);
 
@@ -341,11 +335,11 @@ TEST(TerseMoveTo, ConvertsZeroBasedToOneBased)
 	(void)read_pipe(fds[0], init_buf, sizeof(init_buf));
 
 	// Move somewhere first, then to (0, 0) - this ensures the second move is not skipped
-	EXPECT_EQ(0, terse_move_to(handle, 5, 10));
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 5, 10));
 	(void)read_pipe(fds[0], init_buf, sizeof(init_buf)); // Discard
 
 	// Now move to API coords (0, 0) - should generate terminal coords (1, 1)
-	EXPECT_EQ(0, terse_move_to(handle, 0, 0));
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 0, 0));
 
 	char buf[32];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
@@ -364,7 +358,7 @@ TEST(TerseMoveBy, EmitsDirectionalSequence_OnOffsets)
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
 
-	EXPECT_EQ(0, terse_move_by(handle, 2, -3));
+	EXPECT_EQ(TERSE_OK, terse_move_by(handle, 2, -3));
 	terse_close(handle);
 	close(fds[1]);
 
@@ -383,7 +377,7 @@ TEST(TerseShowCursor, EmitsHideSequence_OnFalse)
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
 
-	EXPECT_EQ(0, terse_show_cursor(handle, 0));
+	EXPECT_EQ(TERSE_OK, terse_show_cursor(handle, 0));
 	terse_close(handle);
 	close(fds[1]);
 
@@ -398,8 +392,8 @@ TEST(TerseShowCursor, EmitsHideSequence_OnFalse)
 TEST(TerseClearScreen, ReturnsEINVAL_OnInvalidMode)
 {
 	errno = 0;
-	int result = terse_clear_screen(NULL, TERSE_CLEAR_AFTER);
-	EXPECT_EQ(-EINVAL, result);
+	terse_error_t result = terse_clear_screen(NULL, TERSE_CLEAR_AFTER);
+	EXPECT_EQ(TERSE_ERR_INVALID_HANDLE, result);
 	EXPECT_EQ(EINVAL, errno);
 }
 
@@ -419,8 +413,8 @@ TEST(TerseWriteText, ReturnsEBadf_OnUnreadableFd)
 	close(fds[1]);
 
 	errno = 0;
-	int rc = terse_write_text(handle, "hi");
-	EXPECT_EQ(-EBADF, rc);
+	terse_error_t rc = terse_write_text(handle, "hi");
+	EXPECT_EQ(TERSE_ERR_IO, rc);
 	EXPECT_EQ(EBADF, errno);
 
 	terse_close(handle);
@@ -440,12 +434,12 @@ TEST(TerseStateCapture, RestoresCursorPositionAndVisibility)
 	};
 	terse_handle_t handle1 = terse_open(TERSE_P0, &opt1);
 	EXPECT_TRUE(handle1 != NULL);
-	EXPECT_EQ(0, terse_move_to(handle1, 3, 6));
-	EXPECT_EQ(0, terse_show_cursor(handle1, 0));
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle1, 3, 6));
+	EXPECT_EQ(TERSE_OK, terse_show_cursor(handle1, 0));
 	terse_style_t capture_style = make_effects_style(TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE);
-	EXPECT_EQ(0, terse_set_style(handle1, &capture_style));
+	EXPECT_EQ(TERSE_OK, terse_set_style(handle1, &capture_style));
 	terse_state_t state;
-	EXPECT_EQ(0, terse_capture_state(handle1, &state));
+	EXPECT_EQ(TERSE_OK, terse_capture_state(handle1, &state));
 	terse_close(handle1);
 	close(fds1[0]);
 	close(fds1[1]);
@@ -461,7 +455,7 @@ TEST(TerseStateCapture, RestoresCursorPositionAndVisibility)
 	};
 	terse_handle_t handle2 = terse_open(TERSE_P0, &opt2);
 	EXPECT_TRUE(handle2 != NULL);
-	EXPECT_EQ(0, terse_restore_state(handle2, &state));
+	EXPECT_EQ(TERSE_OK, terse_restore_state(handle2, &state));
 	char buf[64];
 	ssize_t n = read_pipe(fds2[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
@@ -488,16 +482,16 @@ TEST(TerseSetStyle, EmitsSequences_WhenTextStylesEnabled)
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
 	EXPECT_TRUE(handle != NULL);
 	terse_style_t bold_underline = make_effects_style(TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE);
-	EXPECT_EQ(0, terse_set_style(handle, &bold_underline));
+	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &bold_underline));
 	char buf[64];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
 	EXPECT_TRUE(strstr(buf, "\x1b[0m") != NULL);
 	EXPECT_TRUE(strstr(buf, "\x1b[1;4m") != NULL);
-	EXPECT_EQ(0, terse_set_style(handle, &bold_underline));
+	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &bold_underline));
 	expect_no_bytes_available(fds[0]);
 	terse_style_t reset_style = terse_style_default();
-	EXPECT_EQ(0, terse_set_style(handle, &reset_style));
+	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &reset_style));
 	char buf2[32];
 	ssize_t n2 = read_pipe(fds[0], buf2, sizeof(buf2));
 	EXPECT_TRUE(n2 > 0);
@@ -521,7 +515,7 @@ TEST(TerseSetStyle, EmitsFaintAndBlinkSequences)
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
 	EXPECT_TRUE(handle != NULL);
 	terse_style_t style = make_effects_style(TERSE_STYLE_FAINT | TERSE_STYLE_BLINK);
-	EXPECT_EQ(0, terse_set_style(handle, &style));
+	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &style));
 	char buf[64];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
@@ -538,11 +532,10 @@ TEST(TerseSetStyle, NoOutput_WhenCapabilityDisabled)
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
 	terse_style_t bold_only = make_effects_style(TERSE_STYLE_BOLD);
-	EXPECT_EQ(0, terse_set_style(handle, &bold_only));
+	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &bold_only));
 	expect_no_bytes_available(fds[0]);
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_NONE, err.category);
-	EXPECT_EQ(0, err.code);
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_OK, err);
 	terse_close(handle);
 	close(fds[0]);
 	close(fds[1]);
@@ -562,7 +555,7 @@ TEST(TerseSetStyle, EmitsBasicColorSequence)
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
 	EXPECT_TRUE(handle != NULL);
 	terse_style_t red = make_basic_foreground_style(TERSE_BASIC_COLOR_RED, 0);
-	EXPECT_EQ(0, terse_set_style(handle, &red));
+	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &red));
 	char buf[64];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
@@ -587,7 +580,7 @@ TEST(TerseSetStyle, DegradesPaletteToBasicWhenOnlyBasicSupported)
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
 	EXPECT_TRUE(handle != NULL);
 	terse_style_t palette_red = make_palette_foreground_style(196);
-	EXPECT_EQ(0, terse_set_style(handle, &palette_red));
+	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &palette_red));
 	char buf[64];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
@@ -612,7 +605,7 @@ TEST(TerseSetStyle, EmitsPaletteColorSequence)
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
 	EXPECT_TRUE(handle != NULL);
 	terse_style_t palette = make_palette_foreground_style(82);
-	EXPECT_EQ(0, terse_set_style(handle, &palette));
+	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &palette));
 	char buf[64];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
@@ -637,7 +630,7 @@ TEST(TerseSetStyle, EmitsTruecolorSequence)
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
 	EXPECT_TRUE(handle != NULL);
 	terse_style_t truecolor = make_truecolor_style(12, 34, 200);
-	EXPECT_EQ(0, terse_set_style(handle, &truecolor));
+	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &truecolor));
 	char buf[96];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
@@ -665,10 +658,10 @@ TEST(TerseResetStyle, EmitsAllResetSequence)
 	style.effects = TERSE_STYLE_BOLD;
 	style.foreground.kind = TERSE_COLOR_KIND_BASIC16;
 	style.foreground.data.basic16.color = TERSE_BASIC_COLOR_RED;
-	EXPECT_EQ(0, terse_set_style(handle, &style));
+	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &style));
 	char drain[64];
 	EXPECT_TRUE(read_pipe(fds[0], drain, sizeof(drain)) > 0);
-	EXPECT_EQ(0, terse_reset_style(handle, TERSE_RESET_ALL));
+	EXPECT_EQ(TERSE_OK, terse_reset_style(handle, TERSE_RESET_ALL));
 	char buf[32];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
@@ -694,10 +687,10 @@ TEST(TerseResetStyle, EmitsColorResetSequence)
 	terse_style_t style = terse_style_default();
 	style.foreground.kind = TERSE_COLOR_KIND_BASIC16;
 	style.foreground.data.basic16.color = TERSE_BASIC_COLOR_BLUE;
-	EXPECT_EQ(0, terse_set_style(handle, &style));
+	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &style));
 	char drain[64];
 	EXPECT_TRUE(read_pipe(fds[0], drain, sizeof(drain)) > 0);
-	EXPECT_EQ(0, terse_reset_style(handle, TERSE_RESET_COLOR_ONLY));
+	EXPECT_EQ(TERSE_OK, terse_reset_style(handle, TERSE_RESET_COLOR_ONLY));
 	char buf[32];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
@@ -721,10 +714,10 @@ TEST(TerseResetStyle, EmitsEffectResetSequence)
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
 	EXPECT_TRUE(handle != NULL);
 	terse_style_t style = make_effects_style(TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE);
-	EXPECT_EQ(0, terse_set_style(handle, &style));
+	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &style));
 	char drain[64];
 	EXPECT_TRUE(read_pipe(fds[0], drain, sizeof(drain)) > 0);
-	EXPECT_EQ(0, terse_reset_style(handle, TERSE_RESET_EFFECTS_ONLY));
+	EXPECT_EQ(TERSE_OK, terse_reset_style(handle, TERSE_RESET_EFFECTS_ONLY));
 	char buf[64];
 	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
 	EXPECT_TRUE(n > 0);
@@ -739,7 +732,7 @@ TEST(TerseResetStyle, NoOutputWhenCapabilitiesDisabled)
 	int fds[2];
 	terse_handle_t handle;
 	create_pipe_handle(&handle, fds);
-	EXPECT_EQ(0, terse_reset_style(handle, TERSE_RESET_COLOR_ONLY));
+	EXPECT_EQ(TERSE_OK, terse_reset_style(handle, TERSE_RESET_COLOR_ONLY));
 	expect_no_bytes_available(fds[0]);
 	terse_close(handle);
 	close(fds[0]);
@@ -751,11 +744,10 @@ TEST(TerseResetStyle, ReturnsEINVAL_OnInvalidScope)
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
 	EXPECT_TRUE(handle != NULL);
 	errno = 0;
-	int rc = terse_reset_style(handle, (terse_reset_scope_t)99);
-	EXPECT_EQ(-EINVAL, rc);
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_CONFIG, err.category);
-	EXPECT_EQ(EINVAL, err.code);
+	terse_error_t rc = terse_reset_style(handle, (terse_reset_scope_t)99);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
 	terse_close(handle);
 }
 
@@ -763,11 +755,10 @@ TEST(TerseStateCapture, ReturnsConfigError_OnNullState)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
 	EXPECT_TRUE(handle != NULL);
-	int rc = terse_capture_state(handle, NULL);
-	EXPECT_EQ(-EINVAL, rc);
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_CONFIG, err.category);
-	EXPECT_EQ(EINVAL, err.code);
+	terse_error_t rc = terse_capture_state(handle, NULL);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
 	terse_close(handle);
 }
 
@@ -775,10 +766,9 @@ TEST(TerseStateRestore, ReturnsConfigError_OnNullState)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
 	EXPECT_TRUE(handle != NULL);
-	int rc = terse_restore_state(handle, NULL);
-	EXPECT_EQ(-EINVAL, rc);
-	terse_error_info_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERROR_CONFIG, err.category);
-	EXPECT_EQ(EINVAL, err.code);
+	terse_error_t rc = terse_restore_state(handle, NULL);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
 	terse_close(handle);
 }

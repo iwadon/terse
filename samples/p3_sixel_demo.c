@@ -110,8 +110,8 @@ int main(void)
 	int rc = terse_display_image(handle, &request1);
 	if (rc < 0) {
 		fprintf(stderr, "terse_display_image failed: %s\n", strerror(-rc));
-		terse_error_info_t err = terse_get_last_error(handle);
-		fprintf(stderr, "Error category: %d, code: %d\n", err.category, err.code);
+		terse_error_t err = terse_get_last_error(handle);
+		fprintf(stderr, "Error: %d\n", err);
 	} else {
 		printf("\n[Image displayed above using Sixel protocol]\n");
 	}
