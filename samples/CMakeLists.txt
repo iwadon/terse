@@ -42,4 +42,8 @@ if(TERSE_PLATFORM_HUMAN68K)
 	# Low-level cursor position debug tool (doesn't use terse)
 	add_executable(cursor_position_debug cursor_position_debug.c)
 	target_include_directories(cursor_position_debug PRIVATE ${CMAKE_SOURCE_DIR}/c/include)
+
+	# Low-level keycode dump tool (doesn't use terse)
+	add_executable(keycode_dump_human68k keycode_dump_human68k.c)
+	target_include_directories(keycode_dump_human68k PRIVATE ${CMAKE_SOURCE_DIR}/c/include)
 endif()
