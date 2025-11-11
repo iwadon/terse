@@ -58,12 +58,20 @@ terse_error_t terse_platform_query_cursor_position(int input_fd, int output_fd, 
 		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 
-	/* Get cursor position */
+/* Get cursor position */
+#if 0
 	int result = _dos_c_locate(-1, 0);
 	if (result == -1) {
 		errno = EIO;
 		return TERSE_ERR_IO;
 	}
+#else
+	int result = _iocs_b_locate(-1, 0);
+	if (result == -1) {
+		errno = EIO;
+		return TERSE_ERR_IO;
+	}
+#endif
 
 	/* Extract position from packed result */
 	int col = (result >> 16) & 0xffff; /* Upper 16 bits: column */
