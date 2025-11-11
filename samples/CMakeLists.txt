@@ -1,6 +1,13 @@
 # Sample programs for terse library
 
 # List of all sample programs
+if(TERSE_PLATFORM_HUMAN68K)
+set(SAMPLES
+	p0_demo
+	p1_color_demo
+	p1_style_demo
+)
+else()
 set(SAMPLES
 	p0_demo
 	p1_color_demo
@@ -17,6 +24,7 @@ set(SAMPLES
 	input_complete_demo
 	cursor_position_test
 )
+  endif()
 
 # Create executable for each sample
 foreach(SAMPLE ${SAMPLES})

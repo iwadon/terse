@@ -29,3 +29,6 @@ set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 # set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -m68000 -ffreestanding -fno-builtin")
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m68000 -ffreestanding -fno-builtin")
 # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -nostdlib")
+
+set(TERSE_ENABLE_ICONV OFF)
+set(TERSE_BUILD_TESTING OFF)

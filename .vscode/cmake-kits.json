@@ -1,0 +1,6 @@
+[
+  {
+    "name": "Human68k",
+    "toolchainFile": "${workspaceFolder}/cmake/human68k.cmake"
+  }
+]
