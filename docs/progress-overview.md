@@ -20,7 +20,7 @@ P0のライフサイクル・出力・入力・サイズ取得・エラー返却
 | 端末サイズ (`get_size`) | P0 | ✅ 実装済み | `TIOCGWINSZ` ベース。`CSI 8 ; r ; c t` 受信で内部サイズ更新。無効化時は Unknown を返却。|
 | 状態管理（キャプチャ/復元・一時保存） | P0 | ✅ 実装済み | `capture/restore_state` と `push/pop_state` を提供。カーソル位置/可視/スタイルを安全に復元。|
 | 環境検出・プロファイル自動判定 | P0-P3 | ✅ 実装済み | Apple Terminal / VTE / iTerm2 / WezTerm / kitty / Ghostty / Warp を判別（環境変数＋Secondary DA）。|
-| エラー分類/返却 | P0 | ✅ 実装済み（基本） | `-errno` 返却と `terse_get_last_error()`。Transport/Config/State/Resourceを区別。詳細復旧戦略は今後拡充。|
+| エラー分類/返却 | P0 | ✅ 実装済み（基本） | `terse_error_t` enum 返却と `terse_get_last_error()`。Argument/State/I/O/Protocol/Resource/Encoding を範囲別に区別（1-99, 100-199, 200-299, 300-399, 400-499, 500-599）。|
 | P1: 色・装飾（SGR） | P1 | ✅ 実装済み | `set_style/reset_style` 完了。TrueColor→256→16→既定色への縮退ロジックと効果ビット（Bold/Italic/Underline/…）。|
 | P2: マウス追跡 | P2 | ✅ 実装済み | `enable/disable_mouse`（X10/VT200/SGR）。SGRマウスの Down/Move/Up/Scroll と修飾を正規化。|
 | P2: ブランケットペースト | P2 | ✅ 実装済み | `enable/disable_bracketed_paste` と `PasteBegin/End` イベント。|

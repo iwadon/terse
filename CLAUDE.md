@@ -56,7 +56,7 @@ The library organizes terminal features into hierarchical profiles:
 ### Core Handle and State Management
 - **terse_handle_t**: Opaque session handle created by `terse_open()` and destroyed by `terse_close()`
 - **State management**: `terse_capture_state/terse_restore_state` and `terse_push_state/terse_pop_state` for safely preserving cursor position, visibility, and styles
-- **Error handling**: Functions return negative `-errno` on failure; use `terse_get_last_error()` for detailed error category/code
+- **Error handling**: Functions return `terse_error_t` enum codes; use `terse_get_last_error()` to retrieve the last error code
 - **Coordinate system**: 0-based coordinates (0, 0) = top-left; internally converts to 1-based for terminal escape sequences
 
 ### Terminal Detection (c/src/terse_posix.c)
@@ -114,7 +114,7 @@ Example usage in `samples/test_mode_demo.c` demonstrates recording API calls and
 - K&R brace style, tab indentation, one declaration per line
 - Public API uses `terse_` prefix; internal symbols should remain in `c/src`
 - Use `clang-format` for large diffs
-- Error returns: negative `-errno` values; success typically returns 0 or positive
+- Error returns: `terse_error_t` enum codes; success returns `TERSE_OK` (0)
 
 ## Documentation Structure
 

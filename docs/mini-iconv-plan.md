@@ -21,7 +21,7 @@
 
 1. `TERSE_ENABLE_ICONV=OFF` のとき `TERSE_HAVE_ICONV` を 0 ではなく "mini iconv" 実装に向ける。
 2. 既存の `initialize_codec_handles` / `destroy_codec_handles` はそのまま利用し、`iconv_open` などでラッパーが呼ばれる。
-3. 失敗時は `errno` に `EINVAL` / `EILSEQ` / `E2BIG` を設定して戻す。
+3. 失敗時は `terse_error_t` に対応するエラーコード（`TERSE_ERR_INVALID_ARGUMENT` / `TERSE_ERR_INVALID_ENCODING` / `TERSE_ERR_BUFFER_TOO_SMALL`）を返す。
 
 ## 実装の骨子
 
@@ -38,7 +38,7 @@
 - **UTF-8 → Shift_JIS**
   - UTF-8 マルチバイトを最長 4 バイトまで読み取り、UTF-32 scalar を得る。
   - 代表的な変換範囲（ASCII, 半角カナ, JIS 第1・第2水準, NEC/IBM 拡張など）をマッピング表で逆引き。
-  - 見つからない場合は `?` (`0x3f`) を出力し、`errno` を `EILSEQ` にして処理継続（現行挙動と揃える）。
+  - 見つからない場合は `?` (`0x3f`) を出力し、エラーとして `TERSE_ERR_INVALID_ENCODING` を設定して処理継続（現行挙動と揃える）。
 
 ### マッピングデータ
 - 片方向テーブルを静的に埋め込み：
@@ -48,9 +48,9 @@
   - 逆方向はハッシュテーブルではなく、JISグループ + 線形探索、または Unicode → Shift_JIS のソート済み配列 + 二分探索で対応（メモリ <32KB 目標）。
 
 ### エラー処理
-- 入力が途中で終わった場合は `EILSEQ` とし、`-1` を返す。
-- 出力バッファが不足なら `E2BIG`。
-- 未サポートの変換ペア（例：`iconv_open("UTF-8", "UTF-16")`）は `EINVAL`。
+- 入力が途中で終わった場合は `TERSE_ERR_INVALID_ENCODING` を返す。
+- 出力バッファが不足なら `TERSE_ERR_BUFFER_TOO_SMALL`。
+- 未サポートの変換ペア（例：`iconv_open("UTF-8", "UTF-16")`）は `TERSE_ERR_INVALID_ARGUMENT`。
 
 ## 組み込み手順
 

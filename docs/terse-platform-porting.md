@@ -36,7 +36,7 @@
 ### 2.4 `terse_platform_wait_for_input`
 
 - 入力が到達するまで `timeout_ms`（ms）待機します。負数は無期限待機、0 は即時判定です。
-- 返り値は「0=タイムアウト、正=入力あり、負=エラー(`-errno`)」です。
+- 返り値は「`TERSE_OK`=タイムアウト、正=入力あり、`terse_error_t`=エラーコード」です。
 - `select`/`poll` 相当機構がない場合、ビジーループは避け、OS が提供するイベント待機 API に委譲してください。
 
 ### 2.5 `terse_platform_read_byte`
@@ -56,9 +56,10 @@
 
 ## 3. エラーハンドリング規約
 
-- 失敗時は **必ず `errno` 相当の値を設定** し、`-errno` を返します。`terse.c` 側はこの規約に依存しています。
-- サポート対象外機能は `ENOTSUP`/`EINVAL` を用い、呼び出し元が適切に縮退できるようにします。
-- タイムアウト (`wait_for_input` 他) では `errno` を変更せず 0 を返すのが既定です。
+- 失敗時は **必ず `terse_error_t` 列挙型の適切なエラーコード** を返します。`terse.c` 側はこの規約に依存しています。
+- サポート対象外機能は `TERSE_ERR_UNSUPPORTED`/`TERSE_ERR_INVALID_ARGUMENT` を用い、呼び出し元が適切に縮退できるようにします。
+- タイムアウト (`wait_for_input` 他) では `TERSE_OK` を返すのが既定です。
+- エラーコードの範囲: 引数エラー (1-99)、状態エラー (100-199)、I/Oエラー (200-299)、プロトコルエラー (300-399)、リソースエラー (400-499)、エンコーディングエラー (500-599)
 
 ## 4. ビルド統合
 
@@ -86,7 +87,7 @@ endif()
 
 | 課題 | 典型原因 | 対策 |
 | --- | --- | --- |
-| `terse_read_event` が常に `-ENOTSUP` を返す | `terse_platform_wait_for_input` / `read_byte` 未実装 | 該当関数を完全実装し、`errno` を正しく設定 |
+| `terse_read_event` が常に `TERSE_ERR_UNSUPPORTED` を返す | `terse_platform_wait_for_input` / `read_byte` 未実装 | 該当関数を完全実装し、適切な `terse_error_t` を返却 |
 | 端末終了後にカーソルが戻らない | `terse_platform_write_bytes` が部分書き込みを無視 | ループで全量書き込みを保証 |
 | サイズ取得が `known=0` のまま | `terse_platform_query_fd_size` 未対応 | OS のコンソール API やウィンドウマネージャ API を利用 |
 | DA2 応答が欠落する | 非同期読み取りが不足 | タイムアウトやリトライを調整し、必要なら OS イベントで待機 |

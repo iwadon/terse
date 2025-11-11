@@ -276,26 +276,25 @@ function setup_mouse_if_supported() {
 
 ### エラー分類
 
-ライブラリで扱うエラーは以下のカテゴリに分類される。C実装では `terse_get_last_error()` で `terse_error_info_t` を取得できる。
+ライブラリで扱うエラーは以下のカテゴリに分類される。C実装では `terse_get_last_error()` で `terse_error_t` を取得できる。
 
-1. **Transport層エラー**：物理的な入出力の失敗（例：`write(2)` の `EBADF`、`read(2)` の `EPIPE`）
-2. **プロトコルエラー**：端末との通信プロトコルの問題（P0では未使用）
-3. **リソースエラー**：メモリ不足、サイズ制限等（P0では未使用）
-4. **設定エラー**：不正な引数、未対応能力の要求等（`EINVAL` など）
-5. **状態エラー**：ライブラリの不正な状態での操作（`terse_get_last_error(NULL)` など）
+1. **引数/設定エラー**（1-99）：不正な引数、未対応能力の要求等（`TERSE_ERR_INVALID_ARGUMENT`、`TERSE_ERR_UNSUPPORTED` など）
+2. **状態エラー**（100-199）：ライブラリの不正な状態での操作（`TERSE_ERR_INVALID_HANDLE`、`TERSE_ERR_STACK_OVERFLOW` など）
+3. **I/O Transport層エラー**（200-299）：物理的な入出力の失敗（`TERSE_ERR_IO`、`TERSE_ERR_WOULD_BLOCK`、`TERSE_ERR_NOT_TTY`）
+4. **プロトコルエラー**（300-399）：端末との通信プロトコルの問題（`TERSE_ERR_PROTOCOL`）
+5. **リソースエラー**（400-499）：メモリ不足等（`TERSE_ERR_OUT_OF_MEMORY`）
+6. **エンコーディングエラー**（500-599）：文字コード変換問題（`TERSE_ERR_INVALID_ENCODING`、`TERSE_ERR_BUFFER_TOO_SMALL`）
 
-> **補足:** APIが成功した場合（`0`または正値）は `category=TERSE_ERROR_NONE` が保証される。機能無効化によるNo-opでもエラーはクリアされる。
-
-> **補足**: 戻り値が成功 (`0`/正値) の場合、`category=TERSE_ERROR_NONE` が保証される。機能無効化によるノーオペ時にもエラー状態はクリアされる。
+> **補足:** APIが成功した場合（`TERSE_OK`）はエラー状態がクリアされる。機能無効化によるNo-opでもエラーはクリアされる。
 
 ### Transport層エラー詳細
 
 | エラー種別 | 発生API | 原因 | 処理方針 |
 |-----------|---------|------|----------|
-| **送信失敗** | `write_text`, `move_to` 等の出力API | 接続切断、バッファー満杯、権限不足 | `TERSE_ERROR_TRANSPORT` を設定しエラー返却。部分送信は未定義動作 |
-| **受信失敗** | `read_event` | 接続切断、読み込みタイムアウト、信号割り込み | 信号割り込みは再試行、致命的な場合は `TERSE_ERROR_TRANSPORT` を設定して返却。EOF (`EPIPE`) と区別する |
+| **送信失敗** | `write_text`, `move_to` 等の出力API | 接続切断、バッファー満杯、権限不足 | `TERSE_ERR_IO` を設定しエラー返却。部分送信は未定義動作 |
+| **受信失敗** | `read_event` | 接続切断、読み込みタイムアウト、信号割り込み | 信号割り込みは再試行、致命的な場合は `TERSE_ERR_IO` を設定して返却。 |
 | **初期化失敗** | `open` | デバイスアクセス不可、端末モード設定失敗 | エラー返却。リソース確保前なので後始末不要 |
-| **終了処理失敗** | `close` | 復帰処理の部分的失敗 | 可能な限り継続実行。致命的な場合のみ `TERSE_ERROR_TRANSPORT` |
+| **終了処理失敗** | `close` | 復帰処理の部分的失敗 | 可能な限り継続実行。致命的な場合のみ `TERSE_ERR_IO` |
 
 ### 例外処理 vs エラーコード
 
@@ -307,9 +306,9 @@ function setup_mouse_if_supported() {
 - **None/Option**: タイムアウト、未検出状態（非エラー）
 
 #### エラーコードを使用する場合（C等）
-- **負値**: エラーコード（POSIX errno互換推奨）
-- **0**: 成功
-- **正値**: 有効なデータ、ハンドル等
+- **TERSE_OK (0)**: 成功
+- **正値 (terse_error_t 1以上)**: エラーコード
+- ポインタ返却: **NULL**: エラー、**非NULL**: 有効なハンドル等
 
 ### エラー復旧処理
 
@@ -1716,12 +1715,10 @@ terse_error_t terse_read_event(terse_t* term, int timeout_ms, terse_event_t* eve
     ssize_t n = read_with_timeout(term->fd, buffer, sizeof(buffer), timeout_ms);
 
     if (n == 0) {
-        return TERSE_ERROR_EOF;
+        return TERSE_ERR_IO;  // EOF
     } else if (n < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            return TERSE_OK;  // タイムアウト、event は NULL
-        }
-        return TERSE_ERROR_TRANSPORT;
+        // タイムアウト時は TERSE_ERR_WOULD_BLOCK を返却、event は NULL
+        return TERSE_ERR_WOULD_BLOCK;
     }
 
     return parse_event(buffer, n, event);

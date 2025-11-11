@@ -34,7 +34,7 @@ Terse is a C library for building portable terminal UI applications. It provides
 - **Handle**: Opaque `terse_handle_t` represents a terminal session
 - **Capabilities**: Runtime detection with graceful degradation
 - **State management**: Save/restore cursor position, visibility, and styles
-- **Error handling**: Negative `-errno` values with detailed error info
+- **Error handling**: Custom `terse_error_t` enum with categorized error codes
 
 ---
 
@@ -159,7 +159,7 @@ terse_close(handle);  // Always call on exit
 int terse_validate_options(const terse_options_t *options);
 ```
 
-Validates options before opening. Returns 0 on success, negative errno on error.
+Validates options before opening. Returns `TERSE_OK` on success, or a `terse_error_t` code on error.
 
 ---
 
@@ -167,36 +167,69 @@ Validates options before opening. Returns 0 on success, negative errno on error.
 
 ### Return Values
 
-Most functions return:
-- `0` or positive value on success
-- Negative `-errno` value on failure
+Most functions return a `terse_error_t` value:
+- `TERSE_OK` (0) on success
+- Non-zero `terse_error_t` error code on failure
 
-### Getting Error Details
+### Error Codes
 
 ```c
-terse_error_info_t terse_get_last_error(terse_handle_t handle);
+typedef enum terse_error {
+    TERSE_OK = 0,
+
+    /* Argument/Configuration Errors (1-99) */
+    TERSE_ERR_INVALID_ARGUMENT = 1,
+    TERSE_ERR_UNSUPPORTED = 2,
+    TERSE_ERR_OVERFLOW = 3,
+
+    /* State Errors (100-199) */
+    TERSE_ERR_INVALID_HANDLE = 100,
+    TERSE_ERR_NOT_IMPLEMENTED = 101,
+    TERSE_ERR_STACK_OVERFLOW = 102,
+    TERSE_ERR_STACK_UNDERFLOW = 103,
+
+    /* I/O Transport Errors (200-299) */
+    TERSE_ERR_IO = 200,
+    TERSE_ERR_WOULD_BLOCK = 201,
+    TERSE_ERR_NOT_TTY = 202,
+
+    /* Protocol Errors (300-399) */
+    TERSE_ERR_PROTOCOL = 300,
+
+    /* Resource Errors (400-499) */
+    TERSE_ERR_OUT_OF_MEMORY = 400,
+
+    /* Encoding Errors (500-599) */
+    TERSE_ERR_INVALID_ENCODING = 500,
+    TERSE_ERR_BUFFER_TOO_SMALL = 501,
+} terse_error_t;
 ```
 
-**Error Categories:**
+Error codes are organized into ranges by category:
+- **1-99**: Argument/configuration errors (invalid parameters, unsupported operations)
+- **100-199**: State errors (invalid handles, stack over/underflow)
+- **200-299**: I/O transport errors (I/O failures, blocking operations, TTY issues)
+- **300-399**: Protocol errors (terminal protocol violations)
+- **400-499**: Resource errors (memory allocation failures)
+- **500-599**: Encoding errors (charset conversion issues, buffer size problems)
+
+### Getting Last Error
+
 ```c
-typedef enum terse_error_category {
-    TERSE_ERROR_NONE = 0,
-    TERSE_ERROR_TRANSPORT,      // I/O errors
-    TERSE_ERROR_PROTOCOL,       // Terminal protocol errors
-    TERSE_ERROR_RESOURCE,       // Resource allocation failures
-    TERSE_ERROR_CONFIG,         // Invalid configuration
-    TERSE_ERROR_STATE,          // Invalid state operation
-    TERSE_ERROR_STACK_OVERFLOW, // State stack overflow
-    TERSE_ERROR_STACK_UNDERFLOW // State stack underflow
-} terse_error_category_t;
+terse_error_t terse_get_last_error(terse_handle_t handle);
 ```
+
+Returns the last error code that occurred on this handle, or `TERSE_OK` if no error.
 
 **Example:**
 ```c
-if (terse_move_to(handle, 10, 5) < 0) {
-    terse_error_info_t err = terse_get_last_error(handle);
-    fprintf(stderr, "move_to failed: category=%d, code=%d\n",
-            err.category, err.code);
+terse_error_t err = terse_move_to(handle, 10, 5);
+if (err != TERSE_OK) {
+    fprintf(stderr, "move_to failed: error code %d\n", err);
+
+    // Can also retrieve the last error later
+    terse_error_t last_err = terse_get_last_error(handle);
+    fprintf(stderr, "last error: %d\n", last_err);
 }
 ```
 
