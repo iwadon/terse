@@ -15,6 +15,7 @@ set(SAMPLES
 	line_edit_demo
 	mouse_click_demo
 	input_complete_demo
+	cursor_position_test
 )
 
 # Create executable for each sample
@@ -24,9 +25,13 @@ foreach(SAMPLE ${SAMPLES})
 	target_include_directories(${SAMPLE} PRIVATE ${CMAKE_SOURCE_DIR}/c/include)
 endforeach()
 
-# Human68k-specific benchmark (only built when targeting Human68k)
+# Human68k-specific programs (only built when targeting Human68k)
 if(TERSE_PLATFORM_HUMAN68K)
 	add_executable(bench_human68k bench_human68k.c)
 	target_link_libraries(bench_human68k PRIVATE terse)
 	target_include_directories(bench_human68k PRIVATE ${CMAKE_SOURCE_DIR}/c/include)
+
+	# Low-level cursor position debug tool (doesn't use terse)
+	add_executable(cursor_position_debug cursor_position_debug.c)
+	target_include_directories(cursor_position_debug PRIVATE ${CMAKE_SOURCE_DIR}/c/include)
 endif()
