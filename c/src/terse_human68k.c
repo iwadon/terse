@@ -6,11 +6,6 @@
 #include <x68k/dos.h>
 #include <x68k/iocs.h>
 
-/* EPROTO may not be defined on Human68k, use EIO as fallback */
-#ifndef EPROTO
-#define EPROTO EIO
-#endif
-
 terse_options_t
 terse_platform_default_options(void)
 {
@@ -62,74 +57,25 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 		return -EINVAL;
 	}
 
-	/* Send CPR (Cursor Position Report) request: CSI 6 n */
-	const char request[] = "\x1b[6n";
-	for (size_t i = 0; i < sizeof(request) - 1; i++) {
-		_dos_putchar((unsigned char)request[i]);
+	/*
+	 * Use Human68k native DOS call _dos_c_locate() to get cursor position.
+	 * When x == -1, it queries position without moving cursor.
+	 * Return value: upper 16 bits = column, lower 16 bits = row
+	 * Returns -1 on error.
+	 */
+	int result = _dos_c_locate(-1, 0);
+	if (result == -1) {
+		errno = EIO;
+		return -EIO;
 	}
 
-	/* Read response: CSI row ; col R */
-	unsigned char buffer[32];
-	size_t length = 0;
-	const int timeout_ms = 200;
-	const int poll_interval = 10;  /* Poll every 10ms */
-	int elapsed = 0;
+	/* Extract position from packed result */
+	int col = (result >> 16) & 0xFFFF;  /* Upper 16 bits: column */
+	int row = result & 0xFFFF;           /* Lower 16 bits: row */
 
-	while (length < sizeof(buffer) && elapsed < timeout_ms) {
-		/* Check if input is available */
-		if (_dos_keysns() != 0) {
-			int ch = _dos_inkey();
-			buffer[length++] = (unsigned char)(ch & 0xFF);
-
-			/* Check if we have a complete response (ends with 'R') */
-			if (buffer[length - 1] == 'R') {
-				break;
-			}
-		} else {
-			/* No input available, wait a bit */
-			usleep(poll_interval * 1000);
-			elapsed += poll_interval;
-		}
-	}
-
-	/* Check if we got any response */
-	if (length == 0) {
-		/* No response - terminal doesn't support CPR or timeout */
-		errno = ENOTSUP;
-		return -ENOTSUP;
-	}
-
-	/* Parse response: ESC [ row ; col R */
-	if (length < 6 || buffer[0] != 0x1b || buffer[1] != '[' || buffer[length - 1] != 'R') {
-		/* Invalid response format - possibly not supported or corrupted */
-		errno = EPROTO;
-		return -EPROTO;
-	}
-
-	/* Parse row and col */
-	int row = 0, col = 0;
-	size_t i = 2;
-	while (i < length && buffer[i] >= '0' && buffer[i] <= '9') {
-		row = row * 10 + (buffer[i] - '0');
-		i++;
-	}
-	if (i >= length || buffer[i] != ';') {
-		errno = EPROTO;
-		return -EPROTO;
-	}
-	i++; /* skip ';' */
-	while (i < length && buffer[i] >= '0' && buffer[i] <= '9') {
-		col = col * 10 + (buffer[i] - '0');
-		i++;
-	}
-	if (i >= length || buffer[i] != 'R') {
-		errno = EPROTO;
-		return -EPROTO;
-	}
-
-	/* Terminal returns 1-based coordinates, convert to 0-based */
-	*out_row = row - 1;
-	*out_col = col - 1;
+	/* _dos_c_locate returns 0-based coordinates (already correct) */
+	*out_row = row;
+	*out_col = col;
 	return 0;
 }
 
