@@ -69,7 +69,7 @@ terse_error_t terse_platform_query_cursor_position(int input_fd, int output_fd, 
 		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 
-/* Get cursor position */
+	/* Get cursor position */
 	int result = _dos_c_locate(-1, 0);
 	if (result == -1) {
 		errno = EIO;
