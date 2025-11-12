@@ -6,6 +6,7 @@ set(SAMPLES
 	p0_demo
 	p1_color_demo
 	p1_style_demo
+	event_logger_demo_human68k
 )
 else()
 set(SAMPLES
