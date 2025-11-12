@@ -2382,7 +2382,7 @@ apply_runtime_overrides(terse_handle_t handle)
 terse_error_t terse_capabilities_enable(terse_handle_t handle, unsigned int enable_mask)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (enable_mask == 0) {
@@ -2398,7 +2398,7 @@ terse_error_t terse_capabilities_enable(terse_handle_t handle, unsigned int enab
 terse_error_t terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (disable_mask == 0) {
@@ -2414,7 +2414,7 @@ terse_error_t terse_capabilities_disable(terse_handle_t handle, unsigned int dis
 terse_error_t terse_capabilities_reset_overrides(terse_handle_t handle)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	handle->runtime_enabled = 0;
@@ -2426,7 +2426,7 @@ terse_error_t terse_capabilities_reset_overrides(terse_handle_t handle)
 terse_error_t terse_keyboard_enable(terse_handle_t handle, unsigned int feature_mask)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (feature_mask == 0) {
@@ -2463,7 +2463,7 @@ terse_error_t terse_keyboard_enable(terse_handle_t handle, unsigned int feature_
 terse_error_t terse_keyboard_disable(terse_handle_t handle, unsigned int feature_mask)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (feature_mask == 0) {
@@ -2513,7 +2513,7 @@ unsigned int terse_keyboard_get_supported(terse_handle_t handle)
 terse_error_t terse_state_override(terse_handle_t handle, const terse_state_t *state)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!state) {
@@ -2551,7 +2551,7 @@ terse_error_t terse_state_override(terse_handle_t handle, const terse_state_t *s
 terse_error_t terse_state_clear(terse_handle_t handle)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	handle->cursor_known = 0;
@@ -2613,7 +2613,7 @@ static int
 write_literal(terse_handle_t handle, const char *literal)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!literal) {
@@ -2914,7 +2914,7 @@ function_number_from_code(int code)
 terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!handle->capabilities.has_clear_screen) {
@@ -2953,7 +2953,7 @@ terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!handle->capabilities.has_clear_line) {
@@ -2992,7 +2992,7 @@ terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 terse_error_t terse_move_to(terse_handle_t handle, int row, int col)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!handle->capabilities.has_move_absolute) {
@@ -3039,7 +3039,7 @@ terse_error_t terse_move_to(terse_handle_t handle, int row, int col)
 terse_error_t terse_move_by(terse_handle_t handle, int drow, int dcol)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!handle->capabilities.has_move_relative) {
@@ -3123,7 +3123,7 @@ terse_error_t terse_move_by(terse_handle_t handle, int drow, int dcol)
 terse_error_t terse_show_cursor(terse_handle_t handle, int visible)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!handle->capabilities.has_cursor_visibility) {
@@ -3314,7 +3314,7 @@ emit_style_sequence(terse_handle_t handle, const terse_style_t *style)
 terse_error_t terse_set_style(terse_handle_t handle, const terse_style_t *style)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!style) {
@@ -3370,7 +3370,7 @@ write_reset_sequence(terse_handle_t handle, terse_reset_scope_t scope)
 terse_error_t terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (scope < TERSE_RESET_ALL || scope > TERSE_RESET_EFFECTS_ONLY) {
@@ -3470,7 +3470,7 @@ clamp_mouse_mode(terse_mouse_mode_t requested, terse_mouse_mode_t available)
 terse_error_t terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (mode <= TERSE_MOUSE_NONE || mode > TERSE_MOUSE_SGR) {
@@ -3509,7 +3509,7 @@ terse_error_t terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode)
 terse_error_t terse_disable_mouse(terse_handle_t handle)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!handle->mouse_enabled) {
@@ -3538,7 +3538,7 @@ set_bracketed_paste(terse_handle_t handle, int enable)
 terse_error_t terse_enable_bracketed_paste(terse_handle_t handle)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!handle->capabilities.has_bracketed_paste || !handle->capabilities.has_basic_output) {
@@ -3561,7 +3561,7 @@ terse_error_t terse_enable_bracketed_paste(terse_handle_t handle)
 terse_error_t terse_disable_bracketed_paste(terse_handle_t handle)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!handle->paste_enabled) {
@@ -3581,7 +3581,7 @@ terse_error_t terse_disable_bracketed_paste(terse_handle_t handle)
 terse_error_t terse_set_title(terse_handle_t handle, const char *title)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!title) {
@@ -3607,7 +3607,7 @@ terse_error_t terse_set_title(terse_handle_t handle, const char *title)
 terse_error_t terse_set_hyperlink(terse_handle_t handle, const char *url, const char *label)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!url) {
@@ -3642,7 +3642,7 @@ terse_error_t terse_set_hyperlink(terse_handle_t handle, const char *url, const 
 terse_error_t terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, int blinking)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (shape < TERSE_CURSOR_SHAPE_DEFAULT || shape > TERSE_CURSOR_SHAPE_BAR) {
@@ -3685,7 +3685,7 @@ terse_error_t terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t
 terse_error_t terse_set_clipboard(terse_handle_t handle, const char *data)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!data) {
@@ -3737,7 +3737,7 @@ terse_error_t terse_display_image_inline(terse_handle_t handle, const unsigned c
 terse_error_t terse_display_image(terse_handle_t handle, const terse_image_request_t *request)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!request) {
@@ -3837,7 +3837,7 @@ terse_error_t terse_display_image(terse_handle_t handle, const terse_image_reque
 terse_error_t terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const char *payload)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	unsigned int required = 0;
@@ -3895,7 +3895,7 @@ terse_error_t terse_notify(terse_handle_t handle, terse_notification_kind_t kind
 terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!graphemes) {
@@ -3981,7 +3981,7 @@ terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 terse_error_t terse_flush(terse_handle_t handle)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	clear_error(handle);
@@ -4128,7 +4128,7 @@ handle_escape_prefixed_char(terse_handle_t handle, terse_event_t *event, const u
 terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!out_event) {
@@ -4541,7 +4541,7 @@ terse_cursor_position_t
 terse_get_cursor_position(terse_handle_t handle)
 {
 	terse_cursor_position_t unknown = make_unknown_cursor_position();
-	if (ensure_handle(handle) < 0) {
+	if (ensure_handle(handle) != 0) {
 		return unknown;
 	}
 	if (!handle->capabilities.has_basic_output) {
@@ -4549,13 +4549,13 @@ terse_get_cursor_position(terse_handle_t handle)
 		return unknown;
 	}
 
-	int row, col;
+	int row = 0, col = 0;
 	int rc = terse_platform_query_cursor_position(handle->options.input_fd,
 	                                              handle->options.output_fd,
 	                                              &row, &col);
-	if (rc < 0) {
+	if (rc != 0) {
 		// rc is already a terse_error_t
-		set_error(handle, (terse_error_t)(-rc));
+		set_error(handle, (terse_error_t)rc);
 		return unknown;
 	}
 
@@ -4567,7 +4567,7 @@ terse_get_cursor_position(terse_handle_t handle)
 terse_error_t terse_get_options(terse_handle_t handle, terse_options_t *out_options)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!out_options) {
@@ -4592,7 +4592,7 @@ terse_get_last_error(terse_handle_t handle)
 terse_error_t terse_capture_state(terse_handle_t handle, terse_state_t *out_state)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!out_state) {
@@ -4613,7 +4613,7 @@ terse_error_t terse_capture_state(terse_handle_t handle, terse_state_t *out_stat
 terse_error_t terse_restore_state(terse_handle_t handle, const terse_state_t *state)
 {
 	int rc = ensure_handle(handle);
-	if (rc < 0) {
+	if (rc != 0) {
 		return rc;
 	}
 	if (!state) {
