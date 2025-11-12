@@ -238,7 +238,8 @@ int main(void)
 		if ((keysns & 0x00ff) == 0) {
 			_iocs_b_keyinp(); /* ダミー読み取り */
 			if (!is_modifier_key(keysns)) {
-				print_key_info(keysns, 0, NULL, len);
+				unsigned int mod = _iocs_b_sftsns();
+				print_key_info(keysns, mod, NULL, len);
 			}
 			continue;
 		}
