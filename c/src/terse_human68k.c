@@ -92,7 +92,7 @@ terse_error_t terse_platform_wait_for_input(int fd, int timeout_ms)
 
 	if (timeout_ms < 0) {
 		/* Infinite wait - block until input available */
-		while (_dos_keysns() == 0) {
+		while (_iocs_b_keysns() == 0) {
 			/* Busy wait - could add sleep here if available */
 			usleep(10000); /* Sleep 10ms to reduce CPU usage */
 		}
@@ -104,7 +104,7 @@ terse_error_t terse_platform_wait_for_input(int fd, int timeout_ms)
 	const int poll_interval = 10; /* Poll every 10ms */
 
 	while (elapsed < timeout_ms) {
-		if (_dos_keysns() != 0) {
+		if (_iocs_b_keysns() != 0) {
 			return 1; /* Input available */
 		}
 		usleep(poll_interval * 1000);
