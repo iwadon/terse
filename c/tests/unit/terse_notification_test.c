@@ -140,7 +140,7 @@ TEST(TerseNotification, DesktopRejectsInvalidPayload)
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
 	EXPECT_TRUE(handle != NULL);
-	EXPECT_EQ(-EINVAL, terse_notify(handle, TERSE_NOTIFICATION_KIND_DESKTOP, "bad\x1bpayload"));
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_notify(handle, TERSE_NOTIFICATION_KIND_DESKTOP, "bad\x1bpayload"));
 	expect_pipe_empty(out_pipe[0]);
 	terse_close(handle);
 	close(out_pipe[0]);

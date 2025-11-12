@@ -588,13 +588,13 @@ TEST(TerseReadEvent, ReturnsEINVAL_OnNullArguments)
 {
 	terse_event_t event;
 	errno = 0;
-	EXPECT_EQ(-EINVAL, terse_read_event(NULL, 0, &event));
+	EXPECT_EQ(TERSE_ERR_INVALID_HANDLE, terse_read_event(NULL, 0, &event));
 	EXPECT_EQ(EINVAL, errno);
 
 	errno = 0;
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
 	EXPECT_TRUE(handle != NULL);
-	EXPECT_EQ(-EINVAL, terse_read_event(handle, 0, NULL));
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_read_event(handle, 0, NULL));
 	EXPECT_EQ(EINVAL, errno);
 	terse_close(handle);
 }

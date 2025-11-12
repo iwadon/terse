@@ -2032,16 +2032,16 @@ send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t
 		set_error(handle, TERSE_ERR_OVERFLOW);
 		return TERSE_ERR_OVERFLOW;
 	}
-	if (write_sequence(handle, header, (size_t)header_len) < 0) {
+	if (write_sequence(handle, header, (size_t)header_len) != 0) {
 		free(data_encoded);
 		return handle->last_error;
 	}
-	if (write_sequence(handle, data_encoded, data_len) < 0) {
+	if (write_sequence(handle, data_encoded, data_len) != 0) {
 		free(data_encoded);
 		return handle->last_error;
 	}
 	free(data_encoded);
-	if (write_literal(handle, "\x07") < 0) {
+	if (write_literal(handle, "\x07") != 0) {
 		return handle->last_error;
 	}
 	clear_error(handle);
@@ -2054,7 +2054,7 @@ send_sixel_image(terse_handle_t handle, const unsigned char *data, size_t size, 
 	(void)name;
 	static const char prefix[] = "\x1bPq";
 	static const char suffix[] = "\x1b\\";
-	if (write_sequence(handle, prefix, sizeof(prefix) - 1) < 0) {
+	if (write_sequence(handle, prefix, sizeof(prefix) - 1) != 0) {
 		return handle->last_error;
 	}
 	const size_t chunk_size = 1024;
@@ -2062,12 +2062,12 @@ send_sixel_image(terse_handle_t handle, const unsigned char *data, size_t size, 
 	while (offset < size) {
 		size_t remaining = size - offset;
 		size_t to_write = remaining > chunk_size ? chunk_size : remaining;
-		if (write_sequence(handle, (const char *)data + offset, to_write) < 0) {
+		if (write_sequence(handle, (const char *)data + offset, to_write) != 0) {
 			return handle->last_error;
 		}
 		offset += to_write;
 	}
-	if (write_sequence(handle, suffix, sizeof(suffix) - 1) < 0) {
+	if (write_sequence(handle, suffix, sizeof(suffix) - 1) != 0) {
 		return handle->last_error;
 	}
 	clear_error(handle);
@@ -2086,17 +2086,17 @@ send_kitty_image(terse_handle_t handle, const unsigned char *data, size_t size, 
 		return TERSE_ERR_OUT_OF_MEMORY;
 	}
 	const char prefix[] = "\x1b_Ga=T,f=100,m=1;";
-	if (write_sequence(handle, prefix, sizeof(prefix) - 1) < 0) {
+	if (write_sequence(handle, prefix, sizeof(prefix) - 1) != 0) {
 		free(encoded);
 		return handle->last_error;
 	}
-	if (write_sequence(handle, encoded, encoded_len) < 0) {
+	if (write_sequence(handle, encoded, encoded_len) != 0) {
 		free(encoded);
 		return handle->last_error;
 	}
 	free(encoded);
 	const char suffix[] = "\x1b\\";
-	if (write_sequence(handle, suffix, sizeof(suffix) - 1) < 0) {
+	if (write_sequence(handle, suffix, sizeof(suffix) - 1) != 0) {
 		return handle->last_error;
 	}
 	clear_error(handle);
@@ -2252,7 +2252,7 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	if (requested_profile != TERSE_PROFILE_AUTO && (requested_profile < TERSE_P0 || requested_profile > TERSE_P3)) {
 		return NULL;
 	}
-	if (terse_validate_options(options) < 0) {
+	if (terse_validate_options(options) != 0) {
 		return NULL;
 	}
 
@@ -2367,7 +2367,7 @@ ensure_handle(terse_handle_t handle)
 {
 	if (!handle) {
 		errno = EINVAL;
-		return TERSE_ERR_INVALID_ARGUMENT;
+		return TERSE_ERR_INVALID_HANDLE;
 	}
 	return 0;
 }
@@ -2445,13 +2445,13 @@ terse_error_t terse_keyboard_enable(terse_handle_t handle, unsigned int feature_
 	}
 	if (to_enable & TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS) {
 		rc = write_literal(handle, TERSE_MODIFY_OTHER_KEYS_ENABLE_SEQ);
-		if (rc < 0) {
+		if (rc != 0) {
 			return rc;
 		}
 	}
 	if (to_enable & TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL) {
 		rc = write_literal(handle, TERSE_KITTY_PROTOCOL_ENABLE_SEQ);
-		if (rc < 0) {
+		if (rc != 0) {
 			return rc;
 		}
 	}
@@ -2478,13 +2478,13 @@ terse_error_t terse_keyboard_disable(terse_handle_t handle, unsigned int feature
 	if (handle->capabilities.has_basic_output) {
 		if (to_disable & TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS) {
 			rc = write_literal(handle, TERSE_MODIFY_OTHER_KEYS_DISABLE_SEQ);
-			if (rc < 0) {
+			if (rc != 0) {
 				return rc;
 			}
 		}
 		if (to_disable & TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL) {
 			rc = write_literal(handle, TERSE_KITTY_PROTOCOL_DISABLE_SEQ);
-			if (rc < 0) {
+			if (rc != 0) {
 				return rc;
 			}
 		}
@@ -3269,7 +3269,7 @@ static int
 emit_style_sequence(terse_handle_t handle, const terse_style_t *style)
 {
 	int reset = write_literal(handle, "\x1b[0m");
-	if (reset < 0) {
+	if (reset != 0) {
 		return reset;
 	}
 	if (style->effects == 0 && style->foreground.kind == TERSE_COLOR_KIND_DEFAULT && style->background.kind == TERSE_COLOR_KIND_DEFAULT) {
@@ -3451,7 +3451,7 @@ set_mouse_mode(terse_handle_t handle, terse_mouse_mode_t mode, int enable)
 	}
 	const char *const *seqs = enable ? enable_seqs[index] : disable_seqs[index];
 	for (int i = 0; i < 2 && seqs[i]; ++i) {
-		if (write_literal(handle, seqs[i]) < 0) {
+		if (write_literal(handle, seqs[i]) != 0) {
 			return handle->last_error;
 		}
 	}
@@ -3591,13 +3591,13 @@ terse_error_t terse_set_title(terse_handle_t handle, const char *title)
 		clear_error(handle);
 		return 0;
 	}
-	if (write_literal(handle, "\x1b]0;") < 0) {
+	if (write_literal(handle, "\x1b]0;") != 0) {
 		return handle->last_error;
 	}
-	if (write_sequence(handle, title, strlen(title)) < 0) {
+	if (write_sequence(handle, title, strlen(title)) != 0) {
 		return handle->last_error;
 	}
-	if (write_literal(handle, "\x07") < 0) {
+	if (write_literal(handle, "\x07") != 0) {
 		return handle->last_error;
 	}
 	clear_error(handle);
@@ -3620,19 +3620,19 @@ terse_error_t terse_set_hyperlink(terse_handle_t handle, const char *url, const 
 		clear_error(handle);
 		return 0;
 	}
-	if (write_literal(handle, "\x1b]8;;") < 0) {
+	if (write_literal(handle, "\x1b]8;;") != 0) {
 		return handle->last_error;
 	}
-	if (write_sequence(handle, url, strlen(url)) < 0) {
+	if (write_sequence(handle, url, strlen(url)) != 0) {
 		return handle->last_error;
 	}
-	if (write_literal(handle, "\x07") < 0) {
+	if (write_literal(handle, "\x07") != 0) {
 		return handle->last_error;
 	}
-	if (write_sequence(handle, label, strlen(label)) < 0) {
+	if (write_sequence(handle, label, strlen(label)) != 0) {
 		return handle->last_error;
 	}
-	if (write_literal(handle, "\x1b]8;;\x07") < 0) {
+	if (write_literal(handle, "\x1b]8;;\x07") != 0) {
 		return handle->last_error;
 	}
 	clear_error(handle);
@@ -3704,16 +3704,16 @@ terse_error_t terse_set_clipboard(terse_handle_t handle, const char *data)
 		set_error(handle, TERSE_ERR_OUT_OF_MEMORY);
 		return TERSE_ERR_OUT_OF_MEMORY;
 	}
-	if (write_literal(handle, "\x1b]52;;") < 0) {
+	if (write_literal(handle, "\x1b]52;;") != 0) {
 		free(encoded);
 		return handle->last_error;
 	}
-	if (write_sequence(handle, encoded, encoded_len) < 0) {
+	if (write_sequence(handle, encoded, encoded_len) != 0) {
 		free(encoded);
 		return handle->last_error;
 	}
 	free(encoded);
-	if (write_literal(handle, "\x07") < 0) {
+	if (write_literal(handle, "\x07") != 0) {
 		return handle->last_error;
 	}
 	clear_error(handle);
@@ -3866,26 +3866,26 @@ terse_error_t terse_notify(terse_handle_t handle, terse_notification_kind_t kind
 			set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
 			return TERSE_ERR_INVALID_ARGUMENT;
 		}
-		if (write_literal(handle, "\x1b]9;1;") < 0) {
+		if (write_literal(handle, "\x1b]9;1;") != 0) {
 			return handle->last_error;
 		}
-		if (write_sequence(handle, payload, strlen(payload)) < 0) {
+		if (write_sequence(handle, payload, strlen(payload)) != 0) {
 			return handle->last_error;
 		}
-		if (write_literal(handle, "\x07") < 0) {
+		if (write_literal(handle, "\x07") != 0) {
 			return handle->last_error;
 		}
 		clear_error(handle);
 		return 0;
 	}
 	if (kind == TERSE_NOTIFICATION_KIND_VISUAL) {
-		if (write_literal(handle, "\x1b[?5h\x1b[?5l") < 0) {
+		if (write_literal(handle, "\x1b[?5h\x1b[?5l") != 0) {
 			return handle->last_error;
 		}
 		clear_error(handle);
 		return 0;
 	}
-	if (write_literal(handle, "\x07") < 0) {
+	if (write_literal(handle, "\x07") != 0) {
 		return handle->last_error;
 	}
 	clear_error(handle);
@@ -3943,7 +3943,7 @@ terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 			size_t iconv_rc = iconv(handle->utf8_to_codec, &in_ptr, &local_in_left, &out_ptr, &out_left);
 			size_t produced = (size_t)(out_ptr - (char *)outbuf);
 			if (produced > 0) {
-				if (write_sequence(handle, (const char *)outbuf, produced) < 0) {
+				if (write_sequence(handle, (const char *)outbuf, produced) != 0) {
 					return handle->last_error;
 				}
 			}
@@ -3959,7 +3959,7 @@ terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 						in_left--;
 					}
 					const char replacement = '?';
-					if (write_sequence(handle, &replacement, 1) < 0) {
+					if (write_sequence(handle, &replacement, 1) != 0) {
 						return handle->last_error;
 					}
 					reset_iconv_state(handle->utf8_to_codec);
@@ -4037,7 +4037,7 @@ static int
 read_input_byte(terse_handle_t handle, int timeout_ms, unsigned char *out)
 {
 	if (!handle || !out) {
-		return TERSE_ERR_INVALID_ARGUMENT;
+		return -TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if (handle->has_pending_byte) {
 		*out = handle->pending_byte;
@@ -4055,7 +4055,7 @@ read_input_byte(terse_handle_t handle, int timeout_ms, unsigned char *out)
 	ssize_t n = terse_platform_read_byte(fd, out);
 	if (n == 0) {
 		errno = EPIPE;
-		return -EPIPE;
+		return -TERSE_ERR_IO;
 	}
 	if (n < 0) {
 		return (int)n;
@@ -4166,9 +4166,9 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 		return TERSE_EVENT_NONE;
 	}
 	if (rc < 0) {
-		// rc is already a terse_error_t
+		// rc is negative terse_error_t, convert to positive
 		set_error(handle, (terse_error_t)(-rc));
-		return rc;
+		return (terse_error_t)(-rc);
 	}
 
 	switch (first) {
@@ -4176,9 +4176,9 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 		unsigned char next = 0;
 		int peek = read_input_byte(handle, 0, &next);
 		if (peek < 0) {
-			// peek is already a terse_error_t
+			// peek is negative terse_error_t, convert to positive
 			set_error(handle, (terse_error_t)(-peek));
-			return peek;
+			return (terse_error_t)(-peek);
 		}
 		if (peek > 0 && next == '\n') {
 			// Consume \r\n as Enter
