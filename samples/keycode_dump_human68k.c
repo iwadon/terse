@@ -223,8 +223,6 @@ static int is_modifier_key(unsigned int keysns)
 
 int main(void)
 {
-	unsigned int count = 0;
-
 	while (1) {
 		/* キーの入力状態を調べる */
 		int keysns = _iocs_b_keysns();
