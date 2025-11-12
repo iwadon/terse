@@ -23,20 +23,31 @@ terse_size_t terse_platform_query_fd_size(int fd)
 	(void)fd; /* Human68k doesn't use fd for console I/O */
 
 	/* Get current screen mode */
+	terse_size_t size;
 	int mode = _dos_c_width(-1);
 	switch (mode) {
 	case 0: /* 768x512 no graphics _CRTMOD=16 */
 	case 1: /* 768x512 16-color graphics _CRTMOD=16 */
-		return (terse_size_t) { .rows = 32, .cols = 96, .known = 1 };
+		size = (terse_size_t) { .rows = 32, .cols = 96, .known = 1 };
+		break;
 	case 2: /* 512x512 no graphics _CRTMOD=4 */
 	case 3: /* 512x512 16-color graphics _CRTMOD=4 */
 	case 4: /* 512x512 256-color graphics _CRTMOD=8 */
 	case 5: /* 512x512 65536-color graphics _CRTMOD=12 */
-		return (terse_size_t) { .rows = 32, .cols = 64, .known = 1 };
+		size = (terse_size_t) { .rows = 32, .cols = 64, .known = 1 };
+		break;
 	default:
 		/* Return default for unknown mode */
-		return (terse_size_t) { .rows = 31, .cols = 96, .known = 1 };
+		size = (terse_size_t) { .rows = 32, .cols = 96, .known = 1 };
 	}
+
+	int fnkmod = _dos_c_fnkmod(-1);
+	/* If fnkmod is 3, it's 32-row mode; otherwise, it's 31-row mode. */
+	if (fnkmod != 3) {
+		size.rows = 31;
+	}
+
+	return size;
 }
 
 size_t terse_platform_probe_secondary_da(int input_fd, int output_fd, unsigned char *buffer, size_t capacity)
