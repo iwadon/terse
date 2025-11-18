@@ -157,49 +157,14 @@ terse_platform_query_fd_size(int fd)
 size_t
 terse_platform_probe_secondary_da(int input_fd, int output_fd, unsigned char *buffer, size_t capacity)
 {
-	if (!buffer || capacity == 0) {
-		return 0;
-	}
-
-	HANDLE input_handle = get_console_handle(input_fd);
-	HANDLE output_handle = get_console_handle(output_fd);
-
-	if (!is_console_handle(input_handle) || !is_console_handle(output_handle)) {
-		return 0;
-	}
-
-	// Save current console mode
-	DWORD original_input_mode, original_output_mode;
-	if (!GetConsoleMode(input_handle, &original_input_mode) ||
-	    !GetConsoleMode(output_handle, &original_output_mode)) {
-		return 0;
-	}
-
-	// Set raw mode for probing
-	DWORD raw_input_mode = ENABLE_VIRTUAL_TERMINAL_INPUT;
-	DWORD raw_output_mode = ENABLE_VIRTUAL_TERMINAL_PROCESSING | DISABLE_NEWLINE_AUTO_RETURN;
-	if (!SetConsoleMode(input_handle, raw_input_mode) ||
-	    !SetConsoleMode(output_handle, raw_output_mode)) {
-		return 0;
-	}
-
-	// Send Secondary DA request: ESC [ > 0 c
-	const char request[] = "\x1b[>0c";
-	DWORD written;
-	if (!WriteFile(output_handle, request, sizeof(request) - 1, &written, NULL)) {
-		SetConsoleMode(input_handle, original_input_mode);
-		SetConsoleMode(output_handle, original_output_mode);
-		return 0;
-	}
-
-	// Read response with timeout
-	size_t length = read_bytes_with_timeout(input_fd, buffer, capacity, 200);
-
-	// Restore console modes
-	SetConsoleMode(input_handle, original_input_mode);
-	SetConsoleMode(output_handle, original_output_mode);
-
-	return length;
+	// Windows Console does not respond to Secondary DA (ESC [ > 0 c)
+	// and the probe sequence would be displayed as raw text.
+	// Since Windows Console is a well-known environment, we skip the probe.
+	(void)input_fd;
+	(void)output_fd;
+	(void)buffer;
+	(void)capacity;
+	return 0;
 }
 
 terse_error_t
