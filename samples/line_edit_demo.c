@@ -3,14 +3,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include <windows.h>
+
+static DWORD g_original_input_mode = 0;
+static DWORD g_original_output_mode = 0;
+static UINT g_original_cp = 0;
+static UINT g_original_output_cp = 0;
+static int g_raw_installed = 0;
+#else
 #include <termios.h>
 #include <unistd.h>
 
-#define BUFFER_CAPACITY 1024
-#define UTF8_BUFFER_CAPACITY (BUFFER_CAPACITY * 4 + 1)
-
 static struct termios g_original_termios;
 static int g_raw_installed = 0;
+#endif
+
+#define BUFFER_CAPACITY 1024
+#define UTF8_BUFFER_CAPACITY (BUFFER_CAPACITY * 4 + 1)
 
 typedef struct glyph {
 	unsigned int scalar;
@@ -24,6 +35,88 @@ typedef struct line_buffer {
 	size_t length; // glyph count
 	size_t cursor; // glyph index
 } line_buffer_t;
+
+#ifdef _WIN32
+
+static void restore_terminal(void)
+{
+	if (g_raw_installed) {
+		HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+		HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+		SetConsoleMode(hStdin, g_original_input_mode);
+		SetConsoleMode(hStdout, g_original_output_mode);
+
+		/* Restore original code pages */
+		if (g_original_cp != 0) {
+			SetConsoleCP(g_original_cp);
+		}
+		if (g_original_output_cp != 0) {
+			SetConsoleOutputCP(g_original_output_cp);
+		}
+
+		g_raw_installed = 0;
+	}
+}
+
+static int install_raw_terminal(void)
+{
+	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+	HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+
+	if (hStdin == INVALID_HANDLE_VALUE || hStdout == INVALID_HANDLE_VALUE) {
+		fprintf(stderr, "GetStdHandle failed\n");
+		return -1;
+	}
+
+	/* Save and set console code page to UTF-8 for proper Unicode handling */
+	g_original_cp = GetConsoleCP();
+	g_original_output_cp = GetConsoleOutputCP();
+
+	if (!SetConsoleCP(65001)) {
+		fprintf(stderr, "Warning: SetConsoleCP(65001) failed (error %lu)\n", GetLastError());
+	}
+	if (!SetConsoleOutputCP(65001)) {
+		fprintf(stderr, "Warning: SetConsoleOutputCP(65001) failed (error %lu)\n", GetLastError());
+	}
+
+	if (!GetConsoleMode(hStdin, &g_original_input_mode)) {
+		fprintf(stderr, "GetConsoleMode(input) failed (error %lu)\n", GetLastError());
+		return -1;
+	}
+
+	if (!GetConsoleMode(hStdout, &g_original_output_mode)) {
+		fprintf(stderr, "GetConsoleMode(output) failed (error %lu)\n", GetLastError());
+		return -1;
+	}
+
+	/* Setup input mode: disable line input, echo, processed input, and quick edit */
+	DWORD dwInputMode = g_original_input_mode & ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT);
+	/* Disable quick edit mode to prevent Ctrl+A selection and allow mouse input */
+	dwInputMode = (dwInputMode | ENABLE_EXTENDED_FLAGS) & ~ENABLE_QUICK_EDIT_MODE;
+	/* NOTE: ENABLE_VIRTUAL_TERMINAL_INPUT breaks ReadConsoleInput() modifier detection
+	 * For now, keep it disabled to allow proper KEY_EVENT_RECORD handling
+	 */
+	/* dwInputMode |= ENABLE_VIRTUAL_TERMINAL_INPUT; */
+
+	if (!SetConsoleMode(hStdin, dwInputMode)) {
+		fprintf(stderr, "SetConsoleMode(input) failed (error %lu)\n", GetLastError());
+		return -1;
+	}
+
+	/* Setup output mode: enable virtual terminal processing */
+	DWORD dwOutputMode = g_original_output_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+
+	if (!SetConsoleMode(hStdout, dwOutputMode)) {
+		fprintf(stderr, "SetConsoleMode(output) failed (error %lu)\n", GetLastError());
+		return -1;
+	}
+
+	g_raw_installed = 1;
+	atexit(restore_terminal);
+	return 0;
+}
+
+#else  /* POSIX */
 
 static void restore_terminal(void)
 {
@@ -52,6 +145,8 @@ static int install_raw_terminal(void)
 	atexit(restore_terminal);
 	return 0;
 }
+
+#endif  /* _WIN32 */
 
 static void print_error(terse_handle_t handle, const char *label)
 {
@@ -324,6 +419,15 @@ int main(int argc, char **argv)
 		}
 	}
 
+#ifdef _WIN32
+	terse_options_t options = {
+		.input_fd = 0,   /* stdin */
+		.output_fd = 1,  /* stdout */
+		.codec_name = codec,
+		.disabled_caps = 0,
+		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES | TERSE_CAP_ENABLE_BRACKETED_PASTE | TERSE_CAP_ENABLE_CURSOR_SHAPE
+	};
+#else
 	terse_options_t options = {
 		.input_fd = STDIN_FILENO,
 		.output_fd = STDOUT_FILENO,
@@ -331,6 +435,7 @@ int main(int argc, char **argv)
 		.disabled_caps = 0,
 		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES | TERSE_CAP_ENABLE_BRACKETED_PASTE | TERSE_CAP_ENABLE_CURSOR_SHAPE
 	};
+#endif
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
 	if (!handle) {
