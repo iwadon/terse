@@ -33,7 +33,7 @@ TEST(TerseFunctionKeys, F1_VT100_EscOP)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(1, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -54,7 +54,7 @@ TEST(TerseFunctionKeys, F2_VT100_EscOQ)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(2, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -75,7 +75,7 @@ TEST(TerseFunctionKeys, F3_VT100_EscOR)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(3, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -96,7 +96,7 @@ TEST(TerseFunctionKeys, F4_VT100_EscOS)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(4, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -118,7 +118,7 @@ TEST(TerseFunctionKeys, F1_xterm_Csi11Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(1, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -139,7 +139,7 @@ TEST(TerseFunctionKeys, F5_xterm_Csi15Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(5, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -160,7 +160,7 @@ TEST(TerseFunctionKeys, F6_xterm_Csi17Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(6, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -181,7 +181,7 @@ TEST(TerseFunctionKeys, F7_xterm_Csi18Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(7, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -202,7 +202,7 @@ TEST(TerseFunctionKeys, F10_xterm_Csi21Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(10, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -223,7 +223,7 @@ TEST(TerseFunctionKeys, F12_xterm_Csi24Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(12, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -245,7 +245,7 @@ TEST(TerseFunctionKeys, F1_LinuxConsole_EscBracketBracketA)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(1, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -266,7 +266,7 @@ TEST(TerseFunctionKeys, F2_LinuxConsole_EscBracketBracketB)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(2, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -287,7 +287,7 @@ TEST(TerseFunctionKeys, F5_LinuxConsole_EscBracketBracketE)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(5, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -308,7 +308,7 @@ TEST(TerseFunctionKeys, F10_LinuxConsole_EscBracketBracketJ)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(10, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -329,7 +329,7 @@ TEST(TerseFunctionKeys, F12_LinuxConsole_EscBracketBracketL)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(12, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -351,7 +351,7 @@ TEST(TerseFunctionKeys, ShiftF1_Csi11_2Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(1, event.data.function.number);
 	EXPECT_EQ(TERSE_MOD_SHIFT, event.data.function.mods);
@@ -372,7 +372,7 @@ TEST(TerseFunctionKeys, CtrlF5_Csi15_5Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(5, event.data.function.number);
 	EXPECT_EQ(TERSE_MOD_CTRL, event.data.function.mods);
@@ -393,7 +393,7 @@ TEST(TerseFunctionKeys, AltF10_Csi21_3Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(10, event.data.function.number);
 	EXPECT_EQ(TERSE_MOD_ALT, event.data.function.mods);
@@ -414,7 +414,7 @@ TEST(TerseFunctionKeys, ShiftAltF12_Csi24_4Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(12, event.data.function.number);
 	EXPECT_EQ(TERSE_MOD_SHIFT | TERSE_MOD_ALT, event.data.function.mods);
@@ -435,7 +435,7 @@ TEST(TerseFunctionKeys, ShiftCtrlF7_Csi18_6Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(7, event.data.function.number);
 	EXPECT_EQ(TERSE_MOD_SHIFT | TERSE_MOD_CTRL, event.data.function.mods);
@@ -456,7 +456,7 @@ TEST(TerseFunctionKeys, CtrlAltF6_Csi17_7Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(6, event.data.function.number);
 	EXPECT_EQ(TERSE_MOD_ALT | TERSE_MOD_CTRL, event.data.function.mods);
@@ -477,7 +477,7 @@ TEST(TerseFunctionKeys, ShiftCtrlAltF11_Csi23_8Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(11, event.data.function.number);
 	EXPECT_EQ(TERSE_MOD_SHIFT | TERSE_MOD_ALT | TERSE_MOD_CTRL, event.data.function.mods);

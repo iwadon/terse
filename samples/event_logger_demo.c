@@ -322,7 +322,7 @@ int main(void)
 	while (1) {
 		terse_event_t event;
 		int rc = terse_read_event(handle, -1, &event);
-		if (rc == TERSE_EVENT_NONE) {
+		if (rc == TERSE_ERR_NO_EVENT) {
 			continue;
 		}
 		if (rc < 0) {

@@ -93,7 +93,7 @@ TEST(TerseMouse, GeneratesEvents_FromSgrSequences)
 	const char press_seq[] = "\x1b[<0;12;5M";
 	EXPECT_EQ((ssize_t)(sizeof(press_seq) - 1), write(in_pipe[1], press_seq, sizeof(press_seq) - 1));
 	terse_event_t ev;
-	EXPECT_EQ(TERSE_EVENT_OK, terse_read_event(handle, 10, &ev));
+	EXPECT_EQ(TERSE_OK, terse_read_event(handle, 10, &ev));
 	EXPECT_EQ(TERSE_EVENT_MOUSE_DOWN, ev.type);
 	EXPECT_EQ(TERSE_MOUSE_BUTTON_LEFT, ev.data.mouse.button);
 	EXPECT_EQ(4, ev.data.mouse.row);
@@ -101,7 +101,7 @@ TEST(TerseMouse, GeneratesEvents_FromSgrSequences)
 
 	const char move_seq[] = "\x1b[<32;13;6M";
 	EXPECT_EQ((ssize_t)(sizeof(move_seq) - 1), write(in_pipe[1], move_seq, sizeof(move_seq) - 1));
-	EXPECT_EQ(TERSE_EVENT_OK, terse_read_event(handle, 10, &ev));
+	EXPECT_EQ(TERSE_OK, terse_read_event(handle, 10, &ev));
 	EXPECT_EQ(TERSE_EVENT_MOUSE_MOVE, ev.type);
 	EXPECT_EQ(TERSE_MOUSE_BUTTON_LEFT, ev.data.mouse.button);
 	EXPECT_EQ(5, ev.data.mouse.row);
@@ -109,20 +109,20 @@ TEST(TerseMouse, GeneratesEvents_FromSgrSequences)
 
 	const char release_seq[] = "\x1b[<0;13;6m";
 	EXPECT_EQ((ssize_t)(sizeof(release_seq) - 1), write(in_pipe[1], release_seq, sizeof(release_seq) - 1));
-	EXPECT_EQ(TERSE_EVENT_OK, terse_read_event(handle, 10, &ev));
+	EXPECT_EQ(TERSE_OK, terse_read_event(handle, 10, &ev));
 	EXPECT_EQ(TERSE_EVENT_MOUSE_UP, ev.type);
 	EXPECT_EQ(TERSE_MOUSE_BUTTON_LEFT, ev.data.mouse.button);
 
 	// Terminal sends 1-based coords, so col=1, row=1 becomes (0, 0) after conversion
 	const char scroll_seq[] = "\x1b[<64;1;1M";
 	EXPECT_EQ((ssize_t)(sizeof(scroll_seq) - 1), write(in_pipe[1], scroll_seq, sizeof(scroll_seq) - 1));
-	EXPECT_EQ(TERSE_EVENT_OK, terse_read_event(handle, 10, &ev));
+	EXPECT_EQ(TERSE_OK, terse_read_event(handle, 10, &ev));
 	EXPECT_EQ(TERSE_EVENT_MOUSE_SCROLL, ev.type);
 	EXPECT_EQ(TERSE_MOUSE_BUTTON_SCROLL_UP, ev.data.mouse.button);
 
 	const char ctrl_press[] = "\x1b[<16;20;8M";
 	EXPECT_EQ((ssize_t)(sizeof(ctrl_press) - 1), write(in_pipe[1], ctrl_press, sizeof(ctrl_press) - 1));
-	EXPECT_EQ(TERSE_EVENT_OK, terse_read_event(handle, 10, &ev));
+	EXPECT_EQ(TERSE_OK, terse_read_event(handle, 10, &ev));
 	EXPECT_EQ(TERSE_EVENT_MOUSE_DOWN, ev.type);
 	EXPECT_TRUE(ev.data.mouse.mods & TERSE_MOD_CTRL);
 

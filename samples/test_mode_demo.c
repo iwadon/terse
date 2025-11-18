@@ -185,7 +185,7 @@ static void demo_mock_events(terse_handle_t handle)
 			printf("  [%d] Error reading event: %d\n", i + 1, rc);
 			continue;
 		}
-		if (rc == TERSE_EVENT_NONE) {
+		if (rc == TERSE_ERR_NO_EVENT) {
 			printf("  [%d] No event (timeout)\n", i + 1);
 			continue;
 		}

@@ -34,7 +34,7 @@ TEST(TerseReadEvent, ReturnsNone_OnTimeout)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 10, &event);
-	EXPECT_EQ(TERSE_EVENT_NONE, result);
+	EXPECT_EQ(TERSE_ERR_NO_EVENT, result);
 	terse_error_t err = terse_get_last_error(handle);
 	EXPECT_EQ(TERSE_OK, err);
 

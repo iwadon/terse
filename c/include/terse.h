@@ -257,10 +257,13 @@ typedef enum terse_mouse_button {
 typedef enum terse_error {
 	TERSE_OK = 0,
 
-	/* Argument/Configuration Errors (1-99) */
-	TERSE_ERR_INVALID_ARGUMENT = 1,
-	TERSE_ERR_UNSUPPORTED = 2,
-	TERSE_ERR_OVERFLOW = 3,
+	/* Special read_event results (1) */
+	TERSE_ERR_NO_EVENT = 1,
+
+	/* Argument/Configuration Errors (2-99) */
+	TERSE_ERR_INVALID_ARGUMENT = 2,
+	TERSE_ERR_UNSUPPORTED = 3,
+	TERSE_ERR_OVERFLOW = 4,
 
 	/* State Errors (100-199) */
 	TERSE_ERR_INVALID_HANDLE = 100,
@@ -350,11 +353,6 @@ typedef struct terse_event {
 		} raw;
 	} data;
 } terse_event_t;
-
-enum {
-	TERSE_EVENT_OK = 0,
-	TERSE_EVENT_NONE = 1
-};
 
 terse_handle_t terse_open(terse_profile_t requested_profile, const terse_options_t *options);
 void terse_close(terse_handle_t handle);

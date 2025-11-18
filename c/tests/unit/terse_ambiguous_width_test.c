@@ -36,7 +36,7 @@ TEST(TerseAmbiguousWidth, PlusMinusSign_Narrow)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x00B1U, event.data.ch.scalar);
 	EXPECT_EQ(1, event.data.ch.width);
@@ -58,7 +58,7 @@ TEST(TerseAmbiguousWidth, SectionSign_Narrow)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x00A7U, event.data.ch.scalar);
 	EXPECT_EQ(1, event.data.ch.width);
@@ -80,7 +80,7 @@ TEST(TerseAmbiguousWidth, PilcrowSign_Narrow)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x00B6U, event.data.ch.scalar);
 	EXPECT_EQ(1, event.data.ch.width);
@@ -102,7 +102,7 @@ TEST(TerseAmbiguousWidth, DegreeSign_Narrow)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x00B0U, event.data.ch.scalar);
 	EXPECT_EQ(1, event.data.ch.width);
@@ -124,7 +124,7 @@ TEST(TerseAmbiguousWidth, MultiplicationSign_Narrow)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x00D7U, event.data.ch.scalar);
 	EXPECT_EQ(1, event.data.ch.width);
@@ -146,7 +146,7 @@ TEST(TerseAmbiguousWidth, DivisionSign_Narrow)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x00F7U, event.data.ch.scalar);
 	EXPECT_EQ(1, event.data.ch.width);
@@ -170,7 +170,7 @@ TEST(TerseAmbiguousWidth, PlusMinusSign_Wide)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x00B1U, event.data.ch.scalar);
 	EXPECT_EQ(2, event.data.ch.width);
@@ -192,7 +192,7 @@ TEST(TerseAmbiguousWidth, SectionSign_Wide)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x00A7U, event.data.ch.scalar);
 	EXPECT_EQ(2, event.data.ch.width);
@@ -214,7 +214,7 @@ TEST(TerseAmbiguousWidth, PilcrowSign_Wide)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x00B6U, event.data.ch.scalar);
 	EXPECT_EQ(2, event.data.ch.width);
@@ -236,7 +236,7 @@ TEST(TerseAmbiguousWidth, DegreeSign_Wide)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x00B0U, event.data.ch.scalar);
 	EXPECT_EQ(2, event.data.ch.width);
@@ -258,7 +258,7 @@ TEST(TerseAmbiguousWidth, MultiplicationSign_Wide)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x00D7U, event.data.ch.scalar);
 	EXPECT_EQ(2, event.data.ch.width);
@@ -280,7 +280,7 @@ TEST(TerseAmbiguousWidth, DivisionSign_Wide)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x00F7U, event.data.ch.scalar);
 	EXPECT_EQ(2, event.data.ch.width);
@@ -303,7 +303,7 @@ TEST(TerseAmbiguousWidth, AsciiNotAffected_Narrow)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ((unsigned int)'A', event.data.ch.scalar);
 	EXPECT_EQ(1, event.data.ch.width);
@@ -324,7 +324,7 @@ TEST(TerseAmbiguousWidth, AsciiNotAffected_Wide)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ((unsigned int)'A', event.data.ch.scalar);
 	EXPECT_EQ(1, event.data.ch.width);
@@ -346,7 +346,7 @@ TEST(TerseAmbiguousWidth, FullWidthCJKNotAffected_Narrow)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x3042U, event.data.ch.scalar);
 	EXPECT_EQ(2, event.data.ch.width);
@@ -368,7 +368,7 @@ TEST(TerseAmbiguousWidth, FullWidthCJKNotAffected_Wide)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x3042U, event.data.ch.scalar);
 	EXPECT_EQ(2, event.data.ch.width);
@@ -390,7 +390,7 @@ TEST(TerseAmbiguousWidth, GreekAlpha_Narrow)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x0391U, event.data.ch.scalar);
 	EXPECT_EQ(1, event.data.ch.width);
@@ -412,7 +412,7 @@ TEST(TerseAmbiguousWidth, GreekAlpha_Wide)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x0391U, event.data.ch.scalar);
 	EXPECT_EQ(2, event.data.ch.width);

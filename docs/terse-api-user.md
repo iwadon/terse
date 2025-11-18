@@ -476,9 +476,9 @@ int terse_read_event(terse_handle_t handle, int timeout_ms,
 - `out_event`: Output event structure
 
 **Returns:**
-- `TERSE_EVENT_OK` (0): Event received
-- `TERSE_EVENT_NONE` (1): Timeout, no event
-- Negative value: Error
+- `TERSE_OK` (0): Event received successfully
+- `TERSE_ERR_NO_EVENT` (1): Timeout, no event available
+- Other `terse_error_t` values: Error occurred
 
 **Terminal Mode Requirements:**
 
@@ -595,7 +595,7 @@ while (1) {
     terse_event_t event;
     int result = terse_read_event(handle, 100, &event);
 
-    if (result == TERSE_EVENT_NONE) {
+    if (result == TERSE_ERR_NO_EVENT) {
         continue;  // Timeout
     }
     if (result < 0) {
@@ -909,7 +909,7 @@ terse_enable_mouse(handle, TERSE_MOUSE_SGR);
 
 while (1) {
     terse_event_t event;
-    if (terse_read_event(handle, -1, &event) != TERSE_EVENT_OK) {
+    if (terse_read_event(handle, -1, &event) != TERSE_OK) {
         break;
     }
 
@@ -958,7 +958,7 @@ terse_enable_bracketed_paste(handle);
 int in_paste = 0;
 while (1) {
     terse_event_t event;
-    if (terse_read_event(handle, -1, &event) != TERSE_EVENT_OK) {
+    if (terse_read_event(handle, -1, &event) != TERSE_OK) {
         break;
     }
 
@@ -1357,20 +1357,20 @@ terse_test_mock_events(handle, events, 3);
 
 // Read injected events
 terse_event_t event;
-assert(terse_read_event(handle, 0, &event) == TERSE_EVENT_OK);
+assert(terse_read_event(handle, 0, &event) == TERSE_OK);
 assert(event.type == TERSE_EVENT_CHAR);
 assert(event.data.ch.scalar == 'a');
 
-assert(terse_read_event(handle, 0, &event) == TERSE_EVENT_OK);
+assert(terse_read_event(handle, 0, &event) == TERSE_OK);
 assert(event.type == TERSE_EVENT_ARROW_UP);
 assert(event.data.key.mods == TERSE_MOD_SHIFT);
 
-assert(terse_read_event(handle, 0, &event) == TERSE_EVENT_OK);
+assert(terse_read_event(handle, 0, &event) == TERSE_OK);
 assert(event.type == TERSE_EVENT_RESIZE);
 assert(event.data.resize.rows == 25);
 
 // No more events
-assert(terse_read_event(handle, 0, &event) == TERSE_EVENT_NONE);
+assert(terse_read_event(handle, 0, &event) == TERSE_ERR_NO_EVENT);
 
 // Reset to real input
 terse_test_reset_mocks(handle);
@@ -1498,7 +1498,7 @@ int current_cols = size.cols;
 
 while (1) {
     terse_event_t event;
-    if (terse_read_event(handle, 100, &event) == TERSE_EVENT_OK) {
+    if (terse_read_event(handle, 100, &event) == TERSE_OK) {
         if (event.type == TERSE_EVENT_RESIZE) {
             current_rows = event.data.resize.rows;
             current_cols = event.data.resize.cols;
@@ -1620,7 +1620,7 @@ int main(void) {
         terse_event_t event;
         int result = terse_read_event(handle, 100, &event);
 
-        if (result == TERSE_EVENT_OK) {
+        if (result == TERSE_OK) {
             if (event.type == TERSE_EVENT_CHAR &&
                 event.data.ch.scalar == 'q') {
                 running = 0;

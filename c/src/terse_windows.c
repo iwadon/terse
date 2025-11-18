@@ -417,7 +417,7 @@ convert_key_event(const KEY_EVENT_RECORD *ker, terse_event_t *out_event)
 {
 	/* Only process key down events */
 	if (!ker->bKeyDown) {
-		return TERSE_EVENT_NONE;
+		return TERSE_ERR_NO_EVENT;
 	}
 
 	int mods = convert_control_key_state(ker->dwControlKeyState);
@@ -547,7 +547,7 @@ convert_key_event(const KEY_EVENT_RECORD *ker, terse_event_t *out_event)
 	}
 
 	/* Ignore other key events (modifier keys pressed alone, etc.) */
-	return TERSE_EVENT_NONE;
+	return TERSE_ERR_NO_EVENT;
 }
 
 terse_error_t
@@ -569,7 +569,7 @@ terse_platform_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *
 	DWORD result = WaitForSingleObject(input_handle, wait_timeout);
 
 	if (result == WAIT_TIMEOUT) {
-		return TERSE_EVENT_NONE;
+		return TERSE_ERR_NO_EVENT;
 	}
 	if (result != WAIT_OBJECT_0) {
 		return TERSE_ERR_IO;
@@ -585,7 +585,7 @@ terse_platform_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *
 	}
 
 	if (events_read == 0) {
-		return TERSE_EVENT_NONE;
+		return TERSE_ERR_NO_EVENT;
 	}
 
 	/* Process event based on type */
@@ -602,19 +602,19 @@ terse_platform_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *
 			out_event->data.resize.cols = (csbi.srWindow.Right - csbi.srWindow.Left + 1);
 			return TERSE_OK;
 		}
-		return TERSE_EVENT_NONE;
+		return TERSE_ERR_NO_EVENT;
 	}
 
 	case MOUSE_EVENT:
 		/* TODO: Implement mouse event conversion */
-		return TERSE_EVENT_NONE;
+		return TERSE_ERR_NO_EVENT;
 
 	case FOCUS_EVENT:
 	case MENU_EVENT:
 		/* Ignore these events */
-		return TERSE_EVENT_NONE;
+		return TERSE_ERR_NO_EVENT;
 
 	default:
-		return TERSE_EVENT_NONE;
+		return TERSE_ERR_NO_EVENT;
 	}
 }

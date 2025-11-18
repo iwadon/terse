@@ -86,12 +86,12 @@ TEST(TersePaste, GeneratesBeginEndEvents)
 	const char begin_seq[] = "\x1b[200~";
 	EXPECT_EQ((ssize_t)(sizeof(begin_seq) - 1), write(in_pipe[1], begin_seq, sizeof(begin_seq) - 1));
 	terse_event_t ev;
-	EXPECT_EQ(TERSE_EVENT_OK, terse_read_event(handle, 10, &ev));
+	EXPECT_EQ(TERSE_OK, terse_read_event(handle, 10, &ev));
 	EXPECT_EQ(TERSE_EVENT_PASTE_BEGIN, ev.type);
 
 	const char end_seq[] = "\x1b[201~";
 	EXPECT_EQ((ssize_t)(sizeof(end_seq) - 1), write(in_pipe[1], end_seq, sizeof(end_seq) - 1));
-	EXPECT_EQ(TERSE_EVENT_OK, terse_read_event(handle, 10, &ev));
+	EXPECT_EQ(TERSE_OK, terse_read_event(handle, 10, &ev));
 	EXPECT_EQ(TERSE_EVENT_PASTE_END, ev.type);
 
 	terse_close(handle);

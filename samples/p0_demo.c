@@ -67,7 +67,7 @@ static void demo_read_events(terse_handle_t handle)
 	while (1) {
 		terse_event_t event;
 		int rc = terse_read_event(handle, 200, &event);
-		if (rc == TERSE_EVENT_NONE) {
+		if (rc == TERSE_ERR_NO_EVENT) {
 			continue;
 		}
 		if (rc < 0) {

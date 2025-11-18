@@ -185,7 +185,7 @@ int main(void)
 	while (!g_stop) {
 		terse_event_t event;
 		int result = terse_read_event(handle, 200, &event);
-		if (result == TERSE_EVENT_NONE) {
+		if (result == TERSE_ERR_NO_EVENT) {
 			continue;
 		}
 		if (result < 0) {

@@ -155,7 +155,7 @@ TEST(TerseGetSize, UpdatesOnResizeEvent)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_RESIZE, event.type);
 	EXPECT_EQ(30, event.data.resize.rows);
 	EXPECT_EQ(90, event.data.resize.cols);
