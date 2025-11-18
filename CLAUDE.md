@@ -80,7 +80,11 @@ build\c\tests\Debug\terse_style_test.exe
 
 ### Building Samples
 
-Unix-like systems (after building the library):
+Samples are built automatically by default when building as a top-level project. They will be located in `build/samples/` directory.
+
+To manually compile a sample after building the library:
+
+Unix-like systems:
 ```sh
 cc -I./c/include -L./build/c -lterse samples/p0_demo.c -o p0_demo
 ./p0_demo
@@ -91,6 +95,11 @@ Windows (using MSVC compiler):
 cl /I.\c\include samples\p0_demo.c /link /LIBPATH:.\build\c\Debug terse.lib
 p0_demo.exe
 ```
+
+Control build components with CMake options:
+- `-DTERSE_BUILD_TESTING=OFF`: Skip tests
+- `-DTERSE_BUILD_TOOLS=OFF`: Skip tools
+- `-DTERSE_BUILD_SAMPLES=OFF`: Skip samples
 
 ## Code Architecture
 
@@ -109,8 +118,15 @@ The library organizes terminal features into hierarchical profiles:
 - **Error handling**: Functions return `terse_error_t` enum codes; use `terse_get_last_error()` to retrieve the last error code
 - **Coordinate system**: 0-based coordinates (0, 0) = top-left; internally converts to 1-based for terminal escape sequences
 
-### Terminal Detection (c/src/terse_posix.c)
-Environment variable inspection (`TERM_PROGRAM`, `TERM`, `VTE_VERSION`, etc.) combined with Secondary Device Attributes (DA) sequences to identify specific terminals and their feature sets.
+### Platform Abstraction (c/src/terse_platform.h)
+The library uses a platform abstraction layer with implementations for:
+- **POSIX** (macOS/Linux): Uses termios, poll, and ioctl for terminal control
+- **Windows**: Uses Win32 Console API (ReadConsoleInput, WriteConsoleW) with Unicode support
+- **Human68k**: X68000 system support via x68k/dos.h
+- Platform selection is automatic via CMake based on target system
+
+### Terminal Detection
+Environment variable inspection (`TERM_PROGRAM`, `TERM`, `VTE_VERSION`, etc.) combined with Secondary Device Attributes (DA) sequences to identify specific terminals and their feature sets. On Windows, uses console mode and VT sequence support detection.
 
 ### Codec Support (c/src/terse.c and c/src/mini_iconv.c)
 - UTF-8 and Shift_JIS support with multibyte decoding/encoding
@@ -137,18 +153,22 @@ Legacy `terse_display_image_inline()` wraps the new API for compatibility.
 ## Key Implementation Files
 
 - `c/include/terse.h`: Public API surface (all `terse_*` symbols)
-- `c/src/terse.c`: Core library implementation
-- `c/src/terse_posix.c`: POSIX platform layer (terminal I/O, detection, raw mode)
-- `c/src/terse_platform_stub.c`: Stub for non-UNIX platforms
+- `c/src/terse.c`: Core library implementation (platform-agnostic)
+- `c/src/terse_posix.c`: POSIX platform layer (macOS/Linux - termios, poll, ioctl)
+- `c/src/terse_windows.c`: Windows platform layer (Win32 Console API, ReadConsoleInput)
+- `c/src/terse_human68k.c`: Human68k platform layer (X68000 system)
+- `c/src/terse_platform_stub.c`: Stub for unsupported platforms
 - `c/src/mini_iconv.c`: Fallback charset converter for Shift_JIS
+- `c/src/terse_platform.h`: Platform abstraction interface
 
 ## Testing Strategy
 
 All unit tests located in `c/tests/unit/`:
-- Each test is a standalone executable linked against the terse library
+- Tests are compiled into a unified `terse_unit_test` executable using the attest framework
 - Tests are registered via `add_test()` in `c/tests/CMakeLists.txt`
 - Run all tests: `ctest --test-dir build --output-on-failure`
-- Test coverage includes: open/close, output primitives, input parsing, styles, mouse, clipboard, images, notifications, keyboard features
+- Run unified test binary directly: `./build/c/tests/terse_unit_test` (Unix) or `build\c\tests\Debug\terse_unit_test.exe` (Windows)
+- Test coverage includes: open/close, output primitives, input parsing, styles, mouse, clipboard, images, notifications, keyboard features, ambiguous width handling
 
 ### Test Mode
 Build with `-DTERSE_ENABLE_TEST_MODE=ON` to enable test mode features:
