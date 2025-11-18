@@ -25,12 +25,14 @@ ninja -C build terse        # Build library only
 
 #### Initial Configuration
 ```cmd
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DTERSE_ENABLE_ICONV=OFF
 ```
 Or for Ninja with MSVC:
 ```cmd
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTERSE_ENABLE_ICONV=OFF
 ```
+
+Note: Windows typically does not have iconv available, so `-DTERSE_ENABLE_ICONV=OFF` uses the built-in mini iconv implementation.
 
 #### Build Targets
 With Visual Studio generator:

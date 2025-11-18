@@ -13,6 +13,10 @@
 /* Human68k platform */
 #include <x68k/dos.h>
 #include <x68k/iocs.h>
+#elif defined(_WIN32)
+/* Windows platform */
+#include <windows.h>
+#include <io.h>
 #else
 /* POSIX platform */
 #include <poll.h>

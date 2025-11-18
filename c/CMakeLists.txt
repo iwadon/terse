@@ -21,6 +21,8 @@ endif()
 
 if(TERSE_PLATFORM_HUMAN68K)
   target_sources(terse PRIVATE src/terse_human68k.c)
+elseif(WIN32)
+  target_sources(terse PRIVATE src/terse_windows.c)
 elseif(UNIX)
   target_sources(terse PRIVATE src/terse_posix.c)
 else()

@@ -19,11 +19,13 @@
 #include "mini_iconv.h"
 #endif
 #include <limits.h>
+#ifndef _WIN32
 #ifdef TERSE_HAVE_POLL_H
 #include <poll.h>
 #else
 #include <sys/select.h>
 #include <sys/time.h>
+#endif
 #endif
 #include <stdint.h>
 #include <stdarg.h>
@@ -31,8 +33,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <strings.h>
 #include <unistd.h>
+#else
+// Windows compatibility
+#define strcasecmp _stricmp
+#endif
 
 static const char TERSE_RESET_ALL_SEQ[] = "\x1b[0m";
 static const char TERSE_RESET_COLOR_SEQ[] = "\x1b[39;49m";

@@ -2,7 +2,9 @@
 #include "terse_internal.h"
 #include "terse_platform.h"
 #include <errno.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 /* iconv reset helper (from terse.c) */
 static void
