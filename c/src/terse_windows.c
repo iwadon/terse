@@ -1,6 +1,8 @@
 #include "terse_platform.h"
+#include "terse_internal.h"
 
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 #include <windows.h>
 
@@ -121,14 +123,9 @@ terse_platform_default_options(void)
 		}
 	}
 
-	HANDLE input_handle = GetStdHandle(STD_INPUT_HANDLE);
-	if (is_console_handle(input_handle)) {
-		DWORD mode;
-		if (GetConsoleMode(input_handle, &mode)) {
-			mode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
-			SetConsoleMode(input_handle, mode);
-		}
-	}
+	// NOTE: Do NOT enable ENABLE_VIRTUAL_TERMINAL_INPUT here
+	// It breaks ReadConsoleInput() modifier key detection (vk=0, dwControlKeyState=0)
+	// Applications should set console mode before calling terse_open() if needed
 
 	return options;
 }
@@ -428,4 +425,230 @@ terse_platform_write_bytes(int fd, const char *bytes, size_t len)
 	}
 
 	return TERSE_OK;
+}
+
+/* Convert Windows control key state to terse modifier flags */
+static int
+convert_control_key_state(DWORD dwControlKeyState)
+{
+	int mods = 0;
+
+	if (dwControlKeyState & SHIFT_PRESSED) {
+		mods |= TERSE_MOD_SHIFT;
+	}
+	if (dwControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) {
+		mods |= TERSE_MOD_CTRL;
+	}
+	if (dwControlKeyState & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) {
+		mods |= TERSE_MOD_ALT;
+	}
+
+	return mods;
+}
+
+/* Convert KEY_EVENT_RECORD to terse_event_t */
+static terse_error_t
+convert_key_event(const KEY_EVENT_RECORD *ker, terse_event_t *out_event)
+{
+	/* Only process key down events */
+	if (!ker->bKeyDown) {
+		return TERSE_EVENT_NONE;
+	}
+
+	int mods = convert_control_key_state(ker->dwControlKeyState);
+	WCHAR wch = ker->uChar.UnicodeChar;
+	WORD vk = ker->wVirtualKeyCode;
+
+	/* Handle special keys */
+	switch (vk) {
+	case VK_RETURN:
+		out_event->type = TERSE_EVENT_ENTER;
+		out_event->data.key.mods = mods;
+		return TERSE_OK;
+
+	case VK_BACK:
+		out_event->type = TERSE_EVENT_BACKSPACE;
+		out_event->data.key.mods = mods;
+		return TERSE_OK;
+
+	case VK_TAB:
+		out_event->type = TERSE_EVENT_TAB;
+		out_event->data.key.mods = mods;
+		return TERSE_OK;
+
+	case VK_ESCAPE:
+		out_event->type = TERSE_EVENT_CHAR;
+		out_event->data.ch.scalar = 0x1B;
+		out_event->data.ch.width = 0;
+		out_event->data.ch.mods = mods;
+		return TERSE_OK;
+
+	case VK_UP:
+		out_event->type = TERSE_EVENT_ARROW_UP;
+		out_event->data.key.mods = mods;
+		return TERSE_OK;
+
+	case VK_DOWN:
+		out_event->type = TERSE_EVENT_ARROW_DOWN;
+		out_event->data.key.mods = mods;
+		return TERSE_OK;
+
+	case VK_LEFT:
+		out_event->type = TERSE_EVENT_ARROW_LEFT;
+		out_event->data.key.mods = mods;
+		return TERSE_OK;
+
+	case VK_RIGHT:
+		out_event->type = TERSE_EVENT_ARROW_RIGHT;
+		out_event->data.key.mods = mods;
+		return TERSE_OK;
+
+	case VK_HOME:
+		out_event->type = TERSE_EVENT_HOME;
+		out_event->data.key.mods = mods;
+		return TERSE_OK;
+
+	case VK_END:
+		out_event->type = TERSE_EVENT_END;
+		out_event->data.key.mods = mods;
+		return TERSE_OK;
+
+	case VK_PRIOR: /* Page Up */
+		out_event->type = TERSE_EVENT_PAGE_UP;
+		out_event->data.key.mods = mods;
+		return TERSE_OK;
+
+	case VK_NEXT: /* Page Down */
+		out_event->type = TERSE_EVENT_PAGE_DOWN;
+		out_event->data.key.mods = mods;
+		return TERSE_OK;
+
+	case VK_INSERT:
+		out_event->type = TERSE_EVENT_INSERT;
+		out_event->data.key.mods = mods;
+		return TERSE_OK;
+
+	case VK_DELETE:
+		out_event->type = TERSE_EVENT_DELETE;
+		out_event->data.key.mods = mods;
+		return TERSE_OK;
+
+	case VK_F1: case VK_F2: case VK_F3: case VK_F4:
+	case VK_F5: case VK_F6: case VK_F7: case VK_F8:
+	case VK_F9: case VK_F10: case VK_F11: case VK_F12:
+		out_event->type = TERSE_EVENT_FUNCTION;
+		out_event->data.function.number = (vk - VK_F1 + 1);
+		out_event->data.function.mods = mods;
+		return TERSE_OK;
+
+	default:
+		break;
+	}
+
+	/* Handle character input */
+	if (wch != 0) {
+		out_event->type = TERSE_EVENT_CHAR;
+
+		/* Map Ctrl+letter control characters back to uppercase letters
+		 * Windows returns 0x01-0x1A for Ctrl+A through Ctrl+Z
+		 * Temporary fix: detect control characters and force TERSE_MOD_CTRL
+		 */
+		if (wch >= 0x01 && wch <= 0x1A) {
+			out_event->data.ch.scalar = (unsigned int)('A' + (wch - 1));
+			out_event->data.ch.mods = mods | TERSE_MOD_CTRL;
+		} else {
+			out_event->data.ch.scalar = (unsigned int)wch;
+			out_event->data.ch.mods = mods;
+		}
+
+		/* Determine character width (simple heuristic) */
+		if (wch < 0x80) {
+			out_event->data.ch.width = 1;
+		} else if (wch >= 0x1100 &&
+		           ((wch >= 0x1100 && wch <= 0x115F) || /* Hangul Jamo */
+		            (wch >= 0x2E80 && wch <= 0x9FFF) || /* CJK */
+		            (wch >= 0xAC00 && wch <= 0xD7AF) || /* Hangul Syllables */
+		            (wch >= 0xF900 && wch <= 0xFAFF) || /* CJK Compatibility */
+		            (wch >= 0xFE10 && wch <= 0xFE19) || /* Vertical forms */
+		            (wch >= 0xFE30 && wch <= 0xFE6F) || /* CJK Compatibility Forms */
+		            (wch >= 0xFF00 && wch <= 0xFF60) || /* Fullwidth Forms */
+		            (wch >= 0xFFE0 && wch <= 0xFFE6))) { /* Fullwidth Forms */
+			out_event->data.ch.width = 2;
+		} else {
+			out_event->data.ch.width = 1;
+		}
+
+		return TERSE_OK;
+	}
+
+	/* Ignore other key events (modifier keys pressed alone, etc.) */
+	return TERSE_EVENT_NONE;
+}
+
+terse_error_t
+terse_platform_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event)
+{
+	if (!handle || !out_event) {
+		return TERSE_ERR_INVALID_ARGUMENT;
+	}
+
+	int input_fd = handle->options.input_fd;
+	HANDLE input_handle = get_console_handle(input_fd);
+
+	if (!is_console_handle(input_handle)) {
+		return TERSE_ERR_NOT_TTY;
+	}
+
+	/* Wait for input with timeout */
+	DWORD wait_timeout = (timeout_ms < 0) ? INFINITE : (DWORD)timeout_ms;
+	DWORD result = WaitForSingleObject(input_handle, wait_timeout);
+
+	if (result == WAIT_TIMEOUT) {
+		return TERSE_EVENT_NONE;
+	}
+	if (result != WAIT_OBJECT_0) {
+		return TERSE_ERR_IO;
+	}
+
+	/* Read console input event */
+	INPUT_RECORD input_record;
+	DWORD events_read;
+
+	if (!ReadConsoleInput(input_handle, &input_record, 1, &events_read)) {
+		return TERSE_ERR_IO;
+	}
+
+	if (events_read == 0) {
+		return TERSE_EVENT_NONE;
+	}
+
+	/* Process event based on type */
+	switch (input_record.EventType) {
+	case KEY_EVENT:
+		return convert_key_event(&input_record.Event.KeyEvent, out_event);
+
+	case WINDOW_BUFFER_SIZE_EVENT:
+	{
+		CONSOLE_SCREEN_BUFFER_INFO csbi;
+		if (GetConsoleScreenBufferInfo(input_handle, &csbi)) {
+			out_event->type = TERSE_EVENT_RESIZE;
+			out_event->data.resize.rows = (csbi.srWindow.Bottom - csbi.srWindow.Top + 1);
+			out_event->data.resize.cols = (csbi.srWindow.Right - csbi.srWindow.Left + 1);
+			return TERSE_OK;
+		}
+		return TERSE_EVENT_NONE;
+	}
+
+	case MOUSE_EVENT:
+		/* TODO: Implement mouse event conversion */
+		return TERSE_EVENT_NONE;
+
+	case FOCUS_EVENT:
+	case MENU_EVENT:
+		/* Ignore these events */
+		return TERSE_EVENT_NONE;
+
+	default:
+		return TERSE_EVENT_NONE;
+	}
 }

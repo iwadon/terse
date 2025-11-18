@@ -4159,8 +4159,8 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 	}
 #endif
 
-#if defined(__HUMAN68K__)
-	/* Human68k: Use platform-specific event reading implementation */
+#if defined(__HUMAN68K__) || defined(_WIN32)
+	/* Human68k and Windows: Use platform-specific event reading implementation */
 	return terse_platform_read_event(handle, timeout_ms, out_event);
 #else
 	/* POSIX: Use escape sequence parsing implementation */
