@@ -9,6 +9,8 @@
 
 static DWORD g_original_input_mode = 0;
 static DWORD g_original_output_mode = 0;
+static UINT g_original_cp = 0;
+static UINT g_original_output_cp = 0;
 static int g_raw_installed = 0;
 
 static void restore_terminal(void)
@@ -18,6 +20,15 @@ static void restore_terminal(void)
 		HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
 		SetConsoleMode(hStdin, g_original_input_mode);
 		SetConsoleMode(hStdout, g_original_output_mode);
+
+		/* Restore original code pages */
+		if (g_original_cp != 0) {
+			SetConsoleCP(g_original_cp);
+		}
+		if (g_original_output_cp != 0) {
+			SetConsoleOutputCP(g_original_output_cp);
+		}
+
 		g_raw_installed = 0;
 	}
 }
@@ -30,6 +41,17 @@ static int install_raw_terminal(void)
 	if (hStdin == INVALID_HANDLE_VALUE || hStdout == INVALID_HANDLE_VALUE) {
 		fprintf(stderr, "GetStdHandle failed\n");
 		return -1;
+	}
+
+	/* Save and set console code page to UTF-8 for proper Unicode handling */
+	g_original_cp = GetConsoleCP();
+	g_original_output_cp = GetConsoleOutputCP();
+
+	if (!SetConsoleCP(65001)) {
+		fprintf(stderr, "Warning: SetConsoleCP(65001) failed (error %lu)\n", GetLastError());
+	}
+	if (!SetConsoleOutputCP(65001)) {
+		fprintf(stderr, "Warning: SetConsoleOutputCP(65001) failed (error %lu)\n", GetLastError());
 	}
 
 	if (!GetConsoleMode(hStdin, &g_original_input_mode)) {
@@ -51,18 +73,9 @@ static int install_raw_terminal(void)
 	 */
 	/* dwInputMode |= ENABLE_VIRTUAL_TERMINAL_INPUT; */
 
-	fprintf(stderr, "Original input mode: 0x%lx\n", g_original_input_mode);
-	fprintf(stderr, "New input mode:      0x%lx\n", dwInputMode);
-
 	if (!SetConsoleMode(hStdin, dwInputMode)) {
 		fprintf(stderr, "SetConsoleMode(input) failed (error %lu)\n", GetLastError());
 		return -1;
-	}
-
-	/* Verify the mode was set correctly */
-	DWORD verifyMode;
-	if (GetConsoleMode(hStdin, &verifyMode)) {
-		fprintf(stderr, "Verified input mode: 0x%lx\n", verifyMode);
 	}
 
 	/* Setup output mode: enable virtual terminal processing */

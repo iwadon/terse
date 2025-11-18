@@ -23,6 +23,8 @@ if(TERSE_PLATFORM_HUMAN68K)
   target_sources(terse PRIVATE src/terse_human68k.c)
 elseif(WIN32)
   target_sources(terse PRIVATE src/terse_windows.c)
+  # Ensure Unicode (UTF-16) Windows API is used
+  target_compile_definitions(terse PRIVATE UNICODE _UNICODE)
 elseif(UNIX)
   target_sources(terse PRIVATE src/terse_posix.c)
 else()

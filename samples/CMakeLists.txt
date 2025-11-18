@@ -32,6 +32,10 @@ foreach(SAMPLE ${SAMPLES})
 	add_executable(${SAMPLE} ${SAMPLE}.c)
 	target_link_libraries(${SAMPLE} PRIVATE terse)
 	target_include_directories(${SAMPLE} PRIVATE ${CMAKE_SOURCE_DIR}/c/include)
+	# Ensure Unicode (UTF-16) Windows API is used on Windows
+	if(WIN32)
+		target_compile_definitions(${SAMPLE} PRIVATE UNICODE _UNICODE)
+	endif()
 endforeach()
 
 # Human68k-specific programs (only built when targeting Human68k)

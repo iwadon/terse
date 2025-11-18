@@ -579,7 +579,8 @@ terse_platform_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *
 	INPUT_RECORD input_record;
 	DWORD events_read;
 
-	if (!ReadConsoleInput(input_handle, &input_record, 1, &events_read)) {
+	/* Explicitly use ReadConsoleInputW to ensure Unicode handling */
+	if (!ReadConsoleInputW(input_handle, &input_record, 1, &events_read)) {
 		return TERSE_ERR_IO;
 	}
 
