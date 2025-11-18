@@ -8,13 +8,39 @@ Terse is a C library that unifies rendering, input, and terminal capability dete
 
 ## Build Commands
 
-### Initial Configuration
+### Unix-like Systems (macOS/Linux with Ninja)
+
+#### Initial Configuration
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 ```
 
-### Build Targets
+#### Build Targets
 ```sh
+ninja -C build              # Build all targets
+ninja -C build terse        # Build library only
+```
+
+### Windows (MSVC)
+
+#### Initial Configuration
+```cmd
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+```
+Or for Ninja with MSVC:
+```cmd
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+```
+
+#### Build Targets
+With Visual Studio generator:
+```cmd
+cmake --build build --config Debug
+cmake --build build --config Release
+```
+
+With Ninja generator:
+```cmd
 ninja -C build              # Build all targets
 ninja -C build terse        # Build library only
 ```
@@ -25,21 +51,43 @@ ninja -C build terse        # Build library only
 - `-DTERSE_ENABLE_TEST_MODE=ON`: Enable test mode with API recording and mocking capabilities
 
 ### Testing
+
+Unix-like systems:
 ```sh
 ctest --test-dir build --output-on-failure
 ```
 
+Windows:
+```cmd
+ctest --test-dir build --output-on-failure -C Debug
+```
+
 ### Running Individual Tests
+
+Unix-like systems:
 ```sh
 ./build/c/tests/terse_open_test
 ./build/c/tests/terse_style_test
 ```
 
+Windows:
+```cmd
+build\c\tests\Debug\terse_open_test.exe
+build\c\tests\Debug\terse_style_test.exe
+```
+
 ### Building Samples
-After building the library:
+
+Unix-like systems (after building the library):
 ```sh
 cc -I./c/include -L./build/c -lterse samples/p0_demo.c -o p0_demo
 ./p0_demo
+```
+
+Windows (using MSVC compiler):
+```cmd
+cl /I.\c\include samples\p0_demo.c /link /LIBPATH:.\build\c\Debug terse.lib
+p0_demo.exe
 ```
 
 ## Code Architecture
