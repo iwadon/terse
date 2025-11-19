@@ -54,7 +54,7 @@ TEST(TerseReadEvent, ReturnsChar_OnAsciiInput)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ((unsigned int)'A', event.data.ch.scalar);
 	EXPECT_EQ(1, event.data.ch.width);
@@ -78,7 +78,7 @@ TEST(TerseReadEvent, ReturnsEnter_OnCrLf)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_ENTER, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -98,7 +98,7 @@ TEST(TerseReadEvent, ReturnsEnter_OnCarriageReturn)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_ENTER, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -118,7 +118,7 @@ TEST(TerseReadEvent, ReturnsEnterWithCtrl_OnLineFeed)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_ENTER, event.type);
 	EXPECT_EQ(TERSE_MOD_CTRL, event.data.key.mods);
 
@@ -138,7 +138,7 @@ TEST(TerseReadEvent, ReturnsArrow_OnEscapeSequence)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_ARROW_UP, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -158,7 +158,7 @@ TEST(TerseReadEvent, ReturnsCtrlChar_WithControlModifier)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ((unsigned int)'A', event.data.ch.scalar);
 	EXPECT_EQ(TERSE_MOD_CTRL, event.data.ch.mods);
@@ -179,7 +179,7 @@ TEST(TerseReadEvent, ReturnsCharWithAlt_OnEscapePrefixedAscii)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ((unsigned int)'a', event.data.ch.scalar);
 	EXPECT_EQ(TERSE_MOD_ALT, event.data.ch.mods);
@@ -200,7 +200,7 @@ TEST(TerseReadEvent, ReturnsEnterWithAlt_OnEscapePrefixedNewline)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_ENTER, event.type);
 	EXPECT_EQ(TERSE_MOD_ALT, event.data.key.mods);
 
@@ -220,7 +220,7 @@ TEST(TerseReadEvent, ReturnsCtrlAltChar_OnEscapePrefixedControl)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ((unsigned int)'A', event.data.ch.scalar);
 	EXPECT_EQ(TERSE_MOD_ALT | TERSE_MOD_CTRL, event.data.ch.mods);
@@ -241,7 +241,7 @@ TEST(TerseReadEvent, ReturnsWideCharWithAlt_OnEscapePrefixedUtf8)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x6f22u, event.data.ch.scalar);
 	EXPECT_EQ(TERSE_MOD_ALT, event.data.ch.mods);
@@ -264,7 +264,7 @@ TEST(TerseReadEvent, ReturnsWideCharWithAlt_OnEscapePrefixedShiftJis)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x3042u, event.data.ch.scalar);
 	EXPECT_EQ(TERSE_MOD_ALT, event.data.ch.mods);
@@ -287,7 +287,7 @@ TEST(TerseReadEvent, ReturnsArrowWithShift_OnModifierSequence)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_ARROW_UP, event.type);
 	EXPECT_EQ(TERSE_MOD_SHIFT, event.data.key.mods);
 
@@ -307,7 +307,7 @@ TEST(TerseReadEvent, ReturnsWideWidth_OnUtf8Cjk)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x6f22u, event.data.ch.scalar);
 	EXPECT_EQ(2, event.data.ch.width);
@@ -328,7 +328,7 @@ TEST(TerseReadEvent, ReturnsZeroWidth_OnCombiningMark)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x301u, event.data.ch.scalar);
 	EXPECT_EQ(0, event.data.ch.width);
@@ -350,7 +350,7 @@ TEST(TerseReadEvent, ReturnsWideWidth_OnShiftJisDoubleByte)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0x3042u, event.data.ch.scalar);
 	EXPECT_EQ(2, event.data.ch.width);
@@ -371,7 +371,7 @@ TEST(TerseReadEvent, ReturnsHalfWidth_OnShiftJisKana)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
 	EXPECT_EQ(0xff66u, event.data.ch.scalar);
 	EXPECT_EQ(1, event.data.ch.width);
@@ -393,7 +393,7 @@ TEST(TerseReadEvent, ReturnsHome_OnCsiH)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_HOME, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -413,7 +413,7 @@ TEST(TerseReadEvent, ReturnsHomeWithShift_OnCsi1_2H)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_HOME, event.type);
 	EXPECT_EQ(TERSE_MOD_SHIFT, event.data.key.mods);
 
@@ -433,7 +433,7 @@ TEST(TerseReadEvent, ReturnsPageDown_OnCsi6Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_PAGE_DOWN, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -453,7 +453,7 @@ TEST(TerseReadEvent, ReturnsDelete_OnCsi3Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_DELETE, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -473,7 +473,7 @@ TEST(TerseReadEvent, ReturnsFunction_OnCsi18Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_FUNCTION, event.type);
 	EXPECT_EQ(7, event.data.function.number);
 	EXPECT_EQ(0, event.data.function.mods);
@@ -494,7 +494,7 @@ TEST(TerseReadEvent, ReturnsShiftTab_OnCsiZ)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_TAB, event.type);
 	EXPECT_EQ(TERSE_MOD_SHIFT, event.data.key.mods);
 
@@ -514,7 +514,7 @@ TEST(TerseReadEvent, ReturnsShiftEnter_OnKittyCSIu)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_ENTER, event.type);
 	EXPECT_EQ(TERSE_MOD_SHIFT, event.data.key.mods);
 
@@ -534,7 +534,7 @@ TEST(TerseReadEvent, ReturnsShiftEnter_OnModifyOtherKeys)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_ENTER, event.type);
 	EXPECT_EQ(TERSE_MOD_SHIFT, event.data.key.mods);
 
@@ -554,7 +554,7 @@ TEST(TerseReadEvent, ReturnsResize_OnCsi8Sequence)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_RESIZE, event.type);
 	EXPECT_EQ(24, event.data.resize.rows);
 	EXPECT_EQ(80, event.data.resize.cols);
@@ -575,7 +575,7 @@ TEST(TerseReadEvent, ReturnsRawSequence_OnUnknownEscape)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_RAW_SEQUENCE, event.type);
 	EXPECT_TRUE(event.data.raw.length >= 2);
 

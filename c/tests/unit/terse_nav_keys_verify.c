@@ -33,7 +33,7 @@ TEST(TerseNavKeys, Home_CsiH)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_HOME, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -53,7 +53,7 @@ TEST(TerseNavKeys, Home_Csi1Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_HOME, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -73,7 +73,7 @@ TEST(TerseNavKeys, Home_SS3_H)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_HOME, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -94,7 +94,7 @@ TEST(TerseNavKeys, End_CsiF)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_END, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -114,7 +114,7 @@ TEST(TerseNavKeys, End_Csi4Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_END, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -134,7 +134,7 @@ TEST(TerseNavKeys, End_SS3_F)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_END, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -155,7 +155,7 @@ TEST(TerseNavKeys, PageUp_Csi5Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_PAGE_UP, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -176,7 +176,7 @@ TEST(TerseNavKeys, PageDown_Csi6Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_PAGE_DOWN, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -197,7 +197,7 @@ TEST(TerseNavKeys, Insert_Csi2Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_INSERT, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -218,7 +218,7 @@ TEST(TerseNavKeys, Delete_Csi3Tilde)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_DELETE, event.type);
 	EXPECT_EQ(0, event.data.key.mods);
 
@@ -239,7 +239,7 @@ TEST(TerseNavKeys, Home_WithShift)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_HOME, event.type);
 	EXPECT_EQ(TERSE_MOD_SHIFT, event.data.key.mods);
 
@@ -259,7 +259,7 @@ TEST(TerseNavKeys, Insert_WithCtrl)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_INSERT, event.type);
 	EXPECT_EQ(TERSE_MOD_CTRL, event.data.key.mods);
 
@@ -279,7 +279,7 @@ TEST(TerseNavKeys, Delete_WithAlt)
 
 	terse_event_t event;
 	int result = terse_read_event(handle, 50, &event);
-	EXPECT_EQ(TERSE_EVENT_OK, result);
+	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_DELETE, event.type);
 	EXPECT_EQ(TERSE_MOD_ALT, event.data.key.mods);
 
