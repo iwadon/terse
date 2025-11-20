@@ -1,7 +1,7 @@
 #ifndef TERSE_CODEC_H_INCLUDED
 #define TERSE_CODEC_H_INCLUDED
 
-#include "terse.h"
+#include "../include/terse.h"
 
 #ifndef TERSE_USE_SYSTEM_ICONV
 #define TERSE_USE_SYSTEM_ICONV 1
@@ -10,7 +10,7 @@
 #if TERSE_USE_SYSTEM_ICONV
 #include <iconv.h>
 #else
-#include "../src/mini_iconv.h"
+#include "mini_iconv.h"
 #endif
 
 /*
