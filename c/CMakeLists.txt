@@ -2,6 +2,7 @@ add_library(terse
   src/terse.c
   src/terse_unicode.c
   src/terse_codec.c
+  src/terse_detection.c
 )
 
 include(CheckIncludeFile)
