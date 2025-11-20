@@ -26,7 +26,4 @@ void terse_set_resize_event(terse_event_t *event, int rows, int cols);
 /* Create a raw sequence event for unrecognized input */
 void terse_set_raw_event(terse_event_t *event, const unsigned char *bytes, size_t length);
 
-/* Compute cell width for a Unicode scalar value */
-int terse_compute_cell_width(terse_handle_t handle, unsigned int scalar);
-
 #endif /* TERSE_EVENT_HELPERS_H_INCLUDED */
