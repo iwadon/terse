@@ -7,6 +7,9 @@ add_library(terse
   src/terse_input.c
   src/terse_style.c
   src/terse_output.c
+  src/terse_state.c
+  src/terse_capabilities.c
+  src/terse_keyboard.c
 )
 
 include(CheckIncludeFile)
