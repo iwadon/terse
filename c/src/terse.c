@@ -1,7 +1,9 @@
 #include "terse.h"
 #include "terse_handle.h"
 #include "terse_platform.h"
-#include "terse_test.h"
+#ifdef TERSE_ENABLE_TEST_MODE
+#include "terse_test_internal.h"
+#endif
 #include "terse_unicode.h"
 #include "terse_detection.h"
 #include "terse_codec.h"
@@ -188,10 +190,6 @@ terse_style_default(void)
 	return style;
 }
 
-#ifdef TERSE_ENABLE_TEST_MODE
-typedef struct terse_test_state terse_test_state_t;
-#endif
-
 void
 update_effective_style(terse_handle_t handle)
 {
@@ -245,22 +243,7 @@ destroy_codec_handles(terse_handle_t handle)
 }
 
 #ifdef TERSE_ENABLE_TEST_MODE
-typedef struct terse_test_state {
-	int recording;
-	terse_call_record_t *calls;
-	int call_count;
-	int call_capacity;
-	terse_capabilities_t mock_caps;
-	int mock_caps_enabled;
-	int mock_rows;
-	int mock_cols;
-	int mock_size_enabled;
-	terse_event_t *mock_events;
-	int mock_event_count;
-	int mock_event_read_index;
-} terse_test_state_t;
-
-static void
+void
 record_call(terse_handle_t handle, terse_call_type_t type, const void *data, size_t data_size)
 {
 	if (!handle || !handle->test_state || !handle->test_state->recording) {

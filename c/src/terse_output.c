@@ -2,7 +2,9 @@
 #include "terse_handle.h"
 #include "terse_output.h"
 #include "terse_platform.h"
-#include "terse_test.h"
+#ifdef TERSE_ENABLE_TEST_MODE
+#include "terse_test_internal.h"
+#endif
 #include "terse_codec.h"
 #include "terse_style.h"
 
@@ -27,9 +29,6 @@ extern int write_literal(terse_handle_t handle, const char *sequence);
 extern int write_sequence(terse_handle_t handle, const char *data, size_t length);
 extern void update_effective_style(terse_handle_t handle);
 extern char *base64_encode(const unsigned char *data, size_t size, size_t *out_len);
-#ifdef TERSE_ENABLE_TEST_MODE
-extern void record_call(terse_handle_t handle, terse_call_kind_t kind, const void *data, size_t size);
-#endif
 
 /* ========================================================================
  * Screen and line clearing

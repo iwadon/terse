@@ -3,6 +3,11 @@
 
 #include "terse.h"
 
+#ifdef TERSE_ENABLE_TEST_MODE
+/* Forward declaration for test state */
+typedef struct terse_test_state terse_test_state_t;
+#endif
+
 #ifndef TERSE_USE_SYSTEM_ICONV
 #define TERSE_USE_SYSTEM_ICONV 1
 #endif
@@ -22,11 +27,6 @@ typedef enum terse_codec_kind {
 	TERSE_CODEC_UTF8,
 	TERSE_CODEC_SHIFT_JIS
 } terse_codec_kind_t;
-
-#ifdef TERSE_ENABLE_TEST_MODE
-/* Forward declaration for test state */
-typedef struct terse_test_state terse_test_state_t;
-#endif
 
 /* Internal handle structure */
 struct terse_handle {

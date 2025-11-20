@@ -2,7 +2,12 @@
 #define TERSE_HANDLE_H
 
 #include "terse.h"
+
+#ifdef TERSE_ENABLE_TEST_MODE
 #include "terse_test.h"
+/* Forward declaration for test state */
+typedef struct terse_test_state terse_test_state_t;
+#endif
 
 #ifndef TERSE_USE_SYSTEM_ICONV
 #define TERSE_USE_SYSTEM_ICONV 1
