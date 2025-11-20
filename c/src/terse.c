@@ -3,6 +3,9 @@
 #include "terse_test.h"
 #include "terse_unicode.h"
 #include "terse_detection.h"
+#include "terse_codec.h"
+#include "terse_event_helpers.h"
+#include "terse_input.h"
 
 /* State history stack depth macro.  Small for sanity, yet enough for
  * typical nested UI layers.
@@ -485,9 +488,6 @@ update_effective_style(terse_handle_t handle)
 	handle->style_known = 1;
 }
 
-static void set_char_event(terse_handle_t handle, terse_event_t *event, unsigned int scalar, int mods);
-static void set_key_event(terse_event_t *event, terse_event_type_t type, int mods);
-static void set_raw_event(terse_event_t *event, const unsigned char *bytes, size_t length);
 static int write_literal(terse_handle_t handle, const char *literal);
 static int write_sequence(terse_handle_t handle, const char *sequence, size_t length);
 static void set_error(terse_handle_t handle, terse_error_t error);
@@ -533,50 +533,6 @@ destroy_codec_handles(terse_handle_t handle)
 		iconv_close(handle->utf8_to_codec);
 		handle->utf8_to_codec = (iconv_t)-1;
 	}
-}
-
-static int
-decode_utf8_stream(int fd, unsigned char first, unsigned int *out_scalar)
-{
-	unsigned char bytes[4] = { 0 };
-	bytes[0] = first;
-	int expected = 0;
-	if (first < 0x80) {
-		*out_scalar = first;
-		return 0;
-	}
-	if ((first & 0xe0) == 0xc0) {
-		expected = 2;
-		if ((first & 0x1e) == 0) {
-			*out_scalar = UTF8_REPLACEMENT;
-			return 0;
-		}
-	} else if ((first & 0xf0) == 0xe0) {
-		expected = 3;
-	} else if ((first & 0xf8) == 0xf0) {
-		expected = 4;
-		if (first > 0xf4) {
-			*out_scalar = UTF8_REPLACEMENT;
-			return 0;
-		}
-	} else {
-		*out_scalar = UTF8_REPLACEMENT;
-		return 0;
-	}
-	for (int i = 1; i < expected; ++i) {
-		unsigned char next = 0;
-		ssize_t n = terse_platform_read_byte(fd, &next);
-		if (n <= 0) {
-			if (n == 0) {
-				errno = EPIPE;
-				return TERSE_ERR_IO;
-			}
-			return (int)n;
-		}
-		bytes[i] = next;
-	}
-	*out_scalar = decode_utf8_bytes(bytes, (size_t)expected);
-	return 0;
 }
 
 #ifdef TERSE_ENABLE_TEST_MODE
@@ -646,72 +602,6 @@ convert_shift_jis_pair(terse_handle_t handle, unsigned char lead, unsigned char 
 	}
 	size_t produced = (size_t)(out_ptr - outbuf);
 	return decode_utf8_bytes((const unsigned char *)outbuf, produced);
-}
-
-static int
-decode_shift_jis_stream(terse_handle_t handle, int fd, unsigned char first, unsigned int *out_scalar)
-{
-	if (first <= 0x7f) {
-		*out_scalar = first;
-		return 0;
-	}
-	if (first >= 0xa1 && first <= 0xdf) {
-		*out_scalar = 0xff61u + (unsigned int)(first - 0xa1);
-		return 0;
-	}
-	if ((first >= 0x81 && first <= 0x9f) || (first >= 0xe0 && first <= 0xfc)) {
-		unsigned char second = 0;
-		ssize_t n = terse_platform_read_byte(fd, &second);
-		if (n <= 0) {
-			if (n == 0) {
-				errno = EPIPE;
-				return TERSE_ERR_IO;
-			}
-			return (int)n;
-		}
-		if (!((second >= 0x40 && second <= 0x7e) || (second >= 0x80 && second <= 0xfc))) {
-			*out_scalar = SHIFT_JIS_REPLACEMENT;
-			return 0;
-		}
-		unsigned int scalar = convert_shift_jis_pair(handle, first, second);
-		if (scalar == UTF8_REPLACEMENT) {
-			*out_scalar = SHIFT_JIS_REPLACEMENT;
-		} else {
-			*out_scalar = scalar;
-		}
-		return 0;
-	}
-	*out_scalar = SHIFT_JIS_REPLACEMENT;
-	return 0;
-}
-
-static int
-decode_stream_char(terse_handle_t handle, int fd, unsigned char first, terse_event_t *event)
-{
-	unsigned int scalar = 0;
-	int rc = 0;
-	switch (handle->codec_kind) {
-	case TERSE_CODEC_UTF8:
-		rc = decode_utf8_stream(fd, first, &scalar);
-		if (rc < 0) {
-			return rc;
-		}
-		if (scalar == 0) {
-			scalar = UTF8_REPLACEMENT;
-		}
-		break;
-	case TERSE_CODEC_SHIFT_JIS:
-		rc = decode_shift_jis_stream(handle, fd, first, &scalar);
-		if (rc < 0) {
-			return rc;
-		}
-		break;
-	default:
-		scalar = first;
-		break;
-	}
-	set_char_event(handle, event, scalar, 0);
-	return 0;
 }
 
 static unsigned int
@@ -948,17 +838,6 @@ recompute_capabilities(terse_handle_t handle)
 	}
 }
 
-static void
-set_mouse_event(terse_event_t *event, terse_event_type_t type, terse_mouse_button_t button, int mods, int row, int col)
-{
-	event->type = type;
-	event->data.mouse.button = button;
-	event->data.mouse.mods = mods;
-	event->data.mouse.row = row;
-	event->data.mouse.col = col;
-}
-
-static int mouse_modifiers_from_param(int param);
 static void clear_error(terse_handle_t handle);
 
 static char *
@@ -1103,62 +982,6 @@ send_kitty_image(terse_handle_t handle, const unsigned char *data, size_t size, 
 	}
 	clear_error(handle);
 	return 0;
-}
-
-static int
-handle_sgr_mouse_sequence(terse_handle_t handle, terse_event_t *out_event, const int *values, size_t value_count, char final)
-{
-	if (!handle || value_count < 3) {
-		return 0;
-	}
-	if (!handle->mouse_enabled || handle->mouse_mode == TERSE_MOUSE_NONE) {
-		return 0;
-	}
-	int raw_cb = values[0];
-	// Terminal sends 1-based coordinates, convert to 0-based
-	int col = values[1] - 1;
-	int row = values[2] - 1;
-	if (col < 0 || row < 0) {
-		return 0;
-	}
-	int mods = mouse_modifiers_from_param(raw_cb);
-	int cb = raw_cb & ~(4 | 8 | 16);
-	int is_motion = cb & 32;
-	int is_wheel = cb & 64;
-	int base = cb & 3;
-	terse_mouse_button_t button = TERSE_MOUSE_BUTTON_NONE;
-	terse_event_type_t type = TERSE_EVENT_MOUSE_MOVE;
-	if (is_wheel) {
-		button = (base == 0) ? TERSE_MOUSE_BUTTON_SCROLL_UP : TERSE_MOUSE_BUTTON_SCROLL_DOWN;
-		type = TERSE_EVENT_MOUSE_SCROLL;
-		handle->mouse_button = TERSE_MOUSE_BUTTON_NONE;
-	} else if (final == 'm') {
-		if (base <= 2) {
-			button = (base == 0) ? TERSE_MOUSE_BUTTON_LEFT : (base == 1 ? TERSE_MOUSE_BUTTON_MIDDLE : TERSE_MOUSE_BUTTON_RIGHT);
-		} else {
-			button = handle->mouse_button;
-		}
-		type = TERSE_EVENT_MOUSE_UP;
-		handle->mouse_button = TERSE_MOUSE_BUTTON_NONE;
-	} else if (is_motion) {
-		if (handle->mouse_button != TERSE_MOUSE_BUTTON_NONE) {
-			button = handle->mouse_button;
-		}
-		type = TERSE_EVENT_MOUSE_MOVE;
-	} else {
-		if (base == 0) {
-			button = TERSE_MOUSE_BUTTON_LEFT;
-		} else if (base == 1) {
-			button = TERSE_MOUSE_BUTTON_MIDDLE;
-		} else if (base == 2) {
-			button = TERSE_MOUSE_BUTTON_RIGHT;
-		}
-		type = TERSE_EVENT_MOUSE_DOWN;
-		handle->mouse_button = button;
-	}
-	set_mouse_event(out_event, type, button, mods, row, col);
-	clear_error(handle);
-	return 1;
 }
 
 static void
@@ -1654,234 +1477,6 @@ emit_reset_sequences(terse_handle_t handle)
 	}
 }
 
-static int
-parse_csi_sequence(const unsigned char *seq, size_t len, int *values, size_t max_values, size_t *value_count, char *final)
-{
-	if (len < 2 || seq[0] != 0x1b || seq[1] != '[') {
-		return -1;
-	}
-	if (len < 3) {
-		return -1;
-	}
-	char terminator = (char)seq[len - 1];
-	if (terminator < '@' || terminator > '~') {
-		return -1;
-	}
-	size_t count = 0;
-	size_t index = 2;
-	while (index < len - 1) {
-		if (seq[index] == '<') {
-			++index;
-			continue;
-		}
-		int value = 0;
-		int has_digit = 0;
-		while (index < len - 1 && isdigit((unsigned char)seq[index])) {
-			has_digit = 1;
-			value = (value * 10) + (seq[index] - '0');
-			++index;
-		}
-		if (has_digit) {
-			if (count < max_values) {
-				values[count] = value;
-			}
-			++count;
-		}
-		if (index >= len - 1) {
-			break;
-		}
-		if (seq[index] == ';') {
-			++index;
-			continue;
-		}
-		break;
-	}
-	*value_count = count;
-	*final = terminator;
-	return 0;
-}
-
-static int
-modifier_bits_from_param(int param)
-{
-	int mods = 0;
-	switch (param) {
-	case 2:
-		mods = TERSE_MOD_SHIFT;
-		break;
-	case 3:
-		mods = TERSE_MOD_ALT;
-		break;
-	case 4:
-		mods = TERSE_MOD_SHIFT | TERSE_MOD_ALT;
-		break;
-	case 5:
-		mods = TERSE_MOD_CTRL;
-		break;
-	case 6:
-		mods = TERSE_MOD_SHIFT | TERSE_MOD_CTRL;
-		break;
-	case 7:
-		mods = TERSE_MOD_ALT | TERSE_MOD_CTRL;
-		break;
-	case 8:
-		mods = TERSE_MOD_SHIFT | TERSE_MOD_ALT | TERSE_MOD_CTRL;
-		break;
-	default:
-		break;
-	}
-	return mods;
-}
-
-static int
-mods_from_kitty_param(int param)
-{
-	if (param <= 0) {
-		return 0;
-	}
-	int bits = param - 1;
-	int mods = 0;
-	if (bits & 0x01) {
-		mods |= TERSE_MOD_SHIFT;
-	}
-	if (bits & 0x02) {
-		mods |= TERSE_MOD_ALT;
-	}
-	if (bits & 0x04) {
-		mods |= TERSE_MOD_CTRL;
-	}
-	if (bits & 0x08) {
-		mods |= TERSE_MOD_META;
-	}
-	return mods;
-}
-
-static size_t
-expected_bytes_for_codec(terse_codec_kind_t kind, unsigned char first)
-{
-	switch (kind) {
-	case TERSE_CODEC_UTF8:
-		if (first < 0x80) {
-			return 1;
-		}
-		if ((first & 0xe0u) == 0xc0u) {
-			return 2;
-		}
-		if ((first & 0xf0u) == 0xe0u) {
-			return 3;
-		}
-		if ((first & 0xf8u) == 0xf0u) {
-			return 4;
-		}
-		return 0;
-	case TERSE_CODEC_SHIFT_JIS:
-		if (first <= 0x7f) {
-			return 1;
-		}
-		if (first >= 0xa1 && first <= 0xdf) {
-			return 1;
-		}
-		if ((first >= 0x81 && first <= 0x9f) || (first >= 0xe0 && first <= 0xfc)) {
-			return 2;
-		}
-		return 0;
-	case TERSE_CODEC_UNKNOWN:
-	default:
-		return 1;
-	}
-}
-
-static unsigned int
-decode_shift_jis_bytes(terse_handle_t handle, const unsigned char *bytes, size_t length)
-{
-	if (length == 0 || !bytes) {
-		return SHIFT_JIS_REPLACEMENT;
-	}
-	unsigned char first = bytes[0];
-	if (length == 1) {
-		if (first <= 0x7f) {
-			return first;
-		}
-		if (first >= 0xa1 && first <= 0xdf) {
-			return 0xff61u + (unsigned int)(first - 0xa1);
-		}
-		return SHIFT_JIS_REPLACEMENT;
-	}
-	if (length == 2) {
-		unsigned char lead = bytes[0];
-		unsigned char trail = bytes[1];
-		if (!((trail >= 0x40 && trail <= 0x7e) || (trail >= 0x80 && trail <= 0xfc))) {
-			return SHIFT_JIS_REPLACEMENT;
-		}
-		if (!((lead >= 0x81 && lead <= 0x9f) || (lead >= 0xe0 && lead <= 0xfc))) {
-			return SHIFT_JIS_REPLACEMENT;
-		}
-		unsigned int scalar = convert_shift_jis_pair(handle, lead, trail);
-		if (scalar == UTF8_REPLACEMENT) {
-			return SHIFT_JIS_REPLACEMENT;
-		}
-		return scalar;
-	}
-	return SHIFT_JIS_REPLACEMENT;
-}
-
-static int
-function_number_from_code(int code)
-{
-	switch (code) {
-	case 11:
-		return 1;
-	case 12:
-		return 2;
-	case 13:
-		return 3;
-	case 14:
-		return 4;
-	case 15:
-		return 5;
-	case 17:
-		return 6;
-	case 18:
-		return 7;
-	case 19:
-		return 8;
-	case 20:
-		return 9;
-	case 21:
-		return 10;
-	case 23:
-		return 11;
-	case 24:
-		return 12;
-	case 25:
-		return 13;
-	case 26:
-		return 14;
-	case 28:
-		return 15;
-	case 29:
-		return 16;
-	case 31:
-		return 17;
-	case 32:
-		return 18;
-	case 33:
-		return 19;
-	case 34:
-		return 20;
-	case 35:
-		return 21;
-	case 36:
-		return 22;
-	case 37:
-		return 23;
-	case 38:
-		return 24;
-	default:
-		return 0;
-	}
-}
-
 terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 {
 	int rc = ensure_handle(handle);
@@ -2130,22 +1725,6 @@ append_param(char *seq, size_t size, size_t *pos, int *first, const char *fmt, .
 	*pos += (size_t)written;
 	*first = 0;
 	return 0;
-}
-
-static int
-mouse_modifiers_from_param(int param)
-{
-	int mods = 0;
-	if (param & 4) {
-		mods |= TERSE_MOD_SHIFT;
-	}
-	if (param & 8) {
-		mods |= TERSE_MOD_ALT;
-	}
-	if (param & 16) {
-		mods |= TERSE_MOD_CTRL;
-	}
-	return mods;
 }
 
 static int
@@ -2959,143 +2538,6 @@ terse_error_t terse_flush(terse_handle_t handle)
 	return 0;
 }
 
-static void
-set_key_event(terse_event_t *event, terse_event_type_t type, int mods)
-{
-	event->type = type;
-	event->data.key.mods = mods;
-}
-
-static void
-set_function_event(terse_event_t *event, int fn_number, int mods)
-{
-	event->type = TERSE_EVENT_FUNCTION;
-	event->data.function.number = fn_number;
-	event->data.function.mods = mods;
-}
-
-static void
-set_char_event(terse_handle_t handle, terse_event_t *event, unsigned int scalar, int mods)
-{
-	int width = terse_compute_cell_width(handle, scalar);
-	event->type = TERSE_EVENT_CHAR;
-	event->data.ch.scalar = scalar;
-	event->data.ch.width = width;
-	event->data.ch.mods = mods;
-}
-
-static void
-set_raw_event(terse_event_t *event, const unsigned char *bytes, size_t length)
-{
-	event->type = TERSE_EVENT_RAW_SEQUENCE;
-	if (length > TERSE_EVENT_RAW_MAX) {
-		length = TERSE_EVENT_RAW_MAX;
-	}
-	event->data.raw.length = length;
-	memset(event->data.raw.bytes, 0, TERSE_EVENT_RAW_MAX);
-	memcpy(event->data.raw.bytes, bytes, length);
-}
-
-static void
-set_resize_event(terse_event_t *event, int rows, int cols)
-{
-	event->type = TERSE_EVENT_RESIZE;
-	event->data.resize.rows = rows;
-	event->data.resize.cols = cols;
-}
-
-static int
-read_input_byte(terse_handle_t handle, int timeout_ms, unsigned char *out)
-{
-	if (!handle || !out) {
-		return -TERSE_ERR_INVALID_ARGUMENT;
-	}
-	if (handle->has_pending_byte) {
-		*out = handle->pending_byte;
-		handle->has_pending_byte = 0;
-		return 1;
-	}
-	int fd = handle->options.input_fd;
-	int ready = terse_platform_wait_for_input(fd, timeout_ms);
-	if (ready == 0) {
-		return 0;
-	}
-	if (ready < 0) {
-		return ready;
-	}
-	ssize_t n = terse_platform_read_byte(fd, out);
-	if (n == 0) {
-		errno = EPIPE;
-		return -TERSE_ERR_IO;
-	}
-	if (n < 0) {
-		return (int)n;
-	}
-	return 1;
-}
-
-static int
-handle_escape_prefixed_char(terse_handle_t handle, terse_event_t *event, const unsigned char *seq, size_t len)
-{
-	if (len < 2 || !handle) {
-		return 0;
-	}
-	size_t payload_len = len - 1;
-	if (payload_len == 0) {
-		return 0;
-	}
-	const unsigned char *payload = seq + 1;
-	unsigned char first = payload[0];
-	if (first == 0x1b) {
-		return 0;
-	}
-	size_t expected = expected_bytes_for_codec(handle->codec_kind, first);
-	if (expected == 0 || expected != payload_len) {
-		return 0;
-	}
-	int mods = TERSE_MOD_ALT;
-	if (payload_len == 1) {
-		if (payload[0] == '\r' || payload[0] == '\n') {
-			set_key_event(event, TERSE_EVENT_ENTER, mods);
-			return 1;
-		}
-		if (payload[0] == '\t') {
-			set_key_event(event, TERSE_EVENT_TAB, mods);
-			return 1;
-		}
-		if (payload[0] == '\b' || payload[0] == 0x7f) {
-			set_key_event(event, TERSE_EVENT_BACKSPACE, mods);
-			return 1;
-		}
-		if (payload[0] >= 0x01 && payload[0] <= 0x1a) {
-			unsigned int scalar = 'A' + (unsigned int)(payload[0] - 1);
-			set_char_event(handle, event, scalar, mods | TERSE_MOD_CTRL);
-			return 1;
-		}
-	}
-	unsigned int scalar = 0;
-	switch (handle->codec_kind) {
-	case TERSE_CODEC_UTF8:
-		scalar = decode_utf8_bytes(payload, payload_len);
-		if (scalar == UTF8_REPLACEMENT) {
-			return 0;
-		}
-		break;
-	case TERSE_CODEC_SHIFT_JIS:
-		scalar = decode_shift_jis_bytes(handle, payload, payload_len);
-		if (scalar == SHIFT_JIS_REPLACEMENT) {
-			return 0;
-		}
-		break;
-	case TERSE_CODEC_UNKNOWN:
-	default:
-		scalar = payload[0];
-		break;
-	}
-	set_char_event(handle, event, scalar, mods);
-	return 1;
-}
-
 terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event)
 {
 	int rc = ensure_handle(handle);
@@ -3131,7 +2573,7 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 	int fd = handle->options.input_fd;
 
 	unsigned char first = 0;
-	rc = read_input_byte(handle, timeout_ms, &first);
+	rc = terse_read_input_byte(handle, timeout_ms, &first);
 	if (rc == 0) {
 		clear_error(handle);
 		return TERSE_ERR_NO_EVENT;
@@ -3145,7 +2587,7 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 	switch (first) {
 	case '\r': {
 		unsigned char next = 0;
-		int peek = read_input_byte(handle, 0, &next);
+		int peek = terse_read_input_byte(handle, 0, &next);
 		if (peek < 0) {
 			// peek is negative terse_error_t, convert to positive
 			set_error(handle, (terse_error_t)(-peek));
@@ -3153,7 +2595,7 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 		}
 		if (peek > 0 && next == '\n') {
 			// Consume \r\n as Enter
-			set_key_event(out_event, TERSE_EVENT_ENTER, 0);
+			terse_set_key_event(out_event, TERSE_EVENT_ENTER, 0);
 			clear_error(handle);
 			return TERSE_OK;
 		}
@@ -3162,21 +2604,21 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 			handle->pending_byte = next;
 			handle->has_pending_byte = 1;
 		}
-		set_key_event(out_event, TERSE_EVENT_ENTER, 0);
+		terse_set_key_event(out_event, TERSE_EVENT_ENTER, 0);
 		clear_error(handle);
 		return TERSE_OK;
 	}
 	case '\n':
-		set_key_event(out_event, TERSE_EVENT_ENTER, TERSE_MOD_CTRL);
+		terse_set_key_event(out_event, TERSE_EVENT_ENTER, TERSE_MOD_CTRL);
 		clear_error(handle);
 		return TERSE_OK;
 	case '\b':
 	case 0x7f:
-		set_key_event(out_event, TERSE_EVENT_BACKSPACE, 0);
+		terse_set_key_event(out_event, TERSE_EVENT_BACKSPACE, 0);
 		clear_error(handle);
 		return TERSE_OK;
 	case '\t':
-		set_key_event(out_event, TERSE_EVENT_TAB, 0);
+		terse_set_key_event(out_event, TERSE_EVENT_TAB, 0);
 		clear_error(handle);
 		return TERSE_OK;
 	default:
@@ -3185,7 +2627,7 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 
 	if (first >= 0x01 && first <= 0x1a) {
 		unsigned int scalar = 'A' + (first - 1);
-		set_char_event(handle, out_event, scalar, TERSE_MOD_CTRL);
+		terse_set_char_event(handle, out_event, scalar, TERSE_MOD_CTRL);
 		return TERSE_OK;
 	}
 
@@ -3203,7 +2645,7 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 				fn = 1 + (code - 'A');  // A=F1, B=F2, ..., L=F12
 			}
 			if (fn > 0 && fn <= 12) {
-				set_function_event(out_event, fn, 0);
+				terse_set_function_event(out_event, fn, 0);
 				clear_error(handle);
 				return TERSE_OK;
 			}
@@ -3212,9 +2654,9 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 		int values[8] = { 0 };
 		size_t value_count = 0;
 		char final = 0;
-		if (parse_csi_sequence(seq, len, values, 8, &value_count, &final) == 0) {
+		if (terse_parse_csi_sequence(seq, len, values, 8, &value_count, &final) == 0) {
 			if ((final == 'M' || final == 'm') && len > 2 && seq[2] == '<') {
-				if (handle_sgr_mouse_sequence(handle, out_event, values, value_count, final)) {
+				if (terse_handle_sgr_mouse_sequence(handle, out_event, values, value_count, final)) {
 					return TERSE_OK;
 				}
 			}
@@ -3234,25 +2676,25 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 				unsigned int code = (unsigned int)values[0];
 				int mods = 0;
 				if (value_count >= 2) {
-					mods = mods_from_kitty_param(values[1]);
+					mods = terse_mods_from_kitty_param(values[1]);
 				}
 				if (code == 13) {
-					set_key_event(out_event, TERSE_EVENT_ENTER, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_ENTER, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				}
 				if (code == 9) {
-					set_key_event(out_event, TERSE_EVENT_TAB, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_TAB, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				}
 				if (code == 127) {
-					set_key_event(out_event, TERSE_EVENT_BACKSPACE, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_BACKSPACE, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				}
 				if (code >= 0x20 && code <= 0x10ffff) {
-					set_char_event(handle, out_event, code, mods);
+					terse_set_char_event(handle, out_event, code, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				}
@@ -3260,17 +2702,17 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 			if (final == 'Z') {
 				int mods = TERSE_MOD_SHIFT;
 				if (value_count > 0) {
-					mods = modifier_bits_from_param(values[value_count - 1]);
+					mods = terse_modifier_bits_from_param(values[value_count - 1]);
 					if (!(mods & TERSE_MOD_SHIFT)) {
 						mods |= TERSE_MOD_SHIFT;
 					}
 				}
-				set_key_event(out_event, TERSE_EVENT_TAB, mods);
+				terse_set_key_event(out_event, TERSE_EVENT_TAB, mods);
 				clear_error(handle);
 				return TERSE_OK;
 			}
 			if (final == 't' && value_count >= 3 && values[0] == 8) {
-				set_resize_event(out_event, values[1], values[2]);
+				terse_set_resize_event(out_event, values[1], values[2]);
 				handle->size.rows = values[1];
 				handle->size.cols = values[2];
 				handle->size.known = 1;
@@ -3281,19 +2723,19 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 			if (final == 'H' || final == 'F') {
 				int mods = 0;
 				if (value_count > 0) {
-					mods = modifier_bits_from_param(values[value_count - 1]);
+					mods = terse_modifier_bits_from_param(values[value_count - 1]);
 				}
 				if (final == 'H') {
-					set_key_event(out_event, TERSE_EVENT_HOME, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_HOME, mods);
 				} else {
-					set_key_event(out_event, TERSE_EVENT_END, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_END, mods);
 				}
 				clear_error(handle);
 				return TERSE_OK;
 			}
 			if (final == '~') {
 				if (value_count == 0) {
-					set_raw_event(out_event, seq, len);
+					terse_set_raw_event(out_event, seq, len);
 					clear_error(handle);
 					return TERSE_OK;
 				}
@@ -3305,41 +2747,41 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 				} else if (value_count > 1) {
 					mods_param = values[value_count - 1];
 				}
-				int mods = modifier_bits_from_param(mods_param);
+				int mods = terse_modifier_bits_from_param(mods_param);
 				switch (key_code) {
 				case 1:
 				case 7:
-					set_key_event(out_event, TERSE_EVENT_HOME, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_HOME, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				case 4:
 				case 8:
-					set_key_event(out_event, TERSE_EVENT_END, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_END, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				case 2:
-					set_key_event(out_event, TERSE_EVENT_INSERT, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_INSERT, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				case 3:
-					set_key_event(out_event, TERSE_EVENT_DELETE, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_DELETE, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				case 5:
-					set_key_event(out_event, TERSE_EVENT_PAGE_UP, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_PAGE_UP, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				case 6:
-					set_key_event(out_event, TERSE_EVENT_PAGE_DOWN, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_PAGE_DOWN, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				case 9:
-					set_key_event(out_event, TERSE_EVENT_TAB, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_TAB, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				case 13:
 					if (values[0] == 27 && value_count >= 3) {
-						set_key_event(out_event, TERSE_EVENT_ENTER, modifier_bits_from_param(values[1]));
+						terse_set_key_event(out_event, TERSE_EVENT_ENTER, terse_modifier_bits_from_param(values[1]));
 						clear_error(handle);
 						return TERSE_OK;
 					}
@@ -3347,24 +2789,24 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 				default:
 					break;
 				}
-				int fn = function_number_from_code(key_code);
+				int fn = terse_function_number_from_code(key_code);
 				if (fn > 0) {
-					set_function_event(out_event, fn, mods);
+					terse_set_function_event(out_event, fn, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				}
 				if (key_code >= 0 && key_code <= 0x10ffff) {
 					if (key_code == 9) {
-						set_key_event(out_event, TERSE_EVENT_TAB, mods);
+						terse_set_key_event(out_event, TERSE_EVENT_TAB, mods);
 						clear_error(handle);
 						return TERSE_OK;
 					}
 					if (key_code == 8 || key_code == 127) {
-						set_key_event(out_event, TERSE_EVENT_BACKSPACE, mods);
+						terse_set_key_event(out_event, TERSE_EVENT_BACKSPACE, mods);
 						clear_error(handle);
 						return TERSE_OK;
 					}
-					set_char_event(handle, out_event, (unsigned int)key_code, mods);
+					terse_set_char_event(handle, out_event, (unsigned int)key_code, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				}
@@ -3372,23 +2814,23 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 			if (final == 'A' || final == 'B' || final == 'C' || final == 'D') {
 				int mods = 0;
 				if (value_count > 0) {
-					mods = modifier_bits_from_param(values[value_count - 1]);
+					mods = terse_modifier_bits_from_param(values[value_count - 1]);
 				}
 				switch (final) {
 				case 'A':
-					set_key_event(out_event, TERSE_EVENT_ARROW_UP, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_ARROW_UP, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				case 'B':
-					set_key_event(out_event, TERSE_EVENT_ARROW_DOWN, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_ARROW_DOWN, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				case 'C':
-					set_key_event(out_event, TERSE_EVENT_ARROW_RIGHT, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_ARROW_RIGHT, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				case 'D':
-					set_key_event(out_event, TERSE_EVENT_ARROW_LEFT, mods);
+					terse_set_key_event(out_event, TERSE_EVENT_ARROW_LEFT, mods);
 					clear_error(handle);
 					return TERSE_OK;
 				default:
@@ -3401,60 +2843,60 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 			char code = (char)seq[2];
 			switch (code) {
 			case 'A':
-				set_key_event(out_event, TERSE_EVENT_ARROW_UP, mods);
+				terse_set_key_event(out_event, TERSE_EVENT_ARROW_UP, mods);
 				clear_error(handle);
 				return TERSE_OK;
 			case 'B':
-				set_key_event(out_event, TERSE_EVENT_ARROW_DOWN, mods);
+				terse_set_key_event(out_event, TERSE_EVENT_ARROW_DOWN, mods);
 				clear_error(handle);
 				return TERSE_OK;
 			case 'C':
-				set_key_event(out_event, TERSE_EVENT_ARROW_RIGHT, mods);
+				terse_set_key_event(out_event, TERSE_EVENT_ARROW_RIGHT, mods);
 				clear_error(handle);
 				return TERSE_OK;
 			case 'D':
-				set_key_event(out_event, TERSE_EVENT_ARROW_LEFT, mods);
+				terse_set_key_event(out_event, TERSE_EVENT_ARROW_LEFT, mods);
 				clear_error(handle);
 				return TERSE_OK;
 			case 'H':
-				set_key_event(out_event, TERSE_EVENT_HOME, mods);
+				terse_set_key_event(out_event, TERSE_EVENT_HOME, mods);
 				clear_error(handle);
 				return TERSE_OK;
 			case 'F':
-				set_key_event(out_event, TERSE_EVENT_END, mods);
+				terse_set_key_event(out_event, TERSE_EVENT_END, mods);
 				clear_error(handle);
 				return TERSE_OK;
 			case 'P':
-				set_function_event(out_event, 1, mods);
+				terse_set_function_event(out_event, 1, mods);
 				clear_error(handle);
 				return TERSE_OK;
 			case 'Q':
-				set_function_event(out_event, 2, mods);
+				terse_set_function_event(out_event, 2, mods);
 				clear_error(handle);
 				return TERSE_OK;
 			case 'R':
-				set_function_event(out_event, 3, mods);
+				terse_set_function_event(out_event, 3, mods);
 				clear_error(handle);
 				return TERSE_OK;
 			case 'S':
-				set_function_event(out_event, 4, mods);
+				terse_set_function_event(out_event, 4, mods);
 				clear_error(handle);
 				return TERSE_OK;
 			default:
 				break;
 			}
 		}
-		if (handle_escape_prefixed_char(handle, out_event, seq, len)) {
+		if (terse_handle_escape_prefixed_char(handle, out_event, seq, len)) {
 			clear_error(handle);
 			return TERSE_OK;
 		}
-		set_raw_event(out_event, seq, len);
+		terse_set_raw_event(out_event, seq, len);
 		clear_error(handle);
 		return TERSE_OK;
 	}
 
 	if (first >= 0x20 || (handle->codec_kind == TERSE_CODEC_SHIFT_JIS && first >= 0x80)) {
-		int decode_rc = decode_stream_char(handle, fd, first, out_event);
+		int decode_rc = terse_decode_stream_char(handle, fd, first, out_event);
 		if (decode_rc == 0) {
 			clear_error(handle);
 			return TERSE_OK;
@@ -3465,7 +2907,7 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 	}
 
 	unsigned char raw_bytes[1] = { first };
-	set_raw_event(out_event, raw_bytes, 1);
+	terse_set_raw_event(out_event, raw_bytes, 1);
 	clear_error(handle);
 	return TERSE_OK;
 #endif /* !__HUMAN68K__ */
