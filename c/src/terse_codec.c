@@ -7,8 +7,8 @@
 #endif
 
 /* iconv reset helper (from terse.c) */
-static void
-reset_iconv_state(iconv_t cd)
+void
+terse_codec_reset_iconv_state(iconv_t cd)
 {
 #if TERSE_USE_SYSTEM_ICONV
 	/* Reset iconv state by calling with NULL input */
@@ -141,7 +141,7 @@ terse_convert_shift_jis_pair(terse_handle_t handle, unsigned char lead, unsigned
 	char outbuf[8] = { 0 };
 	char *out_ptr = outbuf;
 	size_t out_left = sizeof(outbuf);
-	reset_iconv_state(handle->codec_to_utf8);
+	terse_codec_reset_iconv_state(handle->codec_to_utf8);
 	if (iconv(handle->codec_to_utf8, &in_ptr, &in_left, &out_ptr, &out_left) == (size_t)-1) {
 		return TERSE_SHIFT_JIS_REPLACEMENT;
 	}

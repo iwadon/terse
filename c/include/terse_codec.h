@@ -3,6 +3,16 @@
 
 #include "terse.h"
 
+#ifndef TERSE_USE_SYSTEM_ICONV
+#define TERSE_USE_SYSTEM_ICONV 1
+#endif
+
+#if TERSE_USE_SYSTEM_ICONV
+#include <iconv.h>
+#else
+#include "../src/mini_iconv.h"
+#endif
+
 /*
  * Internal codec helper functions for character decoding.
  * These functions are used by platform-specific code for text input processing.
@@ -22,6 +32,9 @@ int terse_decode_shift_jis_stream(terse_handle_t handle, int fd, unsigned char f
 
 /* Convert Shift_JIS byte pair to Unicode scalar using iconv handle */
 unsigned int terse_convert_shift_jis_pair(terse_handle_t handle, unsigned char lead, unsigned char trail);
+
+/* Reset iconv conversion state */
+void terse_codec_reset_iconv_state(iconv_t cd);
 
 /* Replacement characters for invalid sequences */
 #define TERSE_UTF8_REPLACEMENT 0xfffdU

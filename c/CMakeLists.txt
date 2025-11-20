@@ -6,6 +6,7 @@ add_library(terse
   src/terse_event_helpers.c
   src/terse_input.c
   src/terse_style.c
+  src/terse_output.c
 )
 
 include(CheckIncludeFile)
