@@ -3,7 +3,7 @@
 ## Motivation
 
 - Human68k ビルドではシステム側の文字コードが Shift_JIS 固定で、外部 `iconv` をリンクできないケースがある。
-- `TERSE_ENABLE_ICONV=OFF` では現在 Shift_JIS を選ぶと `ENOSYS` を返して終了するため、Human68k では実用にならない。
+- `TERSE_USE_SYSTEM_ICONV=OFF` では現在 Shift_JIS を選ぶと `ENOSYS` を返して終了するため、Human68k では実用にならない。
 - そこで `iconv` の API 互換シェルだけを TERSE 内部に実装し、Shift_JIS ⇔ UTF-8 の相互変換を最小コストで提供する。
 
 ## 目標と非目標
@@ -12,14 +12,14 @@
   - `iconv_open("UTF-8", "SHIFT_JIS")` と `iconv_open("SHIFT_JIS", "UTF-8")` を正しく処理。
   - `iconv`・`iconv_close`・リセット (`iconv(cd, NULL, NULL, NULL, NULL)`) を API 互換で提供。
   - ASCII, 半角カナ, JIS 第1・第2水準漢字、および既存ユニットテストが検証する範囲をサポート。
-  - 依存ライブラリを追加せず、ビルド時に `TERSE_ENABLE_ICONV=OFF` でも Shift_JIS が動作する。
+  - 依存ライブラリを追加せず、ビルド時に `TERSE_USE_SYSTEM_ICONV=OFF` でも Shift_JIS が動作する。
 - **非目標**
   - 多言語コードページや ISO-2022-JP など他の charset への拡張。
   - 大規模なエンコーディング検証や完全な Unicode 正規化。
 
 ## 期待する差し込みポイント
 
-1. `TERSE_ENABLE_ICONV=OFF` のとき `TERSE_HAVE_ICONV` を 0 ではなく "mini iconv" 実装に向ける。
+1. `TERSE_USE_SYSTEM_ICONV=OFF` のとき `TERSE_HAVE_ICONV` を 0 ではなく "mini iconv" 実装に向ける。
 2. 既存の `initialize_codec_handles` / `destroy_codec_handles` はそのまま利用し、`iconv_open` などでラッパーが呼ばれる。
 3. 失敗時は `terse_error_t` に対応するエラーコード（`TERSE_ERR_INVALID_ARGUMENT` / `TERSE_ERR_INVALID_ENCODING` / `TERSE_ERR_BUFFER_TOO_SMALL`）を返す。
 
@@ -55,13 +55,13 @@
 ## 組み込み手順
 
 1. `c/src/mini_iconv.c`（仮称）に実装。
-2. `c/CMakeLists.txt` で `TERSE_ENABLE_ICONV` が OFF のとき、このファイルをビルドへ追加し `TERSE_HAVE_ICONV` を 1 のままにする。
+2. `c/CMakeLists.txt` で `TERSE_USE_SYSTEM_ICONV` が OFF のとき、このファイルをビルドへ追加し `TERSE_HAVE_ICONV` を 1 のままにする。
 3. ヘッダー (`mini_iconv.h`) で既存の `<iconv.h>` シンボルを上書きし、ベアメタルでもビルドできるようにする。
 4. 現在の `#if TERSE_HAVE_ICONV` ガードは多くが不要になり、`TERSE_HAVE_ICONV` は常に 1 扱いが可能（アイコンブのあり/なしを透過化）。
 
 ## テスト計画
 
-- 既存の `terse_write_text_test`・`terse_read_event_test` の Shift_JIS ケースを `TERSE_ENABLE_ICONV=OFF` でビルドし、継続的に回す。
+- 既存の `terse_write_text_test`・`terse_read_event_test` の Shift_JIS ケースを `TERSE_USE_SYSTEM_ICONV=OFF` でビルドし、継続的に回す。
 - 追加で、エラーケース（不正バイト列／バッファ不足）を網羅する単体テストを新設。
 - 端末上での実機確認：Human68k 版の TERSE を用いて、簡単な入出力デモで正しい表示とイベント復号を確認。
 

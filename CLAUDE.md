@@ -25,14 +25,14 @@ ninja -C build terse        # Build library only
 
 #### Initial Configuration
 ```cmd
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DTERSE_ENABLE_ICONV=OFF
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DTERSE_USE_SYSTEM_ICONV=OFF
 ```
 Or for Ninja with MSVC:
 ```cmd
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTERSE_ENABLE_ICONV=OFF
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTERSE_USE_SYSTEM_ICONV=OFF
 ```
 
-Note: Windows typically does not have iconv available, so `-DTERSE_ENABLE_ICONV=OFF` uses the built-in mini iconv implementation.
+Note: Windows typically does not have iconv available, so `-DTERSE_USE_SYSTEM_ICONV=OFF` uses the built-in mini iconv implementation.
 
 #### Build Targets
 With Visual Studio generator:
@@ -48,8 +48,8 @@ ninja -C build terse        # Build library only
 ```
 
 ### Build Options
-- `-DTERSE_ENABLE_ICONV=ON` (default): Use system iconv for charset conversions
-- `-DTERSE_ENABLE_ICONV=OFF`: Use built-in mini iconv (Shift_JIS ↔ UTF-8 only)
+- `-DTERSE_USE_SYSTEM_ICONV=ON` (default): Use system iconv for charset conversions
+- `-DTERSE_USE_SYSTEM_ICONV=OFF`: Use built-in mini iconv (Shift_JIS ↔ UTF-8 only)
 - `-DTERSE_ENABLE_TEST_MODE=ON`: Enable test mode with API recording and mocking capabilities
 
 ### Testing

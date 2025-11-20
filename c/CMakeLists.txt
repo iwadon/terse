@@ -49,11 +49,13 @@ target_include_directories(terse
     $<INSTALL_INTERFACE:include>
 )
 
-if(TERSE_ENABLE_ICONV)
+if(TERSE_USE_SYSTEM_ICONV)
+  message(STATUS "Using system iconv for codec conversions")
   find_package(Iconv REQUIRED)
   target_link_libraries(terse PRIVATE Iconv::Iconv)
   target_compile_definitions(terse PUBLIC TERSE_USE_SYSTEM_ICONV=1)
 else()
+  message(STATUS "Using built-in mini_iconv for codec conversions")
   target_sources(terse PRIVATE src/mini_iconv.c)
   target_compile_definitions(terse PUBLIC TERSE_USE_SYSTEM_ICONV=0)
 endif()

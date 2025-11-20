@@ -1668,7 +1668,7 @@ Characters like `±`, `×`, `§` can be 1 or 2 cells wide depending on context. 
 ### Building Without System iconv
 
 ```bash
-cmake -S . -B build -DTERSE_ENABLE_ICONV=OFF
+cmake -S . -B build -DTERSE_USE_SYSTEM_ICONV=OFF
 ```
 
 Uses built-in mini iconv (Shift_JIS ↔ UTF-8 only).
