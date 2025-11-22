@@ -615,7 +615,7 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 	}
 #endif
 
-#if defined(__HUMAN68K__) || defined(_WIN32)
+#if defined(__human68k__) || defined(_WIN32)
 	/* Human68k and Windows: Use platform-specific event reading implementation */
 	return terse_platform_read_event(handle, timeout_ms, out_event);
 #else
@@ -960,7 +960,7 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 	terse_set_raw_event(out_event, raw_bytes, 1);
 	clear_error(handle);
 	return TERSE_OK;
-#endif /* !__HUMAN68K__ */
+#endif /* !__human68k__ */
 }
 
 terse_size_t
