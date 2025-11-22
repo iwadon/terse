@@ -65,10 +65,24 @@ static void log_event(const terse_event_t *event)
 	case TERSE_EVENT_CHAR:
 		{
 			char utf8[5] = { 0 };
-			size_t len = encode_utf8(event->data.ch.scalar, utf8);
-			utf8[len] = '\0';
+			unsigned int scalar = event->data.ch.scalar;
+
+			/* Escape control codes for display */
+			if (scalar < 0x20 || scalar == 0x7F) {
+				if (scalar == 0x7F) {
+					strcpy(utf8, "^?");
+				} else {
+					utf8[0] = '^';
+					utf8[1] = (char)('@' + scalar);
+					utf8[2] = '\0';
+				}
+			} else {
+				size_t len = encode_utf8(scalar, utf8);
+				utf8[len] = '\0';
+			}
+
 			printf("CHAR scalar=U+%04X text='%s' width=%d mods=%s\r\n",
-				(unsigned int)event->data.ch.scalar,
+				scalar,
 				utf8,
 				event->data.ch.width,
 				mod_string(event->data.ch.mods));
