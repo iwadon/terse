@@ -189,9 +189,9 @@ scancode_to_event_type(unsigned int scancode)
 	case 0x3a:
 		return TERSE_EVENT_RAW_SEQUENCE; /* UNDO - no standard mapping */
 	case 0x3b:
-		return TERSE_EVENT_ARROW_UP;
-	case 0x3c:
 		return TERSE_EVENT_ARROW_RIGHT;
+	case 0x3c:
+		return TERSE_EVENT_ARROW_UP;
 	case 0x3d:
 		return TERSE_EVENT_ARROW_LEFT;
 	case 0x3e:

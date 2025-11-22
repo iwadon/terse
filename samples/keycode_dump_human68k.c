@@ -68,13 +68,13 @@ static void print_key_info(unsigned int keysns, unsigned int mod, unsigned char 
 		printf("| UNDO"); /* Undo */
 		break;
 	case 0x3b:
-		printf("| ↑"); /* Up Arrow */
+		printf("| ←"); /* Left Arrow */
 		break;
 	case 0x3c:
-		printf("| →"); /* Right Arrow */
+		printf("| ↑"); /* Up Arrow */
 		break;
 	case 0x3d:
-		printf("| ←"); /* Left Arrow */
+		printf("| →"); /* Right Arrow */
 		break;
 	case 0x3e:
 		printf("| ↓"); /* Down Arrow */
