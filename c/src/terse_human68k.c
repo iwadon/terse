@@ -1,7 +1,7 @@
-#include "terse_platform.h"
-#include "terse_internal.h"
 #include "terse_codec.h"
 #include "terse_event_helpers.h"
+#include "terse_internal.h"
+#include "terse_platform.h"
 
 #include <errno.h>
 #include <sys/types.h>
@@ -170,32 +170,58 @@ static terse_event_type_t
 scancode_to_event_type(unsigned int scancode)
 {
 	switch (scancode) {
-	case 0x01: return TERSE_EVENT_RAW_SEQUENCE; /* ESC - handled separately */
-	case 0x0f: return TERSE_EVENT_BACKSPACE;
-	case 0x10: return TERSE_EVENT_TAB;
-	case 0x1d: return TERSE_EVENT_ENTER; /* Enter (full) */
-	case 0x36: return TERSE_EVENT_HOME;
-	case 0x37: return TERSE_EVENT_DELETE;
-	case 0x38: return TERSE_EVENT_PAGE_UP; /* Roll Up */
-	case 0x39: return TERSE_EVENT_PAGE_DOWN; /* Roll Down */
-	case 0x3a: return TERSE_EVENT_RAW_SEQUENCE; /* UNDO - no standard mapping */
-	case 0x3b: return TERSE_EVENT_ARROW_UP;
-	case 0x3c: return TERSE_EVENT_ARROW_RIGHT;
-	case 0x3d: return TERSE_EVENT_ARROW_LEFT;
-	case 0x3e: return TERSE_EVENT_ARROW_DOWN;
-	case 0x3f: return TERSE_EVENT_HOME; /* CLR */
-	case 0x4e: return TERSE_EVENT_ENTER; /* Enter (numeric) */
-	case 0x63: return TERSE_EVENT_FUNCTION; /* F1 */
-	case 0x64: return TERSE_EVENT_FUNCTION; /* F2 */
-	case 0x65: return TERSE_EVENT_FUNCTION; /* F3 */
-	case 0x66: return TERSE_EVENT_FUNCTION; /* F4 */
-	case 0x67: return TERSE_EVENT_FUNCTION; /* F5 */
-	case 0x68: return TERSE_EVENT_FUNCTION; /* F6 */
-	case 0x69: return TERSE_EVENT_FUNCTION; /* F7 */
-	case 0x6a: return TERSE_EVENT_FUNCTION; /* F8 */
-	case 0x6b: return TERSE_EVENT_FUNCTION; /* F9 */
-	case 0x6c: return TERSE_EVENT_FUNCTION; /* F10 */
-	default: return TERSE_EVENT_RAW_SEQUENCE;
+	case 0x01:
+		return TERSE_EVENT_RAW_SEQUENCE; /* ESC - handled separately */
+	case 0x0f:
+		return TERSE_EVENT_BACKSPACE;
+	case 0x10:
+		return TERSE_EVENT_TAB;
+	case 0x1d:
+		return TERSE_EVENT_ENTER; /* Enter (full) */
+	case 0x36:
+		return TERSE_EVENT_HOME;
+	case 0x37:
+		return TERSE_EVENT_DELETE;
+	case 0x38:
+		return TERSE_EVENT_PAGE_UP; /* Roll Up */
+	case 0x39:
+		return TERSE_EVENT_PAGE_DOWN; /* Roll Down */
+	case 0x3a:
+		return TERSE_EVENT_RAW_SEQUENCE; /* UNDO - no standard mapping */
+	case 0x3b:
+		return TERSE_EVENT_ARROW_UP;
+	case 0x3c:
+		return TERSE_EVENT_ARROW_RIGHT;
+	case 0x3d:
+		return TERSE_EVENT_ARROW_LEFT;
+	case 0x3e:
+		return TERSE_EVENT_ARROW_DOWN;
+	case 0x3f:
+		return TERSE_EVENT_HOME; /* CLR */
+	case 0x4e:
+		return TERSE_EVENT_ENTER; /* Enter (numeric) */
+	case 0x63:
+		return TERSE_EVENT_FUNCTION; /* F1 */
+	case 0x64:
+		return TERSE_EVENT_FUNCTION; /* F2 */
+	case 0x65:
+		return TERSE_EVENT_FUNCTION; /* F3 */
+	case 0x66:
+		return TERSE_EVENT_FUNCTION; /* F4 */
+	case 0x67:
+		return TERSE_EVENT_FUNCTION; /* F5 */
+	case 0x68:
+		return TERSE_EVENT_FUNCTION; /* F6 */
+	case 0x69:
+		return TERSE_EVENT_FUNCTION; /* F7 */
+	case 0x6a:
+		return TERSE_EVENT_FUNCTION; /* F8 */
+	case 0x6b:
+		return TERSE_EVENT_FUNCTION; /* F9 */
+	case 0x6c:
+		return TERSE_EVENT_FUNCTION; /* F10 */
+	default:
+		return TERSE_EVENT_RAW_SEQUENCE;
 	}
 }
 
@@ -214,9 +240,15 @@ static int
 convert_modifiers(unsigned int iocs_mods)
 {
 	int mods = 0;
-	if (iocs_mods & 0x01) mods |= TERSE_MOD_SHIFT;
-	if (iocs_mods & 0x02) mods |= TERSE_MOD_CTRL;
-	if (iocs_mods & 0x04) mods |= TERSE_MOD_ALT; /* OPT.1 */
+	if (iocs_mods & 0x01) {
+		mods |= TERSE_MOD_SHIFT;
+	}
+	if (iocs_mods & 0x02) {
+		mods |= TERSE_MOD_CTRL;
+	}
+	if (iocs_mods & 0x04) {
+		mods |= TERSE_MOD_ALT; /* OPT.1 */
+	}
 	/* OPT.2 (bit 3) is not mapped to standard modifier */
 	return mods;
 }
