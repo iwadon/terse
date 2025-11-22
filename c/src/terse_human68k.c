@@ -280,7 +280,7 @@ terse_platform_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *
 	unsigned int ascii_code = keysns & 0xff;
 
 	/* Handle special keys (ASCII code = 0) */
-	if (ascii_code == 0) {
+	if (ascii_code == 0 || keysns == 0x11d0d) { // 0x11d0d = Enter key
 		/* Consume the key from buffer */
 		_iocs_b_keyinp();
 
