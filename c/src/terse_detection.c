@@ -1,9 +1,3 @@
-#include "terse_detection.h"
-#include "terse_platform.h"
-#include <string.h>
-#include <strings.h>
-#include <stdlib.h>
-
 /**
  * @file terse_detection.c
  * @brief Terminal capability detection implementation.
@@ -13,6 +7,11 @@
  * automatic identification of Apple Terminal, GNOME Terminal/VTE, iTerm2,
  * WezTerm, kitty, Ghostty, Warp, and Sixel-capable terminals.
  */
+
+#include "terse_detection.h"
+#include "terse_platform.h"
+#include <stdlib.h>
+#include <string.h>
 
 /* Forward declarations for internal functions */
 static int matches_da_prefix(const unsigned char *buffer, size_t length, const char *prefix);
@@ -73,8 +72,7 @@ terse_make_p0_capabilities(void)
  * @param kind The color kind to rank.
  * @return An integer rank (0=default, 1=basic16, 2=palette256, 3=truecolor).
  */
-int
-terse_color_kind_rank(terse_color_kind_t kind)
+int terse_color_kind_rank(terse_color_kind_t kind)
 {
 	switch (kind) {
 	case TERSE_COLOR_KIND_DEFAULT:
