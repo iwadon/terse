@@ -5,7 +5,12 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 include(CTest)
 
-option(TERSE_USE_SYSTEM_ICONV "Use system iconv for codec conversions" ON)
+# MSVCではiconvが標準で利用できないため、デフォルトでOFF
+if(MSVC)
+  option(TERSE_USE_SYSTEM_ICONV "Use system iconv for codec conversions" OFF)
+else()
+  option(TERSE_USE_SYSTEM_ICONV "Use system iconv for codec conversions" ON)
+endif()
 option(TERSE_ENABLE_TEST_MODE "Enable test mode and mocking features" OFF)
 
 # テストのデフォルト: トップレベルプロジェクトならON、サブプロジェクトならOFF
