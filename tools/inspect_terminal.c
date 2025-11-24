@@ -53,7 +53,69 @@ static void print_bytes(const char *label, const unsigned char *data, size_t len
 	printf("\r\n");
 }
 
-#if !defined(__human68k__) && !defined(__HUMAN68K__)
+#if defined(_WIN32)
+static size_t read_bytes_with_timeout(HANDLE handle, unsigned char *buffer, size_t capacity, int timeout_ms)
+{
+	size_t total = 0;
+	DWORD start_time = GetTickCount();
+	DWORD last_read_time = start_time;
+	const DWORD idle_threshold = 150; // Wait 150ms after last byte before giving up
+
+	// Use overlapped I/O for timeout support
+	OVERLAPPED overlapped = {0};
+	overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (!overlapped.hEvent) {
+		return 0;
+	}
+
+	while (total < capacity) {
+		DWORD elapsed = GetTickCount() - start_time;
+		if (elapsed >= (DWORD)timeout_ms) {
+			break;
+		}
+
+		// Check if input is available
+		DWORD num_events = 0;
+		if (!GetNumberOfConsoleInputEvents(handle, &num_events)) {
+			break;
+		}
+
+		if (num_events == 0) {
+			// No input available, check if we've been idle too long after receiving data
+			if (total > 0 && (GetTickCount() - last_read_time) > idle_threshold) {
+				break;
+			}
+			Sleep(10);
+			continue;
+		}
+
+		// Read input records
+		INPUT_RECORD records[32];
+		DWORD num_read = 0;
+		if (!ReadConsoleInput(handle, records, 32, &num_read)) {
+			break;
+		}
+
+		// Process input records - in VT mode, key events contain the VT sequences
+		for (DWORD i = 0; i < num_read && total < capacity; i++) {
+			if (records[i].EventType == KEY_EVENT && records[i].Event.KeyEvent.bKeyDown) {
+				// Get the character from the key event
+				WCHAR wch = records[i].Event.KeyEvent.uChar.UnicodeChar;
+				if (wch != 0) {
+					// Convert to byte - VT sequences are ASCII
+					if (wch < 256) {
+						buffer[total++] = (unsigned char)wch;
+						last_read_time = GetTickCount();
+					}
+				}
+			}
+		}
+	}
+
+	CloseHandle(overlapped.hEvent);
+	return total;
+}
+#elif !defined(__human68k__) && !defined(__HUMAN68K__)
 static size_t read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int timeout_ms)
 {
 	size_t total = 0;
@@ -103,6 +165,75 @@ static void probe_device_attributes(void)
 #if defined(__human68k__) || defined(__HUMAN68K__)
 	printf("Device attribute probing not supported on Human68k.\n");
 	printf("Console I/O is handled through DOS/IOCS calls.\n");
+#elif defined(_WIN32)
+	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+	HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+
+	if (hStdin == INVALID_HANDLE_VALUE || hStdout == INVALID_HANDLE_VALUE) {
+		printf("Failed to get console handles.\n");
+		return;
+	}
+
+	if (_isatty(_fileno(stdin)) == 0 || _isatty(_fileno(stdout)) == 0) {
+		printf("stdin/stdout are not TTYs; skipping DA probe.\n");
+		return;
+	}
+
+	DWORD original_input_mode = 0;
+	DWORD original_output_mode = 0;
+	if (!GetConsoleMode(hStdin, &original_input_mode)) {
+		printf("Failed to get console input mode.\n");
+		return;
+	}
+	if (!GetConsoleMode(hStdout, &original_output_mode)) {
+		printf("Failed to get console output mode.\n");
+		return;
+	}
+
+	// Enable VT processing for output
+	DWORD new_output_mode = original_output_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+	SetConsoleMode(hStdout, new_output_mode);
+
+	// Disable line input and echo for input
+	DWORD new_input_mode = ENABLE_VIRTUAL_TERMINAL_INPUT;
+	SetConsoleMode(hStdin, new_input_mode);
+
+	unsigned char buffer[128];
+	size_t length = 0;
+
+	const char primary_request[] = "\x1b[c";
+	DWORD written = 0;
+	if (!WriteFile(hStdout, primary_request, sizeof(primary_request) - 1, &written, NULL)) {
+		printf("Failed to write primary DA request.\n");
+	} else {
+		FlushFileBuffers(hStdout);
+		length = read_bytes_with_timeout(hStdin, buffer, sizeof(buffer), 500);
+		print_bytes("Primary DA response", buffer, length);
+	}
+
+	const char secondary_request[] = "\x1b[>0c";
+	if (!WriteFile(hStdout, secondary_request, sizeof(secondary_request) - 1, &written, NULL)) {
+		printf("Failed to write secondary DA request.\n");
+	} else {
+		FlushFileBuffers(hStdout);
+		length = read_bytes_with_timeout(hStdin, buffer, sizeof(buffer), 500);
+		print_bytes("Secondary DA response", buffer, length);
+	}
+
+	const char focus_inquiry[] = "\x1b[?1004$p";
+	if (!WriteFile(hStdout, focus_inquiry, sizeof(focus_inquiry) - 1, &written, NULL)) {
+		printf("Failed to write focus inquiry.\n");
+	} else {
+		FlushFileBuffers(hStdout);
+		length = read_bytes_with_timeout(hStdin, buffer, sizeof(buffer), 500);
+		print_bytes("Focus tracking query response", buffer, length);
+	}
+
+	SetConsoleMode(hStdin, original_input_mode);
+	SetConsoleMode(hStdout, original_output_mode);
+
+	// Flush any remaining input to prevent it from appearing at the prompt
+	FlushConsoleInputBuffer(hStdin);
 #else
 	if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO)) {
 		printf("stdin/stdout are not TTYs; skipping DA probe.\n");
@@ -185,6 +316,9 @@ int main(void)
 #if defined(__human68k__) || defined(__HUMAN68K__)
 	printf("stdin isatty : n/a (DOS console)\n");
 	printf("stdout isatty: n/a (DOS console)\n");
+#elif defined(_WIN32)
+	printf("stdin isatty : %s\n", _isatty(_fileno(stdin)) ? "yes" : "no");
+	printf("stdout isatty: %s\n", _isatty(_fileno(stdout)) ? "yes" : "no");
 #else
 	printf("stdin isatty : %s\n", isatty(STDIN_FILENO) ? "yes" : "no");
 	printf("stdout isatty: %s\n", isatty(STDOUT_FILENO) ? "yes" : "no");
