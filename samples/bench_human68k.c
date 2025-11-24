@@ -145,14 +145,8 @@ benchmark_clear_screen_direct(void)
 	double start = get_time_ms();
 
 	for (int i = 0; i < BENCH_ITERATIONS / 10; i++) {
-		/* Clear entire screen using IOCS _B_CLR_ST */
-		_iocs_b_locate(0, 0);
-		/* _B_CLR_ST clears from cursor to end - need to call once */
-		/* Actually, we need proper screen clear - this is approximate */
-		for (int row = 0; row < BENCH_SCREEN_ROWS; row++) {
-			_iocs_b_locate(0, row);
-			_iocs_b_print("                                                                                ");
-		}
+		/* Clear entire screen using IOCS _B_CLR_AL */
+		_iocs_b_clr_al();
 	}
 
 	double end = get_time_ms();

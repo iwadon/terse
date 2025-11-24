@@ -53,6 +53,13 @@ terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 	}
 #endif
 
+	// Try platform-specific fast path first
+	terse_error_t fast_result = terse_platform_clear_screen_fast(handle, mode);
+	if (fast_result == TERSE_OK) {
+		return TERSE_OK;
+	}
+
+	// Fall back to standard escape sequence method
 	const char *sequence = NULL;
 	switch (mode) {
 	case TERSE_CLEAR_AFTER:

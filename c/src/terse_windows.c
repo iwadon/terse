@@ -628,3 +628,12 @@ terse_platform_move_to_fast(terse_handle_t handle, int row, int col)
 	/* Windows uses standard escape sequences or VT API, no fast path available */
 	return TERSE_ERR_NOT_SUPPORTED;
 }
+
+terse_error_t
+terse_platform_clear_screen_fast(terse_handle_t handle, terse_clear_mode_t mode)
+{
+	(void)handle;
+	(void)mode;
+	/* Windows uses standard escape sequences or VT API, no fast path available */
+	return TERSE_ERR_NOT_SUPPORTED;
+}

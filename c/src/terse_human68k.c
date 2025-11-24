@@ -460,3 +460,31 @@ terse_platform_move_to_fast(terse_handle_t handle, int row, int col)
 
 	return TERSE_OK;
 }
+
+terse_error_t
+terse_platform_clear_screen_fast(terse_handle_t handle, terse_clear_mode_t mode)
+{
+	(void)handle; /* Human68k doesn't use handle for console I/O */
+
+	switch (mode) {
+	case TERSE_CLEAR_ALL:
+		/* Clear entire screen using IOCS */
+		_iocs_b_clr_al();
+		break;
+
+	case TERSE_CLEAR_AFTER:
+		/* Clear from cursor to end of screen using IOCS */
+		_iocs_b_clr_ed();
+		break;
+
+	case TERSE_CLEAR_BEFORE:
+		/* Clear from start of screen to cursor using IOCS */
+		_iocs_b_clr_st();
+		break;
+
+	default:
+		return TERSE_ERR_INVALID_ARGUMENT;
+	}
+
+	return TERSE_OK;
+}
