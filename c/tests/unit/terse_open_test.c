@@ -56,6 +56,7 @@ clear_detection_environment(void)
 	unsetenv("TERSE_SECONDARY_DA_HINT");
 	unsetenv("WEZTERM_EXECUTABLE");
 	unsetenv("KITTY_PID");
+	unsetenv("WT_SESSION");
 }
 
 static void
@@ -512,6 +513,56 @@ TEST(TerseRestoreState, UpdatesWhenCapabilitiesMissing)
 	EXPECT_EQ(captured.cursor_visible, 0);
 	EXPECT_EQ(captured.style_known, 1);
 	EXPECT_NE(captured.style.effects & TERSE_STYLE_UNDERLINE, 0u);
+	terse_close(handle);
+	restore_env_list(backups, ARRAY_LEN(names));
+}
+
+TEST(TerseOpen, DetectsP3Profile_OnWindowsTerminalEnv)
+{
+	static const char *const names[] = {
+		"TERM",
+		"WT_SESSION",
+		"COLORTERM",
+		"TERSE_SECONDARY_DA_HINT",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
+	clear_detection_environment();
+	setenv("TERM", "xterm-256color", 1);
+	setenv("WT_SESSION", "7b39308d-4eee-4f17-b3dc-71fbb23be859", 1);
+	setenv("COLORTERM", "truecolor", 1);
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_EQ(caps.profile, TERSE_P3);
+	EXPECT_EQ(caps.images, TERSE_IMAGE_SIXEL);
+	EXPECT_EQ(caps.has_bracketed_paste, 1);
+	EXPECT_EQ(caps.has_hyperlinks, 1);
+	EXPECT_EQ(caps.has_cursor_shape, 1);
+	terse_close(handle);
+	restore_env_list(backups, ARRAY_LEN(names));
+}
+
+TEST(TerseOpen, DetectsP3Profile_OnWindowsTerminalDA)
+{
+	static const char *const names[] = {
+		"TERM",
+		"COLORTERM",
+		"TERSE_SECONDARY_DA_HINT",
+	};
+	env_backup_t backups[ARRAY_LEN(names)];
+	backup_env_list(backups, ARRAY_LEN(names), names);
+	clear_detection_environment();
+	setenv("TERM", "xterm-256color", 1);
+	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>0;10;1c", 1);
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_capabilities_t caps = terse_get_capabilities(handle);
+	EXPECT_EQ(caps.profile, TERSE_P3);
+	EXPECT_EQ(caps.images, TERSE_IMAGE_SIXEL);
+	EXPECT_EQ(caps.has_bracketed_paste, 1);
+	EXPECT_EQ(caps.has_hyperlinks, 1);
+	EXPECT_EQ(caps.has_cursor_shape, 1);
 	terse_close(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }

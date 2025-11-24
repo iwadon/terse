@@ -5,7 +5,7 @@
  * This module detects terminal capabilities by examining environment variables
  * and probing with Secondary Device Attributes (DA) sequences. It supports
  * automatic identification of Apple Terminal, GNOME Terminal/VTE, iTerm2,
- * WezTerm, kitty, Ghostty, Warp, and Sixel-capable terminals.
+ * Windows Terminal, WezTerm, kitty, Ghostty, Warp, and Sixel-capable terminals.
  */
 
 #include "terse_detection.h"
@@ -23,6 +23,7 @@ static terse_capabilities_t make_kitty_capabilities(int has_truecolor);
 static terse_capabilities_t make_ghostty_capabilities(int has_truecolor);
 static terse_capabilities_t make_sixel_capabilities(int has_truecolor);
 static terse_capabilities_t make_warp_capabilities(int has_truecolor);
+static terse_capabilities_t make_windows_terminal_capabilities(int has_truecolor);
 static void clamp_capabilities_to_request(terse_capabilities_t *caps, terse_profile_t requested);
 static int is_multiplexer_session(const char *term);
 static int term_supports_sixel(const char *term);
@@ -242,6 +243,26 @@ make_warp_capabilities(int has_truecolor)
 }
 
 /**
+ * Create capabilities for Windows Terminal.
+ *
+ * Windows Terminal (Microsoft Terminal) supports advanced features including
+ * TrueColor, mouse, bracketed paste, hyperlinks, cursor shapes, and Sixel images.
+ * Recent versions also have experimental support for the Kitty keyboard protocol.
+ *
+ * @param has_truecolor Whether the terminal supports TrueColor (usually yes).
+ * @return A P3 capabilities structure for Windows Terminal.
+ */
+static terse_capabilities_t
+make_windows_terminal_capabilities(int has_truecolor)
+{
+	terse_capabilities_t caps = make_vte_capabilities(has_truecolor);
+	caps.profile = TERSE_P3;
+	caps.images = TERSE_IMAGE_SIXEL;
+	caps.has_cursor_shape = 1;
+	return caps;
+}
+
+/**
  * Clamp capabilities to the requested profile level.
  *
  * If the user requested a specific profile (P0, P1, P2), remove features
@@ -341,11 +362,12 @@ term_supports_sixel(const char *term)
  * 2. Warp Terminal (TERM_PROGRAM=WarpTerminal or DA prefix)
  * 3. iTerm2 (TERM_PROGRAM=iTerm.app or DA prefix)
  * 4. VTE-based terminals (GNOME_TERMINAL_SCREEN, VTE_VERSION, or DA prefix)
- * 5. WezTerm (TERM_PROGRAM=WezTerm or DA prefix)
- * 6. kitty (TERM=xterm-kitty, KITTY_PID, or DA prefix)
- * 7. Ghostty (TERM=xterm-ghostty or DA prefix)
- * 8. Sixel-capable terminals (mlterm, contour, yaft, etc.)
- * 9. Fallback to P0 (basic output only)
+ * 5. Windows Terminal (WT_SESSION or DA prefix \x1b[>0;10;)
+ * 6. WezTerm (TERM_PROGRAM=WezTerm or DA prefix)
+ * 7. kitty (TERM=xterm-kitty, KITTY_PID, or DA prefix)
+ * 8. Ghostty (TERM=xterm-ghostty or DA prefix)
+ * 9. Sixel-capable terminals (mlterm, contour, yaft, etc.)
+ * 10. Fallback to P0 (basic output only)
  *
  * @param requested_profile The profile level requested by the user.
  * @param options The options structure containing file descriptors for probing.
@@ -446,6 +468,22 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	}
 	if (is_vte) {
 		caps = make_vte_capabilities(has_truecolor);
+		if (is_mux) {
+			caps.images = TERSE_IMAGE_NONE;
+		}
+		clamp_capabilities_to_request(&caps, requested_profile);
+		return caps;
+	}
+	int is_windows_terminal = 0;
+	const char *wt_session = getenv("WT_SESSION");
+	if (wt_session && *wt_session) {
+		is_windows_terminal = 1;
+	}
+	if (!is_windows_terminal && matches_da_prefix(secondary, secondary_len, "\x1b[>0;10;")) {
+		is_windows_terminal = 1;
+	}
+	if (is_windows_terminal) {
+		caps = make_windows_terminal_capabilities(has_truecolor);
 		if (is_mux) {
 			caps.images = TERSE_IMAGE_NONE;
 		}
