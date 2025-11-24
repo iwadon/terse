@@ -13,6 +13,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#define strcasecmp _stricmp
+#endif
+
 /* Forward declarations for internal functions */
 static int matches_da_prefix(const unsigned char *buffer, size_t length, const char *prefix);
 static terse_capabilities_t make_terminal_app_capabilities(int has_truecolor);

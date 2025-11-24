@@ -4,7 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if !defined(__human68k__) && !defined(__HUMAN68K__)
+#if defined(_WIN32)
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#elif !defined(__human68k__) && !defined(__HUMAN68K__)
 #include <unistd.h>
 #else
 #define STDIN_FILENO 0

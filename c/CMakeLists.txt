@@ -14,6 +14,10 @@ add_library(terse
 
 include(CheckIncludeFile)
 
+if(MSVC)
+  add_compile_options(/source-charset:utf-8)
+endif()
+
 # Auto-detect Human68k platform if not explicitly set
 if(NOT DEFINED TERSE_PLATFORM_HUMAN68K)
   if(CMAKE_SYSTEM_PROCESSOR MATCHES "m68k" AND CMAKE_SYSTEM_NAME STREQUAL "Generic")
