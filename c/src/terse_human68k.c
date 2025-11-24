@@ -169,60 +169,126 @@ is_modifier_key(unsigned int scancode)
 static terse_event_type_t
 scancode_to_event_type(unsigned int scancode)
 {
-	switch (scancode) {
-	case 0x01:
-		return TERSE_EVENT_RAW_SEQUENCE; /* ESC - handled separately */
-	case 0x0f:
-		return TERSE_EVENT_BACKSPACE;
-	case 0x10:
-		return TERSE_EVENT_TAB;
-	case 0x1d:
-		return TERSE_EVENT_ENTER; /* Enter (full) */
-	case 0x36:
-		return TERSE_EVENT_HOME;
-	case 0x37:
-		return TERSE_EVENT_DELETE;
-	case 0x38:
-		return TERSE_EVENT_PAGE_UP; /* Roll Up */
-	case 0x39:
-		return TERSE_EVENT_PAGE_DOWN; /* Roll Down */
-	case 0x3a:
-		return TERSE_EVENT_RAW_SEQUENCE; /* UNDO - no standard mapping */
-	case 0x3b:
-		return TERSE_EVENT_ARROW_RIGHT;
-	case 0x3c:
-		return TERSE_EVENT_ARROW_UP;
-	case 0x3d:
-		return TERSE_EVENT_ARROW_LEFT;
-	case 0x3e:
-		return TERSE_EVENT_ARROW_DOWN;
-	case 0x3f:
-		return TERSE_EVENT_HOME; /* CLR */
-	case 0x4e:
-		return TERSE_EVENT_ENTER; /* Enter (numeric) */
-	case 0x63:
-		return TERSE_EVENT_FUNCTION; /* F1 */
-	case 0x64:
-		return TERSE_EVENT_FUNCTION; /* F2 */
-	case 0x65:
-		return TERSE_EVENT_FUNCTION; /* F3 */
-	case 0x66:
-		return TERSE_EVENT_FUNCTION; /* F4 */
-	case 0x67:
-		return TERSE_EVENT_FUNCTION; /* F5 */
-	case 0x68:
-		return TERSE_EVENT_FUNCTION; /* F6 */
-	case 0x69:
-		return TERSE_EVENT_FUNCTION; /* F7 */
-	case 0x6a:
-		return TERSE_EVENT_FUNCTION; /* F8 */
-	case 0x6b:
-		return TERSE_EVENT_FUNCTION; /* F9 */
-	case 0x6c:
-		return TERSE_EVENT_FUNCTION; /* F10 */
-	default:
-		return TERSE_EVENT_RAW_SEQUENCE;
+	static const terse_event_type_t scancode_event_types[256] = {
+		[0x01] = TERSE_EVENT_RAW_SEQUENCE, /* ESC - handled separately */
+		[0x02] = TERSE_EVENT_CHAR,		   /* 1! */
+		[0x03] = TERSE_EVENT_CHAR,		   /* 2" */
+		[0x04] = TERSE_EVENT_CHAR,		   /* 3# */
+		[0x05] = TERSE_EVENT_CHAR,		   /* 4$ */
+		[0x06] = TERSE_EVENT_CHAR,		   /* 5% */
+		[0x07] = TERSE_EVENT_CHAR,		   /* 6& */
+		[0x08] = TERSE_EVENT_CHAR,		   /* 7' */
+		[0x09] = TERSE_EVENT_CHAR,		   /* 8( */
+		[0x0a] = TERSE_EVENT_CHAR,		   /* 9) */
+		[0x0b] = TERSE_EVENT_CHAR,		   /* 0 */
+		[0x0c] = TERSE_EVENT_CHAR,		   /* -= */
+		[0x0d] = TERSE_EVENT_CHAR,		   /* ^~ */
+		[0x0e] = TERSE_EVENT_CHAR,		   /* \| */
+		[0x0f] = TERSE_EVENT_BACKSPACE,	   /* BS */
+		[0x10] = TERSE_EVENT_TAB,		   /* TAB */
+		[0x11] = TERSE_EVENT_CHAR,		   /* Q */
+		[0x12] = TERSE_EVENT_CHAR,		   /* W */
+		[0x13] = TERSE_EVENT_CHAR,		   /* E */
+		[0x14] = TERSE_EVENT_CHAR,		   /* R */
+		[0x15] = TERSE_EVENT_CHAR,		   /* T */
+		[0x16] = TERSE_EVENT_CHAR,		   /* Y */
+		[0x17] = TERSE_EVENT_CHAR,		   /* U */
+		[0x18] = TERSE_EVENT_CHAR,		   /* I */
+		[0x19] = TERSE_EVENT_CHAR,		   /* O */
+		[0x1a] = TERSE_EVENT_CHAR,		   /* P */
+		[0x1b] = TERSE_EVENT_CHAR,		   /* @` */
+		[0x1c] = TERSE_EVENT_CHAR,		   /* [{ */
+		[0x1d] = TERSE_EVENT_ENTER,		   /* CR */
+		[0x1e] = TERSE_EVENT_CHAR,		   /* A */
+		[0x1f] = TERSE_EVENT_CHAR,		   /* S */
+		[0x20] = TERSE_EVENT_CHAR,		   /* D */
+		[0x21] = TERSE_EVENT_CHAR,		   /* F */
+		[0x22] = TERSE_EVENT_CHAR,		   /* G */
+		[0x23] = TERSE_EVENT_CHAR,		   /* H */
+		[0x24] = TERSE_EVENT_CHAR,		   /* J */
+		[0x25] = TERSE_EVENT_CHAR,		   /* K */
+		[0x26] = TERSE_EVENT_CHAR,		   /* L */
+		[0x27] = TERSE_EVENT_CHAR,		   /* ;+ */
+		[0x28] = TERSE_EVENT_CHAR,		   /* :* */
+		[0x29] = TERSE_EVENT_CHAR,		   /* ]} */
+		[0x2a] = TERSE_EVENT_CHAR,		   /* Z */
+		[0x2b] = TERSE_EVENT_CHAR,		   /* X */
+		[0x2c] = TERSE_EVENT_CHAR,		   /* C */
+		[0x2d] = TERSE_EVENT_CHAR,		   /* V */
+		[0x2e] = TERSE_EVENT_CHAR,		   /* B */
+		[0x2f] = TERSE_EVENT_CHAR,		   /* N */
+		[0x30] = TERSE_EVENT_CHAR,		   /* M */
+		[0x31] = TERSE_EVENT_CHAR,		   /* ,< */
+		[0x32] = TERSE_EVENT_CHAR,		   /* .> */
+		[0x33] = TERSE_EVENT_CHAR,		   /* /? */
+		[0x34] = TERSE_EVENT_CHAR,		   /* _ */
+		[0x35] = TERSE_EVENT_CHAR,		   /* SPACE */
+		[0x36] = TERSE_EVENT_HOME,		   /* HOME */
+		[0x37] = TERSE_EVENT_DELETE,	   /* DEL */
+		[0x38] = TERSE_EVENT_PAGE_UP,	   /* R_UP */
+		[0x39] = TERSE_EVENT_PAGE_DOWN,	   /* R_DOWN */
+		[0x3a] = TERSE_EVENT_RAW_SEQUENCE, /* UNDO */
+		[0x3b] = TERSE_EVENT_ARROW_LEFT,   /* ← */
+		[0x3c] = TERSE_EVENT_ARROW_UP,	   /* ↑ */
+		[0x3d] = TERSE_EVENT_ARROW_RIGHT,  /* → */
+		[0x3e] = TERSE_EVENT_ARROW_DOWN,   /* ↓ */
+		[0x3f] = TERSE_EVENT_HOME,		   /* CLR */
+		[0x40] = TERSE_EVENT_CHAR,		   /* / */
+		[0x41] = TERSE_EVENT_CHAR,		   /* * */
+		[0x42] = TERSE_EVENT_CHAR,		   /* - */
+		[0x43] = TERSE_EVENT_CHAR,		   /* 7 */
+		[0x44] = TERSE_EVENT_CHAR,		   /* 8 */
+		[0x45] = TERSE_EVENT_CHAR,		   /* 9 */
+		[0x46] = TERSE_EVENT_CHAR,		   /* + */
+		[0x47] = TERSE_EVENT_CHAR,		   /* 4 */
+		[0x48] = TERSE_EVENT_CHAR,		   /* 5 */
+		[0x49] = TERSE_EVENT_CHAR,		   /* 6 */
+		[0x4a] = TERSE_EVENT_CHAR,		   /* = */
+		[0x4b] = TERSE_EVENT_CHAR,		   /* 1 */
+		[0x4c] = TERSE_EVENT_CHAR,		   /* 2 */
+		[0x4d] = TERSE_EVENT_CHAR,		   /* 3 */
+		[0x4e] = TERSE_EVENT_ENTER,		   /* ENTER */
+		[0x4f] = TERSE_EVENT_CHAR,		   /* 0 */
+		[0x50] = TERSE_EVENT_CHAR,		   /* , */
+		[0x51] = TERSE_EVENT_CHAR,		   /* . */
+		[0x52] = TERSE_EVENT_RAW_SEQUENCE, /* 記号 */
+		[0x53] = TERSE_EVENT_RAW_SEQUENCE, /* 登録 */
+		[0x54] = TERSE_EVENT_RAW_SEQUENCE, /* HELP */
+		[0x55] = TERSE_EVENT_RAW_SEQUENCE, /* XF1 */
+		[0x56] = TERSE_EVENT_RAW_SEQUENCE, /* XF2 */
+		[0x57] = TERSE_EVENT_RAW_SEQUENCE, /* XF3 */
+		[0x58] = TERSE_EVENT_RAW_SEQUENCE, /* XF4 */
+		[0x59] = TERSE_EVENT_RAW_SEQUENCE, /* XF5 */
+		[0x5a] = TERSE_EVENT_RAW_SEQUENCE, /* かな */
+		[0x5b] = TERSE_EVENT_RAW_SEQUENCE, /* ローマ字 */
+		[0x5c] = TERSE_EVENT_RAW_SEQUENCE, /* コード入力 */
+		[0x5d] = TERSE_EVENT_RAW_SEQUENCE, /* CAPS */
+		[0x5e] = TERSE_EVENT_RAW_SEQUENCE, /* INS */
+		[0x5f] = TERSE_EVENT_RAW_SEQUENCE, /* ひらがな */
+		[0x60] = TERSE_EVENT_RAW_SEQUENCE, /* 全角 */
+		[0x61] = TERSE_EVENT_RAW_SEQUENCE, /* BREAK */
+		[0x62] = TERSE_EVENT_RAW_SEQUENCE, /* COPY */
+		[0x63] = TERSE_EVENT_FUNCTION,	   /* F1 */
+		[0x64] = TERSE_EVENT_FUNCTION,	   /* F2 */
+		[0x65] = TERSE_EVENT_FUNCTION,	   /* F3 */
+		[0x66] = TERSE_EVENT_FUNCTION,	   /* F4 */
+		[0x67] = TERSE_EVENT_FUNCTION,	   /* F5 */
+		[0x68] = TERSE_EVENT_FUNCTION,	   /* F6 */
+		[0x69] = TERSE_EVENT_FUNCTION,	   /* F7 */
+		[0x6a] = TERSE_EVENT_FUNCTION,	   /* F8 */
+		[0x6b] = TERSE_EVENT_FUNCTION,	   /* F9 */
+		[0x6c] = TERSE_EVENT_FUNCTION,	   /* F10 */
+		[0x70] = TERSE_EVENT_RAW_SEQUENCE, /* SHIFT */
+		[0x71] = TERSE_EVENT_RAW_SEQUENCE, /* CTRL */
+		[0x72] = TERSE_EVENT_RAW_SEQUENCE, /* OPT.1 */
+		[0x73] = TERSE_EVENT_RAW_SEQUENCE, /* OPT.2 */
+		[0x74] = TERSE_EVENT_RAW_SEQUENCE, /* NUM */
+	};
+
+	if (scancode < 256) {
+		return scancode_event_types[scancode];
 	}
+	return TERSE_EVENT_RAW_SEQUENCE;
 }
 
 /* Get function key number from scancode */
@@ -278,9 +344,10 @@ terse_platform_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *
 
 	unsigned int scancode = (keysns >> 8) & 0x7f;
 	unsigned int ascii_code = keysns & 0xff;
+	terse_event_type_t event_type = scancode_to_event_type(scancode);
 
-	/* Handle special keys (ASCII code = 0) */
-	if (ascii_code == 0 || keysns == 0x11d0d) { // 0x11d0d = Enter key
+	/* Handle special keys */
+	if (event_type != TERSE_EVENT_CHAR) {
 		/* Consume the key from buffer */
 		_iocs_b_keyinp();
 
