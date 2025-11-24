@@ -4,6 +4,7 @@
 #include "terse_platform.h"
 
 #include <errno.h>
+#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <x68k/dos.h>
@@ -139,11 +140,40 @@ terse_error_t terse_platform_write_bytes(int fd, const char *bytes, size_t len)
 {
 	(void)fd; /* Human68k doesn't use fd for console I/O */
 
-	/* Output bytes one at a time using DOS _PUTCHAR */
-	for (size_t i = 0; i < len; i++) {
-		_dos_c_putc(bytes[i]);
+	if (len == 0) {
+		return 0;
 	}
 
+	/* Use IOCS for fast bulk output by creating null-terminated string */
+	/* Stack buffer size is chosen to handle most common cases efficiently */
+	#define WRITE_BUFFER_SIZE 512
+
+	if (len < WRITE_BUFFER_SIZE) {
+		/* Fast path: use stack buffer and IOCS for bulk output */
+		char buf[WRITE_BUFFER_SIZE];
+		memcpy(buf, bytes, len);
+		buf[len] = '\0';
+		_iocs_b_print(buf);
+	} else {
+		/* Long output: split into chunks */
+		size_t remaining = len;
+		const char *ptr = bytes;
+
+		while (remaining > 0) {
+			size_t chunk_size = (remaining < WRITE_BUFFER_SIZE - 1)
+			                    ? remaining
+			                    : WRITE_BUFFER_SIZE - 1;
+			char buf[WRITE_BUFFER_SIZE];
+			memcpy(buf, ptr, chunk_size);
+			buf[chunk_size] = '\0';
+			_iocs_b_print(buf);
+
+			ptr += chunk_size;
+			remaining -= chunk_size;
+		}
+	}
+
+	#undef WRITE_BUFFER_SIZE
 	return 0; /* Always succeeds */
 }
 
@@ -412,5 +442,21 @@ terse_platform_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *
 
 	/* Create character event */
 	terse_set_char_event(handle, out_event, scalar, mods);
+	return TERSE_OK;
+}
+
+/* ========================================================================
+ * Platform-specific fast path optimizations for Human68k
+ * ======================================================================== */
+
+terse_error_t
+terse_platform_move_to_fast(terse_handle_t handle, int row, int col)
+{
+	(void)handle; /* Human68k doesn't use handle for console I/O */
+
+	/* Use IOCS directly for maximum performance */
+	/* Note: _iocs_b_locate takes (x, y) in that order */
+	_iocs_b_locate(col, row);
+
 	return TERSE_OK;
 }

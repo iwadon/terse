@@ -618,3 +618,13 @@ terse_platform_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *
 		return TERSE_ERR_NO_EVENT;
 	}
 }
+
+terse_error_t
+terse_platform_move_to_fast(terse_handle_t handle, int row, int col)
+{
+	(void)handle;
+	(void)row;
+	(void)col;
+	/* Windows uses standard escape sequences or VT API, no fast path available */
+	return TERSE_ERR_NOT_SUPPORTED;
+}

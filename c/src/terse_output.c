@@ -146,6 +146,16 @@ terse_error_t terse_move_to(terse_handle_t handle, int row, int col)
 	}
 #endif
 
+	// Try platform-specific fast path first
+	terse_error_t fast_result = terse_platform_move_to_fast(handle, row, col);
+	if (fast_result == TERSE_OK) {
+		handle->cursor_row = row;
+		handle->cursor_col = col;
+		handle->cursor_known = 1;
+		return TERSE_OK;
+	}
+
+	// Fall back to standard escape sequence method
 	char sequence[32];
 	// Terminal escape sequences use 1-based coordinates, convert from 0-based
 	int written = snprintf(sequence, sizeof(sequence), "\x1b[%d;%dH", row + 1, col + 1);

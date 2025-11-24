@@ -413,3 +413,13 @@ terse_platform_write_bytes(int fd, const char *bytes, size_t len)
 	}
 	return 0;
 }
+
+terse_error_t
+terse_platform_move_to_fast(terse_handle_t handle, int row, int col)
+{
+	(void)handle;
+	(void)row;
+	(void)col;
+	/* POSIX platforms use standard escape sequences, no fast path available */
+	return TERSE_ERR_NOT_SUPPORTED;
+}

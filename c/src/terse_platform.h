@@ -24,4 +24,8 @@ terse_error_t terse_platform_write_bytes(int fd, const char *bytes, size_t len);
 terse_error_t terse_platform_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event);
 #endif
 
+/* Platform-specific fast path optimizations (optional) */
+/* If a platform does not implement these, they should return TERSE_ERR_NOT_SUPPORTED */
+terse_error_t terse_platform_move_to_fast(terse_handle_t handle, int row, int col);
+
 #endif
