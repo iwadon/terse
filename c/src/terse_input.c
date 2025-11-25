@@ -448,7 +448,7 @@ terse_handle_escape_prefixed_char(terse_handle_t handle, terse_event_t *event, c
 			return 1;
 		}
 		if (payload[0] >= 0x01 && payload[0] <= 0x1a) {
-			unsigned int scalar = 'A' + (unsigned int)(payload[0] - 1);
+			unsigned int scalar = 'a' + (unsigned int)(payload[0] - 1);
 			terse_set_char_event(handle, event, scalar, mods | TERSE_MOD_CTRL);
 			return 1;
 		}

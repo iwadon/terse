@@ -32,7 +32,7 @@ TEST(TerseReadEventCtrl, ReportsCtrlModifier_OnControlSequence)
 	terse_event_t event;
 	int rc = terse_read_event(handle, 50, &event);
 	EXPECT_EQ(TERSE_OK, rc);
-	assert_ctrl_char('C', TERSE_MOD_CTRL, event);
+	assert_ctrl_char('c', TERSE_MOD_CTRL, event);
 
 	terse_close(handle);
 	close(fds[0]);

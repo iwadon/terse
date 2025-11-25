@@ -427,7 +427,11 @@ terse_platform_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *
 	/* Decode Shift_JIS to Unicode */
 	unsigned int scalar = 0;
 	if (len == 1) {
-		if (buf[0] <= 0x7f) {
+		if (buf[0] >= 0x01 && buf[0] <= 0x1a) {
+			/* Control character: convert to lowercase letter + Ctrl modifier */
+			scalar = 'a' + (buf[0] - 1);
+			mods |= TERSE_MOD_CTRL;
+		} else if (buf[0] <= 0x7f) {
 			scalar = buf[0];
 		} else if (buf[0] >= 0xa1 && buf[0] <= 0xdf) {
 			/* Half-width katakana */

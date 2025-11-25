@@ -160,7 +160,7 @@ TEST(TerseReadEvent, ReturnsCtrlChar_WithControlModifier)
 	int result = terse_read_event(handle, 50, &event);
 	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
-	EXPECT_EQ((unsigned int)'A', event.data.ch.scalar);
+	EXPECT_EQ((unsigned int)'a', event.data.ch.scalar);
 	EXPECT_EQ(TERSE_MOD_CTRL, event.data.ch.mods);
 
 	terse_close(handle);
@@ -222,7 +222,7 @@ TEST(TerseReadEvent, ReturnsCtrlAltChar_OnEscapePrefixedControl)
 	int result = terse_read_event(handle, 50, &event);
 	EXPECT_EQ(TERSE_OK, result);
 	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
-	EXPECT_EQ((unsigned int)'A', event.data.ch.scalar);
+	EXPECT_EQ((unsigned int)'a', event.data.ch.scalar);
 	EXPECT_EQ(TERSE_MOD_ALT | TERSE_MOD_CTRL, event.data.ch.mods);
 
 	terse_close(handle);

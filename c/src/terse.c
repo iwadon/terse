@@ -676,7 +676,7 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 	}
 
 	if (first >= 0x01 && first <= 0x1a) {
-		unsigned int scalar = 'A' + (first - 1);
+		unsigned int scalar = 'a' + (first - 1);
 		terse_set_char_event(handle, out_event, scalar, TERSE_MOD_CTRL);
 		return TERSE_OK;
 	}
