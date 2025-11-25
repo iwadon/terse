@@ -15,6 +15,8 @@
 
 #ifdef _WIN32
 #define strcasecmp _stricmp
+#else
+#include <strings.h>
 #endif
 
 /* Forward declarations for internal functions */
