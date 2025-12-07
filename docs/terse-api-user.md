@@ -15,6 +15,8 @@
 11. [P3: Extended Features](#p3-extended-features)
 12. [Test Mode and Mocking](#test-mode-and-mocking)
 13. [Best Practices](#best-practices)
+14. [Common Patterns](#common-patterns)
+15. [Troubleshooting](#troubleshooting)
 
 ---
 
