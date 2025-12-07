@@ -1,29 +1,32 @@
 # Terse
 
-Terse は POSIX 端末を中心としたテキスト UI 向けに、描画・入力・端末能力検出を一元化する C ライブラリです。端末ごとの差異を吸収しながら安全に縮退し、カラー・マウス・画像などの拡張機能を段階的に扱えるよう設計されています。
+Terse is a C library that unifies rendering, input, and terminal capability detection for POSIX text UI environments. It abstracts terminal differences with graceful degradation, supporting colors, mouse, images, and other extended features through a profile-based system.
 
-## プロファイル
+[日本語版 README はこちら](README.ja.md)
 
-Terse は端末の能力を 4 段階のプロファイルで管理し、利用可能な機能を段階的に拡張します。
+## Profiles
 
-| プロファイル | 機能 |
-|-------------|------|
-| **P0** | カーソル移動、画面クリア、テキスト出力、サイズ取得、入力イベント |
-| **P1** | P0 + 16/256/TrueColor、テキスト装飾（太字・斜体・下線など） |
-| **P2** | P1 + マウス追跡、ブランケットペースト、ウィンドウタイトル、ハイパーリンク |
-| **P3** | P2 + クリップボード、インライン画像、カーソル形状、デスクトップ通知 |
+Terse manages terminal capabilities through 4 profile levels, progressively enabling features:
 
-`TERSE_PROFILE_AUTO` を指定すると、端末の能力を自動検出して適切なプロファイルで動作します。
+| Profile | Features |
+|---------|----------|
+| **P0** | Cursor movement, screen clearing, text output, size detection, input events |
+| **P1** | P0 + 16/256/TrueColor, text decoration (bold, italic, underline, etc.) |
+| **P2** | P1 + mouse tracking, bracketed paste, window title, hyperlinks |
+| **P3** | P2 + clipboard, inline images, cursor shapes, desktop notifications |
 
-## 特徴
-- プロファイル制御: `TERSE_PROFILE_AUTO` と P0〜P3 プロファイルで、端末能力に応じた自動縮退と上限クリップを提供。
-- 端末検出: Apple Terminal / GNOME Terminal (VTE) / iTerm2 / WezTerm / kitty / Ghostty / Warp などを判別し、利用可能な機能セットを推定。
-- 描画 API: カーソル移動、画面/行消去、文字列・スタイル・カラー出力、インライン画像表示、通知送出を網羅。
-- 入力正規化: `terse_read_event` がキー・マウス・リサイズ・ブランケットペーストなどを抽象化し、修飾キーも一貫して扱えるようにする。
-- 符号化サポート: UTF-8 を既定としつつ、Shift_JIS 変換や mini iconv フォールバックで多バイト入出力に対応。
-- 一貫した状態管理: `terse_capture_state` / `terse_restore_state` や push/pop API でカーソルやスタイルを安全に退避・復元。
+Use `TERSE_PROFILE_AUTO` for automatic capability detection and appropriate profile selection.
 
-## 最小コード例
+## Features
+
+- **Profile control**: `TERSE_PROFILE_AUTO` with P0-P3 profiles provides automatic degradation and capability clipping based on terminal support.
+- **Terminal detection**: Identifies Apple Terminal, GNOME Terminal (VTE), iTerm2, WezTerm, kitty, Ghostty, Warp, and estimates available feature sets.
+- **Rendering API**: Cursor movement, screen/line clearing, text/style/color output, inline image display, and notifications.
+- **Input normalization**: `terse_read_event` abstracts keys, mouse, resize, and bracketed paste events with consistent modifier key handling.
+- **Encoding support**: UTF-8 by default, with Shift_JIS conversion and mini iconv fallback for multibyte I/O.
+- **State management**: `terse_capture_state` / `terse_restore_state` and push/pop APIs safely preserve and restore cursor and styles.
+
+## Minimal Example
 
 ```c
 #include "terse.h"
@@ -49,69 +52,71 @@ int main(void)
 }
 ```
 
-## クイックスタート
-### 必要要件
-- C11 対応コンパイラ (clang / GCC 等)
-- CMake 3.20 以降と Ninja
-- POSIX 互換環境 (macOS / Linux で動作確認済み)
+## Quick Start
 
-### 構成とビルド
+### Requirements
+- C11 compatible compiler (clang, GCC, etc.)
+- CMake 3.20 or later with Ninja
+- POSIX compatible environment (tested on macOS and Linux)
+
+### Configure and Build
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
-ninja -C build              # すべてのターゲットをビルド
-# または
-ninja -C build terse        # ライブラリのみを個別ビルド
+ninja -C build              # Build all targets
+# or
+ninja -C build terse        # Build library only
 ```
 
-### テスト
+### Test
 ```sh
 ctest --test-dir build --output-on-failure
 ```
 
-### サンプルを試す
-`samples/` にはプロファイル別のデモが揃っています。ライブラリをビルド済みの状態で、次のようにコンパイルしてください。
+### Try the Samples
+The `samples/` directory contains profile-specific demos. After building the library, compile a sample like this:
 ```sh
 cc -I./c/include -L./build/c -lterse samples/p0_demo.c -o p0_demo
 ./p0_demo
 ```
-その他のデモ:
-- `p1_style_demo.c`: テキスト装飾サンプル
-- `p1_color_demo.c`: 16/256/TrueColor カラーグリッド
-- `p2_features_demo.c`: マウス・ブランケットペースト・タイトル・リンク
-- `p3_notifications_demo.c`: ベル/ビジュアル/デスクトップ通知
-- `p3_image_demo.c`: iTerm2/kitty 向けインライン画像描画
-- `line_edit_demo.c`: P0 API だけで実装した簡易ラインエディタ
 
-## 主要ディレクトリ
+Other demos:
+- `p1_style_demo.c`: Text decoration sample
+- `p1_color_demo.c`: 16/256/TrueColor color grid
+- `p2_features_demo.c`: Mouse, bracketed paste, title, hyperlinks
+- `p3_notifications_demo.c`: Bell, visual, and desktop notifications
+- `p3_image_demo.c`: Inline images for iTerm2/kitty
+- `line_edit_demo.c`: Simple line editor using only P0 API
+
+## Directory Structure
 ```
-c/include        公開ヘッダ (`terse.h` など)
-c/src            ライブラリ実装
-c/tests/unit     ユニットテストスイート
-cmake/           CMake モジュールとツールチェーン
-samples/         機能別デモプログラム
-docs/            仕様・設計ノート・利用ガイド
-build/           CMake/Ninja ビルド成果物 (生成物のみ配置)
+c/include        Public headers (terse.h, etc.)
+c/src            Library implementation
+c/tests/unit     Unit test suite
+cmake/           CMake modules and toolchains
+samples/         Feature-specific demo programs
+docs/            Specifications, design notes, user guides
+build/           CMake/Ninja build artifacts (generated)
 ```
 
-## ドキュメント
-- `docs/terse-api-user.md`: アプリケーション開発者向け API ガイド
-- `docs/terse-specs.md`: プロファイル仕様と縮退ルール
-- `docs/progress-overview.md`: 実装状況のサマリ
-- `docs/graphics-roadmap.md`: 画像系機能の計画
-- `docs/terse-platform-porting.md`: 追加プラットフォーム移植の指針
-- `docs/mini-iconv-plan.md`: mini iconv 実装メモ
+## Documentation
+- `docs/terse-api-user.md`: API guide for application developers
+- `docs/terse-specs.md`: Profile specifications and degradation rules
+- `docs/progress-overview.md`: Implementation status summary
+- `docs/graphics-roadmap.md`: Graphics features roadmap
+- `docs/terse-platform-porting.md`: Platform porting guide
+- `docs/mini-iconv-plan.md`: Mini iconv implementation notes
 
-詳細なサンプルと運用上の注意は上記ドキュメントを参照してください。
+See the above documents for detailed samples and usage notes.
 
-## 開発フロー
-- CMake/Ninja を用いたビルドを前提とします。初回のみ `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug` を実行し、以降は `ninja -C build` で増分ビルドできます。
-- 変更を加えた際は `ctest --test-dir build --output-on-failure` を必ず実行し、失敗の標準出力/標準エラーを確認してください。
-- コーディングスタイルは K&R ブレース・タブインデント・1 行 1 宣言です。大きめの差分では `clang-format` を利用してください。
-- パブリック API は `c/include` に配置し、名前は `terse_` プレフィックスで統一します。共有構造体は必要になるまで内部 (`c/src`) に留めてください。
-- コミットメッセージは Conventional Commits (`feat:`, `fix:` など) に従い、動作確認内容を明記するとレビューがスムーズです。
+## Development Workflow
+- Build with CMake/Ninja. Run `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug` once, then use `ninja -C build` for incremental builds.
+- After making changes, always run `ctest --test-dir build --output-on-failure` and check stdout/stderr for failures.
+- Coding style: K&R braces, tab indentation, one declaration per line. Use `clang-format` for larger diffs.
+- Public API goes in `c/include` with `terse_` prefix. Keep shared structures internal (`c/src`) until needed.
+- Commit messages follow Conventional Commits (`feat:`, `fix:`, etc.). Include verification details for smoother reviews.
 
-## ライセンス
-本プロジェクトは MIT No Attribution (MIT-0) ライセンスの下で提供されています。詳細は `LICENSE` を参照してください。
+## License
+This project is licensed under the MIT No Attribution (MIT-0) license. See `LICENSE` for details.
 
-## サポートとフィードバック
-バグ報告や改善提案は Issue もしくは Pull Request で歓迎しています。端末固有の挙動や追加したい機能があれば、再現手順や環境情報 (端末種別、プロファイル要求、入出力エンコーディングなど) を添えていただけると助かります。
+## Support and Feedback
+Bug reports and improvement suggestions are welcome via Issues or Pull Requests. For terminal-specific behavior or feature requests, please include reproduction steps and environment information (terminal type, requested profile, I/O encoding, etc.).
