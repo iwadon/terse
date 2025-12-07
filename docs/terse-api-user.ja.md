@@ -1,50 +1,50 @@
-# Terse API User Guide
+# Terse API ユーザーガイド
 
-[日本語版はこちら](terse-api-user.ja.md)
+[English version is here](terse-api-user.md)
 
-## Table of Contents
+## 目次
 
-1. [Introduction](#introduction)
-2. [Quick Start](#quick-start)
-3. [Lifecycle Management](#lifecycle-management)
-4. [Error Handling](#error-handling)
-5. [Capability Detection](#capability-detection)
-6. [P0: Basic Output](#p0-basic-output)
-7. [P0: Input Events](#p0-input-events)
-8. [P0: State Management](#p0-state-management)
-9. [P1: Colors and Styles](#p1-colors-and-styles)
-10. [P2: Advanced Input/Output](#p2-advanced-inputoutput)
-11. [P3: Extended Features](#p3-extended-features)
-12. [Test Mode and Mocking](#test-mode-and-mocking)
-13. [Best Practices](#best-practices)
-14. [Common Patterns](#common-patterns)
-15. [Troubleshooting](#troubleshooting)
-
----
-
-## Introduction
-
-Terse is a C library for building portable terminal UI applications. It provides a profile-based system (P0-P3) that automatically detects terminal capabilities and gracefully degrades when features are unavailable.
-
-### Profile Levels
-
-- **P0**: Basic output (cursor movement, screen/line clearing, text output, size detection)
-- **P1**: Colors and text decoration (SGR styles, 16/256/TrueColor)
-- **P2**: Advanced input/output (mouse, bracketed paste, title, hyperlinks)
-- **P3**: Extended features (clipboard, images, cursor shapes, notifications)
-
-### Core Concepts
-
-- **Handle**: Opaque `terse_handle_t` represents a terminal session
-- **Capabilities**: Runtime detection with graceful degradation
-- **State management**: Save/restore cursor position, visibility, and styles
-- **Error handling**: Custom `terse_error_t` enum with categorized error codes
+1. [はじめに](#はじめに)
+2. [クイックスタート](#クイックスタート)
+3. [ライフサイクル管理](#ライフサイクル管理)
+4. [エラーハンドリング](#エラーハンドリング)
+5. [能力検出](#能力検出)
+6. [P0: 基本的な出力](#p0-基本的な出力)
+7. [P0: 入力イベント](#p0-入力イベント)
+8. [P0: 状態管理](#p0-状態管理)
+9. [P1: 色とスタイル](#p1-色とスタイル)
+10. [P2: 高度な入出力](#p2-高度な入出力)
+11. [P3: 拡張機能](#p3-拡張機能)
+12. [テストモードとモック](#テストモードとモック)
+13. [ベストプラクティス](#ベストプラクティス)
+14. [一般的なパターン](#一般的なパターン)
+15. [トラブルシューティング](#トラブルシューティング)
 
 ---
 
-## Quick Start
+## はじめに
 
-### Minimal Example
+Terseは、ポータブルなターミナルUIアプリケーションを構築するためのCライブラリです。プロファイルベースのシステム(P0-P3)を提供し、ターミナルの能力を自動検出し、機能が利用できない場合には適切に機能を縮退させます。
+
+### プロファイルレベル
+
+- **P0**: 基本的な出力(カーソル移動、画面/行のクリア、テキスト出力、サイズ検出)
+- **P1**: 色とテキスト装飾(SGRスタイル、16/256/TrueColor)
+- **P2**: 高度な入出力(マウス、括弧付きペースト、タイトル、ハイパーリンク)
+- **P3**: 拡張機能(クリップボード、画像、カーソル形状、通知)
+
+### 中核となる概念
+
+- **ハンドル (Handle)**: 不透明な `terse_handle_t` がターミナルセッションを表します
+- **能力 (Capabilities)**: 実行時の検出と適切な機能縮退
+- **状態管理 (State management)**: カーソル位置、可視性、スタイルの保存/復元
+- **エラーハンドリング (Error handling)**: カテゴリ別に分類されたエラーコードを持つカスタム `terse_error_t` 列挙型
+
+---
+
+## クイックスタート
+
+### 最小限の例
 
 ```c
 #include "terse.h"
@@ -80,7 +80,7 @@ int main(void) {
 }
 ```
 
-### Building
+### ビルド方法
 
 ```bash
 cc -I./c/include -L./build/c -lterse example.c -o example
@@ -89,22 +89,22 @@ cc -I./c/include -L./build/c -lterse example.c -o example
 
 ---
 
-## Lifecycle Management
+## ライフサイクル管理
 
-### Opening a Session
+### セッションを開く
 
 ```c
 terse_handle_t terse_open(terse_profile_t requested_profile,
                           const terse_options_t *options);
 ```
 
-**Parameters:**
-- `requested_profile`: Requested profile level or `TERSE_PROFILE_AUTO` for automatic detection
-- `options`: Configuration options (NULL uses defaults)
+**パラメータ:**
+- `requested_profile`: 要求するプロファイルレベル、または自動検出の場合は `TERSE_PROFILE_AUTO`
+- `options`: 設定オプション(NULLの場合はデフォルトを使用)
 
-**Returns:** Handle on success, NULL on failure
+**戻り値:** 成功時はハンドル、失敗時はNULL
 
-**Options Structure:**
+**オプション構造体:**
 ```c
 typedef struct terse_options {
     int input_fd;              // Input file descriptor (STDIN_FILENO)
@@ -116,7 +116,7 @@ typedef struct terse_options {
 } terse_options_t;
 ```
 
-**Example with Options:**
+**オプションを使用した例:**
 ```c
 terse_options_t options = {
     .input_fd = STDIN_FILENO,
@@ -130,52 +130,52 @@ terse_options_t options = {
 terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
 ```
 
-**Important: Terminal Mode Management**
+**重要: ターミナルモードの管理**
 
-`terse_open()` does **not** automatically put the terminal into raw mode. Terse is designed to work with your application's terminal configuration rather than imposing its own settings.
+`terse_open()` は、ターミナルを自動的にrawモードに設定**しません**。Terseは、独自の設定を強制するのではなく、アプリケーションのターミナル設定と協調するように設計されています。
 
-- For output-only operations (cursor movement, colors, clearing screen), raw mode is not required
-- For input operations (`terse_read_event()`), you must configure the terminal mode yourself using `tcsetattr()` or similar
-- This design allows your application to use terminal settings appropriate to its needs (e.g., custom VMIN/VTIME, signal handling)
+- 出力のみの操作(カーソル移動、色、画面のクリア)では、rawモードは不要です
+- 入力操作(`terse_read_event()`)では、`tcsetattr()` などを使用してターミナルモードを自分で設定する必要があります
+- この設計により、アプリケーションは自身のニーズに適したターミナル設定(例: カスタムVMIN/VTIME、シグナル処理)を使用できます
 
-See the "P0: Input Events" section for details on terminal mode requirements for input handling.
+入力処理のためのターミナルモード要件については、「P0: 入力イベント」セクションを参照してください。
 
-### Closing a Session
+### セッションを閉じる
 
 ```c
 void terse_close(terse_handle_t handle);
 ```
 
-Automatically restores terminal state:
-- Re-enables cursor visibility
-- Resets SGR styles
-- Disables mouse tracking
-- Disables bracketed paste
+自動的にターミナルの状態を復元します:
+- カーソルの可視性を再有効化
+- SGRスタイルをリセット
+- マウストラッキングを無効化
+- 括弧付きペーストを無効化
 
-**Example:**
+**例:**
 ```c
 terse_close(handle);  // Always call on exit
 ```
 
-### Validating Options
+### オプションの検証
 
 ```c
 int terse_validate_options(const terse_options_t *options);
 ```
 
-Validates options before opening. Returns `TERSE_OK` on success, or a `terse_error_t` code on error.
+開く前にオプションを検証します。成功時は `TERSE_OK` を、エラー時は `terse_error_t` コードを返します。
 
 ---
 
-## Error Handling
+## エラーハンドリング
 
-### Return Values
+### 戻り値
 
-Most functions return a `terse_error_t` value:
-- `TERSE_OK` (0) on success
-- Non-zero `terse_error_t` error code on failure
+ほとんどの関数は `terse_error_t` 値を返します:
+- 成功時は `TERSE_OK` (0)
+- 失敗時は非ゼロの `terse_error_t` エラーコード
 
-### Error Codes
+### エラーコード
 
 ```c
 typedef enum terse_error {
@@ -209,23 +209,23 @@ typedef enum terse_error {
 } terse_error_t;
 ```
 
-Error codes are organized into ranges by category:
-- **1-99**: Argument/configuration errors (invalid parameters, unsupported operations)
-- **100-199**: State errors (invalid handles, stack over/underflow)
-- **200-299**: I/O transport errors (I/O failures, blocking operations, TTY issues)
-- **300-399**: Protocol errors (terminal protocol violations)
-- **400-499**: Resource errors (memory allocation failures)
-- **500-599**: Encoding errors (charset conversion issues, buffer size problems)
+エラーコードはカテゴリ別に範囲で整理されています:
+- **1-99**: 引数/設定エラー(無効なパラメータ、サポートされていない操作)
+- **100-199**: 状態エラー(無効なハンドル、スタックのオーバー/アンダーフロー)
+- **200-299**: I/O転送エラー(I/O失敗、ブロッキング操作、TTY問題)
+- **300-399**: プロトコルエラー(ターミナルプロトコル違反)
+- **400-499**: リソースエラー(メモリ割り当て失敗)
+- **500-599**: エンコーディングエラー(文字セット変換問題、バッファサイズの問題)
 
-### Getting Last Error
+### 最後のエラーを取得
 
 ```c
 terse_error_t terse_get_last_error(terse_handle_t handle);
 ```
 
-Returns the last error code that occurred on this handle, or `TERSE_OK` if no error.
+このハンドルで発生した最後のエラーコードを返します。エラーがない場合は `TERSE_OK` を返します。
 
-**Example:**
+**例:**
 ```c
 terse_error_t err = terse_move_to(handle, 10, 5);
 if (err != TERSE_OK) {
@@ -239,17 +239,17 @@ if (err != TERSE_OK) {
 
 ---
 
-## Capability Detection
+## 能力検出
 
-### Querying Capabilities
+### 能力のクエリ
 
 ```c
 terse_capabilities_t terse_get_capabilities(terse_handle_t handle);
 ```
 
-Returns the current capabilities structure.
+現在の能力構造体を返します。
 
-**Capabilities Structure:**
+**能力構造体:**
 ```c
 typedef struct terse_capabilities {
     terse_profile_t profile;
@@ -278,7 +278,7 @@ typedef struct terse_capabilities {
 } terse_capabilities_t;
 ```
 
-**Example:**
+**例:**
 ```c
 terse_capabilities_t caps = terse_get_capabilities(handle);
 
@@ -295,7 +295,7 @@ if (caps.mouse >= TERSE_MOUSE_SGR) {
 }
 ```
 
-### Runtime Capability Override
+### 実行時の能力オーバーライド
 
 ```c
 int terse_capabilities_enable(terse_handle_t handle, unsigned int enable_mask);
@@ -303,7 +303,7 @@ int terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask)
 int terse_capabilities_reset_overrides(terse_handle_t handle);
 ```
 
-**Enable Flags:**
+**有効化フラグ:**
 - `TERSE_CAP_ENABLE_SGR_BASIC`
 - `TERSE_CAP_ENABLE_TEXT_STYLES`
 - `TERSE_CAP_ENABLE_SGR_EXTENDED`
@@ -317,10 +317,10 @@ int terse_capabilities_reset_overrides(terse_handle_t handle);
 - `TERSE_CAP_ENABLE_IMAGE_INLINE`
 - `TERSE_CAP_ENABLE_NOTIFICATION_*`
 
-**Disable Flags:**
-- `TERSE_CAP_DISABLE_*` (corresponding disable flags)
+**無効化フラグ:**
+- `TERSE_CAP_DISABLE_*` (対応する無効化フラグ)
 
-**Example:**
+**例:**
 ```c
 // Force-enable TrueColor
 terse_capabilities_enable(handle, TERSE_CAP_ENABLE_TRUECOLOR);
@@ -334,45 +334,45 @@ terse_capabilities_reset_overrides(handle);
 
 ---
 
-## P0: Basic Output
+## P0: 基本的な出力
 
-### Screen Clearing
+### 画面のクリア
 
 ```c
 int terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
 int terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);
 ```
 
-**Clear Modes:**
-- `TERSE_CLEAR_AFTER`: Clear from cursor to end
-- `TERSE_CLEAR_BEFORE`: Clear from start to cursor
-- `TERSE_CLEAR_ALL`: Clear entire screen/line
+**クリアモード:**
+- `TERSE_CLEAR_AFTER`: カーソルから末尾までクリア
+- `TERSE_CLEAR_BEFORE`: 先頭からカーソルまでクリア
+- `TERSE_CLEAR_ALL`: 画面/行全体をクリア
 
-**Example:**
+**例:**
 ```c
 terse_clear_screen(handle, TERSE_CLEAR_ALL);  // Clear entire screen
 terse_clear_line(handle, TERSE_CLEAR_AFTER);  // Clear to end of line
 ```
 
-### Cursor Movement
+### カーソルの移動
 
 ```c
 int terse_move_to(terse_handle_t handle, int row, int col);
 int terse_move_by(terse_handle_t handle, int drow, int dcol);
 ```
 
-**Coordinates:** 0-based (row=0, col=0 is top-left)
+**座標系:** 0ベース(row=0, col=0が左上)
 
-**IMPORTANT:** Terse uses 0-based coordinates, like most programming languages.
-- Top-left corner: `(0, 0)`
-- First column: `col=0`
-- First row: `row=0`
-- Last row: `size.rows - 1`
-- Last column: `size.cols - 1`
+**重要:** Terseは、多くのプログラミング言語と同様に0ベースの座標を使用します。
+- 左上隅: `(0, 0)`
+- 最初の列: `col=0`
+- 最初の行: `row=0`
+- 最後の行: `size.rows - 1`
+- 最後の列: `size.cols - 1`
 
-**Note:** Terminal escape sequences internally use 1-based coordinates, but the library handles this conversion automatically.
+**注意:** ターミナルのエスケープシーケンスは内部的に1ベースの座標を使用しますが、ライブラリがこの変換を自動的に処理します。
 
-**Example:**
+**例:**
 ```c
 terse_move_to(handle, 9, 19);   // Move to row 9, column 19 (10th row, 20th column)
 terse_move_by(handle, 2, -5);   // Move down 2, left 5
@@ -384,43 +384,43 @@ terse_move_to(handle, 0, 0);
 terse_move_to(handle, 4, 0);
 ```
 
-### Cursor Visibility
+### カーソルの可視性
 
 ```c
 int terse_show_cursor(terse_handle_t handle, int visible);
 ```
 
-**Example:**
+**例:**
 ```c
 terse_show_cursor(handle, 0);  // Hide cursor
 // ... draw UI ...
 terse_show_cursor(handle, 1);  // Show cursor
 ```
 
-### Text Output
+### テキスト出力
 
 ```c
 int terse_write_text(terse_handle_t handle, const char *graphemes);
 int terse_flush(terse_handle_t handle);
 ```
 
-**Notes:**
-- `graphemes`: UTF-8 or Shift_JIS string (depending on codec)
-- `terse_flush()`: Currently a no-op (output is unbuffered)
+**注意:**
+- `graphemes`: UTF-8またはShift_JIS文字列(コーデックに依存)
+- `terse_flush()`: 現在は何もしない(出力はバッファリングされていない)
 
-**Example:**
+**例:**
 ```c
 terse_write_text(handle, "Hello, 世界!");
 terse_flush(handle);
 ```
 
-### Terminal Size
+### ターミナルサイズ
 
 ```c
 terse_size_t terse_get_size(terse_handle_t handle);
 ```
 
-**Returns:**
+**戻り値:**
 ```c
 typedef struct terse_size {
     int rows;
@@ -429,7 +429,7 @@ typedef struct terse_size {
 } terse_size_t;
 ```
 
-**Example:**
+**例:**
 ```c
 terse_size_t size = terse_get_size(handle);
 if (size.known) {
@@ -441,13 +441,13 @@ if (size.known) {
 }
 ```
 
-### Cursor Position
+### カーソル位置
 
 ```c
 terse_cursor_position_t terse_get_cursor_position(terse_handle_t handle);
 ```
 
-**Returns:**
+**戻り値:**
 ```c
 typedef struct terse_cursor_position {
     int row;
@@ -456,7 +456,7 @@ typedef struct terse_cursor_position {
 } terse_cursor_position_t;
 ```
 
-**Example:**
+**例:**
 ```c
 terse_cursor_position_t pos = terse_get_cursor_position(handle);
 if (pos.known) {
@@ -466,34 +466,34 @@ if (pos.known) {
 
 ---
 
-## P0: Input Events
+## P0: 入力イベント
 
-### Reading Events
+### イベントの読み取り
 
 ```c
 int terse_read_event(terse_handle_t handle, int timeout_ms,
                      terse_event_t *out_event);
 ```
 
-**Parameters:**
-- `timeout_ms`: Timeout in milliseconds (-1 for blocking)
-- `out_event`: Output event structure
+**パラメータ:**
+- `timeout_ms`: タイムアウト(ミリ秒単位、-1でブロッキング)
+- `out_event`: 出力イベント構造体
 
-**Returns:**
-- `TERSE_OK` (0): Event received successfully
-- `TERSE_ERR_NO_EVENT` (1): Timeout, no event available
-- Other `terse_error_t` values: Error occurred
+**戻り値:**
+- `TERSE_OK` (0): イベントが正常に受信された
+- `TERSE_ERR_NO_EVENT` (1): タイムアウト、イベントなし
+- その他の `terse_error_t` 値: エラーが発生した
 
-**Terminal Mode Requirements:**
+**ターミナルモードの要件:**
 
-`terse_read_event()` requires the terminal to be in an appropriate mode for non-canonical input. Terse does **not** configure the terminal mode automatically - this is your application's responsibility.
+`terse_read_event()` は、非正規入力に適したモードにターミナルが設定されている必要があります。Terseはターミナルモードを自動的に設定**しません** - これはアプリケーションの責任です。
 
-Typical requirements:
-- Non-canonical mode (ICANON disabled)
-- No echo (ECHO disabled)
-- VMIN and VTIME configured for your desired blocking behavior
+典型的な要件:
+- 非正規モード(ICANONを無効化)
+- エコーなし(ECHOを無効化)
+- 希望するブロッキング動作に合わせてVMINとVTIMEを設定
 
-**Example: Setting Raw Mode**
+**例: Rawモードの設定**
 ```c
 #include <termios.h>
 
@@ -515,9 +515,9 @@ int setup_raw_mode(int fd) {
 setup_raw_mode(STDIN_FILENO);
 ```
 
-**Note:** See `samples/event_logger_demo.c` for a complete example of terminal mode management.
+**注意:** ターミナルモード管理の完全な例については、`samples/event_logger_demo.c` を参照してください。
 
-**Event Types:**
+**イベントタイプ:**
 ```c
 typedef enum terse_event_type {
     TERSE_EVENT_CHAR,
@@ -546,7 +546,7 @@ typedef enum terse_event_type {
 } terse_event_type_t;
 ```
 
-### Event Structure
+### イベント構造体
 
 ```c
 typedef struct terse_event {
@@ -582,7 +582,7 @@ typedef struct terse_event {
 } terse_event_t;
 ```
 
-**Modifier Flags:**
+**修飾キーフラグ:**
 ```c
 enum {
     TERSE_MOD_SHIFT = (1 << 0),
@@ -592,7 +592,7 @@ enum {
 };
 ```
 
-### Event Loop Example
+### イベントループの例
 
 ```c
 while (1) {
@@ -634,7 +634,7 @@ while (1) {
 }
 ```
 
-### Keyboard Feature Enhancement
+### キーボード機能の拡張
 
 ```c
 int terse_keyboard_enable(terse_handle_t handle, unsigned int feature_mask);
@@ -643,7 +643,7 @@ unsigned int terse_keyboard_get_enabled(terse_handle_t handle);
 unsigned int terse_keyboard_get_supported(terse_handle_t handle);
 ```
 
-**Features:**
+**機能:**
 ```c
 typedef enum terse_keyboard_feature {
     TERSE_KEYBOARD_FEATURE_NONE = 0,
@@ -652,7 +652,7 @@ typedef enum terse_keyboard_feature {
 } terse_keyboard_feature_t;
 ```
 
-**Example:**
+**例:**
 ```c
 // Check support
 unsigned int supported = terse_keyboard_get_supported(handle);
@@ -664,16 +664,16 @@ if (supported & TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS) {
 
 ---
 
-## P0: State Management
+## P0: 状態管理
 
-### Capture and Restore
+### キャプチャと復元
 
 ```c
 int terse_capture_state(terse_handle_t handle, terse_state_t *out_state);
 int terse_restore_state(terse_handle_t handle, const terse_state_t *state);
 ```
 
-**State Structure:**
+**状態構造体:**
 ```c
 typedef struct terse_state {
     int cursor_known;
@@ -685,7 +685,7 @@ typedef struct terse_state {
 } terse_state_t;
 ```
 
-**Example:**
+**例:**
 ```c
 terse_state_t saved_state;
 
@@ -701,16 +701,16 @@ terse_show_cursor(handle, 0);
 terse_restore_state(handle, &saved_state);
 ```
 
-### Push and Pop State Stack
+### 状態スタックのプッシュとポップ
 
 ```c
 int terse_push_state(terse_handle_t handle);
 int terse_pop_state(terse_handle_t handle);
 ```
 
-**Stack Depth:** Maximum 8 levels
+**スタック深度:** 最大8レベル
 
-**Example:**
+**例:**
 ```c
 // Save state on stack
 terse_push_state(handle);
@@ -723,14 +723,14 @@ terse_write_text(handle, "Temporary message");
 terse_pop_state(handle);
 ```
 
-### State Override
+### 状態のオーバーライド
 
 ```c
 int terse_state_override(terse_handle_t handle, const terse_state_t *state);
 int terse_state_clear(terse_handle_t handle);
 ```
 
-**Example:**
+**例:**
 ```c
 terse_state_t custom_state = {
     .cursor_known = 1,
@@ -747,9 +747,9 @@ terse_state_clear(handle);  // Clear override
 
 ---
 
-## P1: Colors and Styles
+## P1: 色とスタイル
 
-### Color Creation
+### 色の作成
 
 ```c
 terse_color_t terse_color_default(void);
@@ -758,7 +758,7 @@ terse_color_t terse_color_palette(unsigned char index);
 terse_color_t terse_color_truecolor(unsigned char r, unsigned char g, unsigned char b);
 ```
 
-**Basic Colors:**
+**基本色:**
 ```c
 typedef enum terse_basic_color {
     TERSE_BASIC_COLOR_BLACK = 0,
@@ -772,7 +772,7 @@ typedef enum terse_basic_color {
 } terse_basic_color_t;
 ```
 
-**Examples:**
+**例:**
 ```c
 // Terminal default color
 terse_color_t default_fg = terse_color_default();
@@ -788,7 +788,7 @@ terse_color_t palette_color = terse_color_palette(196);  // Bright red
 terse_color_t orange = terse_color_truecolor(255, 165, 0);
 ```
 
-### Style Management
+### スタイル管理
 
 ```c
 terse_style_t terse_style_default(void);
@@ -796,7 +796,7 @@ int terse_set_style(terse_handle_t handle, const terse_style_t *style);
 int terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope);
 ```
 
-**Style Structure:**
+**スタイル構造体:**
 ```c
 typedef struct terse_style {
     terse_color_t foreground;
@@ -805,7 +805,7 @@ typedef struct terse_style {
 } terse_style_t;
 ```
 
-**Text Effects:**
+**テキスト効果:**
 ```c
 enum {
     TERSE_STYLE_BOLD = 1 << 0,
@@ -818,7 +818,7 @@ enum {
 };
 ```
 
-**Reset Scopes:**
+**リセットスコープ:**
 ```c
 typedef enum terse_reset_scope {
     TERSE_RESET_ALL = 0,         // Reset colors and effects
@@ -827,7 +827,7 @@ typedef enum terse_reset_scope {
 } terse_reset_scope_t;
 ```
 
-### Complete Style Example
+### 完全なスタイルの例
 
 ```c
 // Create style with TrueColor and effects
@@ -844,9 +844,9 @@ terse_write_text(handle, "Styled text");
 terse_reset_style(handle, TERSE_RESET_ALL);
 ```
 
-### Color Degradation
+### 色の縮退
 
-The library automatically degrades colors based on terminal capabilities:
+ライブラリは、ターミナルの能力に基づいて自動的に色を縮退させます:
 
 ```c
 terse_capabilities_t caps = terse_get_capabilities(handle);
@@ -860,7 +860,7 @@ terse_color_t color = terse_color_truecolor(255, 128, 0);  // Orange
 // - No color: Ignored
 ```
 
-### Color Palette Example
+### カラーパレットの例
 
 ```c
 // Rainbow gradient using 256-color palette
@@ -875,16 +875,16 @@ terse_reset_style(handle, TERSE_RESET_ALL);
 
 ---
 
-## P2: Advanced Input/Output
+## P2: 高度な入出力
 
-### Mouse Tracking
+### マウストラッキング
 
 ```c
 int terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode);
 int terse_disable_mouse(terse_handle_t handle);
 ```
 
-**Mouse Modes:**
+**マウスモード:**
 ```c
 typedef enum terse_mouse_mode {
     TERSE_MOUSE_NONE = 0,
@@ -894,7 +894,7 @@ typedef enum terse_mouse_mode {
 } terse_mouse_mode_t;
 ```
 
-**Mouse Buttons:**
+**マウスボタン:**
 ```c
 typedef enum terse_mouse_button {
     TERSE_MOUSE_BUTTON_NONE = 0,
@@ -906,7 +906,7 @@ typedef enum terse_mouse_button {
 } terse_mouse_button_t;
 ```
 
-**Example:**
+**例:**
 ```c
 // Enable SGR mouse tracking
 terse_enable_mouse(handle, TERSE_MOUSE_SGR);
@@ -946,16 +946,16 @@ while (1) {
 terse_disable_mouse(handle);
 ```
 
-### Bracketed Paste
+### 括弧付きペースト
 
 ```c
 int terse_enable_bracketed_paste(terse_handle_t handle);
 int terse_disable_bracketed_paste(terse_handle_t handle);
 ```
 
-Bracketed paste mode allows detecting pasted text vs. typed text.
+括弧付きペーストモードにより、ペーストされたテキストとタイプされたテキストを区別できます。
 
-**Example:**
+**例:**
 ```c
 terse_enable_bracketed_paste(handle);
 
@@ -990,13 +990,13 @@ while (1) {
 terse_disable_bracketed_paste(handle);
 ```
 
-### Window Title
+### ウィンドウタイトル
 
 ```c
 int terse_set_title(terse_handle_t handle, const char *title);
 ```
 
-**Example:**
+**例:**
 ```c
 terse_set_title(handle, "My Awesome TUI App v1.0");
 
@@ -1004,15 +1004,15 @@ terse_set_title(handle, "My Awesome TUI App v1.0");
 terse_set_title(handle, "");
 ```
 
-### Hyperlinks
+### ハイパーリンク
 
 ```c
 int terse_set_hyperlink(terse_handle_t handle, const char *url, const char *label);
 ```
 
-Creates clickable hyperlinks in supported terminals (iTerm2, modern terminals).
+サポートされているターミナル(iTerm2、現代的なターミナル)でクリック可能なハイパーリンクを作成します。
 
-**Example:**
+**例:**
 ```c
 // Create hyperlink
 terse_set_hyperlink(handle, "https://github.com/", "GitHub");
@@ -1029,17 +1029,17 @@ terse_write_text(handle, " for more info.");
 
 ---
 
-## P3: Extended Features
+## P3: 拡張機能
 
-### Clipboard
+### クリップボード
 
 ```c
 int terse_set_clipboard(terse_handle_t handle, const char *data);
 ```
 
-Writes text to system clipboard using OSC 52.
+OSC 52を使用してシステムクリップボードにテキストを書き込みます。
 
-**Example:**
+**例:**
 ```c
 const char *text = "Copied to clipboard!";
 if (terse_set_clipboard(handle, text) == 0) {
@@ -1049,9 +1049,9 @@ if (terse_set_clipboard(handle, text) == 0) {
 }
 ```
 
-**Note:** Clipboard read is not supported (terminal limitation).
+**注意:** クリップボードの読み取りはサポートされていません(ターミナルの制限)。
 
-### Cursor Shape
+### カーソル形状
 
 ```c
 int terse_set_cursor_shape(terse_handle_t handle,
@@ -1059,7 +1059,7 @@ int terse_set_cursor_shape(terse_handle_t handle,
                            int blinking);
 ```
 
-**Cursor Shapes:**
+**カーソル形状:**
 ```c
 typedef enum terse_cursor_shape {
     TERSE_CURSOR_SHAPE_DEFAULT = 0,
@@ -1069,7 +1069,7 @@ typedef enum terse_cursor_shape {
 } terse_cursor_shape_t;
 ```
 
-**Example:**
+**例:**
 ```c
 // Blinking bar cursor
 terse_set_cursor_shape(handle, TERSE_CURSOR_SHAPE_BAR, 1);
@@ -1081,14 +1081,14 @@ terse_set_cursor_shape(handle, TERSE_CURSOR_SHAPE_BLOCK, 0);
 terse_set_cursor_shape(handle, TERSE_CURSOR_SHAPE_DEFAULT, 1);
 ```
 
-### Image Display
+### 画像表示
 
 ```c
 int terse_display_image(terse_handle_t handle,
                         const terse_image_request_t *request);
 ```
 
-**Image Request Structure:**
+**画像リクエスト構造体:**
 ```c
 typedef struct terse_image_request {
     const unsigned char *data;  // Image data
@@ -1101,7 +1101,7 @@ typedef struct terse_image_request {
 } terse_image_request_t;
 ```
 
-**Image Formats:**
+**画像フォーマット:**
 ```c
 typedef enum terse_image_format {
     TERSE_IMAGE_FORMAT_AUTO = 0,  // Auto-detect from data
@@ -1112,7 +1112,7 @@ typedef enum terse_image_format {
 } terse_image_format_t;
 ```
 
-**Image Flags:**
+**画像フラグ:**
 ```c
 enum {
     TERSE_IMAGE_FLAG_INLINE = 1 << 0,          // Display inline
@@ -1120,7 +1120,7 @@ enum {
 };
 ```
 
-**Supported Protocols:**
+**サポートされているプロトコル:**
 ```c
 typedef enum terse_image_support {
     TERSE_IMAGE_NONE = 0,
@@ -1130,7 +1130,7 @@ typedef enum terse_image_support {
 } terse_image_support_t;
 ```
 
-**Example:**
+**例:**
 ```c
 // Load PNG image data
 unsigned char *png_data;
@@ -1154,7 +1154,7 @@ if (terse_display_image(handle, &request) == 0) {
 }
 ```
 
-**Legacy API:**
+**レガシーAPI:**
 ```c
 int terse_display_image_inline(terse_handle_t handle,
                                const unsigned char *data,
@@ -1162,9 +1162,9 @@ int terse_display_image_inline(terse_handle_t handle,
                                const char *name);
 ```
 
-Simple wrapper around `terse_display_image()` for backward compatibility.
+後方互換性のための `terse_display_image()` のシンプルなラッパー。
 
-### Notifications
+### 通知
 
 ```c
 int terse_notify(terse_handle_t handle,
@@ -1172,7 +1172,7 @@ int terse_notify(terse_handle_t handle,
                  const char *payload);
 ```
 
-**Notification Types:**
+**通知タイプ:**
 ```c
 typedef enum terse_notification_kind {
     TERSE_NOTIFICATION_KIND_BELL = 0,     // Terminal bell
@@ -1181,7 +1181,7 @@ typedef enum terse_notification_kind {
 } terse_notification_kind_t;
 ```
 
-**Support Flags:**
+**サポートフラグ:**
 ```c
 enum {
     TERSE_NOTIFICATION_SUPPORT_BELL = 1 << 0,
@@ -1190,7 +1190,7 @@ enum {
 };
 ```
 
-**Examples:**
+**例:**
 ```c
 // Terminal bell
 terse_notify(handle, TERSE_NOTIFICATION_KIND_BELL, NULL);
@@ -1212,24 +1212,24 @@ if (caps.notifications & TERSE_NOTIFICATION_SUPPORT_DESKTOP) {
 
 ---
 
-## Test Mode and Mocking
+## テストモードとモック
 
-### Overview
+### 概要
 
-Terse provides a test mode for automated testing and verification. When enabled at build time, the library records API calls and allows mocking of capabilities, terminal size, and input events.
+Terseは、自動テストと検証のためのテストモードを提供します。ビルド時に有効にすると、ライブラリはAPI呼び出しを記録し、能力、ターミナルサイズ、入力イベントのモックを可能にします。
 
-### Building with Test Mode
+### テストモードでのビルド
 
 ```bash
 cmake -S . -B build -DTERSE_ENABLE_TEST_MODE=ON -G Ninja
 ninja -C build
 ```
 
-**Note:** Test mode is disabled by default in production builds.
+**注意:** テストモードは、本番ビルドではデフォルトで無効になっています。
 
-### Recording API Calls
+### API呼び出しの記録
 
-Test mode can record all rendering and control API calls for verification:
+テストモードは、検証のためにすべてのレンダリングと制御API呼び出しを記録できます:
 
 ```c
 #ifdef TERSE_ENABLE_TEST_MODE
@@ -1267,7 +1267,7 @@ terse_test_clear_calls(handle);
 #endif
 ```
 
-**Recorded Call Types:**
+**記録される呼び出しタイプ:**
 - `TERSE_CALL_WRITE_TEXT`
 - `TERSE_CALL_MOVE_TO`
 - `TERSE_CALL_CLEAR_SCREEN`
@@ -1279,9 +1279,9 @@ terse_test_clear_calls(handle);
 - `TERSE_CALL_SET_TITLE`
 - `TERSE_CALL_FLUSH`
 
-### Mocking Capabilities
+### 能力のモック
 
-Override terminal capabilities for testing:
+テスト用にターミナル能力をオーバーライド:
 
 ```c
 #ifdef TERSE_ENABLE_TEST_MODE
@@ -1306,9 +1306,9 @@ terse_test_reset_mocks(handle);
 #endif
 ```
 
-### Mocking Terminal Size
+### ターミナルサイズのモック
 
-Test UI layout with different terminal sizes:
+異なるターミナルサイズでUIレイアウトをテスト:
 
 ```c
 #ifdef TERSE_ENABLE_TEST_MODE
@@ -1332,9 +1332,9 @@ terse_test_reset_mocks(handle);
 #endif
 ```
 
-### Mocking Input Events
+### 入力イベントのモック
 
-Inject synthetic input events for testing event handling:
+イベント処理のテスト用に合成入力イベントを注入:
 
 ```c
 #ifdef TERSE_ENABLE_TEST_MODE
@@ -1381,9 +1381,9 @@ terse_test_reset_mocks(handle);
 #endif
 ```
 
-### Use Cases
+### ユースケース
 
-**1. UI Regression Testing:**
+**1. UIリグレッションテスト:**
 ```c
 // Record baseline rendering
 terse_test_start_recording(handle);
@@ -1404,7 +1404,7 @@ assert(current_count == baseline_count);
 // Compare call sequences...
 ```
 
-**2. Capability Fallback Testing:**
+**2. 能力フォールバックのテスト:**
 ```c
 // Test with TrueColor
 terse_capabilities_t truecolor_caps = {...};
@@ -1425,7 +1425,7 @@ terse_test_mock_capabilities(handle, &no_color_caps);
 test_color_rendering(handle);
 ```
 
-**3. Automated Event Handler Testing:**
+**3. 自動イベントハンドラのテスト:**
 ```c
 // Inject key sequence: "hello" + Enter
 terse_event_t events[6];
@@ -1443,13 +1443,13 @@ run_event_loop(handle);
 assert(strcmp(input_buffer, "hello") == 0);
 ```
 
-**Example:** See `samples/test_mode_demo.c` for a complete working example.
+**例:** 完全な動作例については、`samples/test_mode_demo.c` を参照してください。
 
 ---
 
-## Best Practices
+## ベストプラクティス
 
-### 1. Always Close the Handle
+### 1. 常にハンドルを閉じる
 
 ```c
 terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
@@ -1462,7 +1462,7 @@ if (!handle) {
 terse_close(handle);  // Always call this
 ```
 
-### 2. Check Capabilities Before Using Features
+### 2. 機能を使用する前に能力を確認する
 
 ```c
 terse_capabilities_t caps = terse_get_capabilities(handle);
@@ -1478,7 +1478,7 @@ if (caps.mouse >= TERSE_MOUSE_SGR) {
 }
 ```
 
-### 3. Use State Management for Temporary Changes
+### 3. 一時的な変更には状態管理を使用する
 
 ```c
 // Save state
@@ -1493,7 +1493,7 @@ terse_move_to(handle, 1, 1);
 terse_pop_state(handle);
 ```
 
-### 4. Handle Resize Events
+### 4. リサイズイベントを処理する
 
 ```c
 terse_size_t size = terse_get_size(handle);
@@ -1512,7 +1512,7 @@ while (1) {
 }
 ```
 
-### 5. Proper Error Handling
+### 5. 適切なエラーハンドリング
 
 ```c
 if (terse_write_text(handle, "Hello") < 0) {
@@ -1523,14 +1523,14 @@ if (terse_write_text(handle, "Hello") < 0) {
 }
 ```
 
-### 6. Use TERSE_PROFILE_AUTO for Portability
+### 6. 移植性のためにTERSE_PROFILE_AUTOを使用する
 
 ```c
 // Automatically detect best profile for terminal
 terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
 ```
 
-### 7. Clean Up Resources in Correct Order
+### 7. リソースを正しい順序でクリーンアップする
 
 ```c
 // Disable features before closing
@@ -1543,7 +1543,7 @@ terse_reset_style(handle, TERSE_RESET_ALL);
 terse_close(handle);
 ```
 
-### 8. Use UTF-8 by Default
+### 8. デフォルトでUTF-8を使用する
 
 ```c
 terse_options_t options = {
@@ -1555,7 +1555,7 @@ terse_options_t options = {
 };
 ```
 
-### 9. Timeout Considerations
+### 9. タイムアウトの考慮事項
 
 ```c
 // Non-blocking read
@@ -1568,7 +1568,7 @@ terse_read_event(handle, 100, &event);  // 100ms
 terse_read_event(handle, -1, &event);
 ```
 
-### 10. Graceful Degradation Example
+### 10. 適切な機能縮退の例
 
 ```c
 void draw_colored_text(terse_handle_t handle, const char *text) {
@@ -1587,7 +1587,7 @@ void draw_colored_text(terse_handle_t handle, const char *text) {
 }
 ```
 
-### 11. Complete Application Template
+### 11. 完全なアプリケーションテンプレート
 
 ```c
 #include "terse.h"
@@ -1649,16 +1649,16 @@ int main(void) {
 
 ---
 
-## Advanced Topics
+## 高度なトピック
 
-### Character Encoding
+### 文字エンコーディング
 
-Terse supports two character encodings:
+Terseは2つの文字エンコーディングをサポートします:
 
-- **UTF-8** (recommended): Universal, modern encoding
-- **Shift_JIS**: Japanese legacy encoding
+- **UTF-8** (推奨): 普遍的で現代的なエンコーディング
+- **Shift_JIS**: 日本語のレガシーエンコーディング
 
-**East Asian Width Handling:**
+**東アジアの文字幅処理:**
 
 ```c
 terse_options_t options = {
@@ -1667,19 +1667,19 @@ terse_options_t options = {
 };
 ```
 
-Characters like `±`, `×`, `§` can be 1 or 2 cells wide depending on context. This option controls the behavior.
+`±`、`×`、`§` のような文字は、コンテキストに応じて1または2セル幅になる可能性があります。このオプションは動作を制御します。
 
-### Building Without System iconv
+### システムiconvなしでビルド
 
 ```bash
 cmake -S . -B build -DTERSE_USE_SYSTEM_ICONV=OFF
 ```
 
-Uses built-in mini iconv (Shift_JIS ↔ UTF-8 only).
+内蔵のmini iconvを使用します(Shift_JIS ↔ UTF-8のみ)。
 
-### Terminal Detection
+### ターミナル検出
 
-Terse automatically detects these terminals:
+Terseは以下のターミナルを自動検出します:
 
 - **Apple Terminal**
 - **GNOME Terminal / VTE**
@@ -1689,11 +1689,11 @@ Terse automatically detects these terminals:
 - **Ghostty**
 - **Warp**
 
-Detection uses environment variables (`TERM_PROGRAM`, `VTE_VERSION`, etc.) and Secondary Device Attributes (DA).
+検出は環境変数(`TERM_PROGRAM`、`VTE_VERSION`など)とSecondary Device Attributes (DA)を使用します。
 
-### Profile Clipping
+### プロファイルのクリッピング
 
-When you request a specific profile, capabilities are clipped to that level:
+特定のプロファイルを要求すると、能力はそのレベルにクリップされます:
 
 ```c
 // Request P1, but terminal supports P3
@@ -1706,9 +1706,9 @@ terse_capabilities_t caps = terse_get_capabilities(handle);
 
 ---
 
-## Common Patterns
+## 一般的なパターン
 
-### Drawing a Box
+### ボックスの描画
 
 ```c
 void draw_box(terse_handle_t handle, int row, int col,
@@ -1746,7 +1746,7 @@ void draw_box(terse_handle_t handle, int row, int col,
 }
 ```
 
-### Progress Bar
+### プログレスバー
 
 ```c
 void draw_progress_bar(terse_handle_t handle, int row, int col,
@@ -1774,7 +1774,7 @@ void draw_progress_bar(terse_handle_t handle, int row, int col,
 }
 ```
 
-### Menu Selection
+### メニュー選択
 
 ```c
 void draw_menu(terse_handle_t handle, const char **items, int count,
@@ -1799,25 +1799,25 @@ void draw_menu(terse_handle_t handle, const char **items, int count,
 
 ---
 
-## Troubleshooting
+## トラブルシューティング
 
-### Terminal Not Detected Correctly
+### ターミナルが正しく検出されない
 
-Check environment variables:
+環境変数を確認:
 ```bash
 echo $TERM
 echo $TERM_PROGRAM
 echo $VTE_VERSION
 ```
 
-Override detection with capability flags:
+能力フラグで検出をオーバーライド:
 ```c
 options.enabled_caps = TERSE_CAP_ENABLE_TRUECOLOR;
 ```
 
-### Mouse Events Not Working
+### マウスイベントが機能しない
 
-1. Check if mouse is supported:
+1. マウスがサポートされているか確認:
 ```c
 terse_capabilities_t caps = terse_get_capabilities(handle);
 if (caps.mouse == TERSE_MOUSE_NONE) {
@@ -1825,25 +1825,25 @@ if (caps.mouse == TERSE_MOUSE_NONE) {
 }
 ```
 
-2. Ensure mouse is enabled:
+2. マウスが有効になっているか確認:
 ```c
 terse_enable_mouse(handle, TERSE_MOUSE_SGR);
 ```
 
-3. Check if terminal is in raw mode (required for mouse input)
+3. ターミナルがrawモードになっているか確認(マウス入力には必須)
 
-### Colors Not Displaying
+### 色が表示されない
 
-Check color support:
+色のサポートを確認:
 ```c
 terse_capabilities_t caps = terse_get_capabilities(handle);
 printf("Color support: %d\n", caps.colors);
 // 0=none, 1=16, 2=256, 3=TrueColor
 ```
 
-### Images Not Displaying
+### 画像が表示されない
 
-1. Check image support:
+1. 画像サポートを確認:
 ```c
 terse_capabilities_t caps = terse_get_capabilities(handle);
 if (caps.images == TERSE_IMAGE_NONE) {
@@ -1851,89 +1851,89 @@ if (caps.images == TERSE_IMAGE_NONE) {
 }
 ```
 
-2. Verify image data is valid PNG/JPEG
+2. 画像データが有効なPNG/JPEGであることを確認
 
-3. Check terminal (iTerm2, WezTerm, kitty support images)
-
----
-
-## API Reference Summary
-
-### Lifecycle
-- `terse_open()` - Open session
-- `terse_close()` - Close session
-- `terse_validate_options()` - Validate options
-
-### Capabilities
-- `terse_get_capabilities()` - Query capabilities
-- `terse_capabilities_enable()` - Enable features
-- `terse_capabilities_disable()` - Disable features
-- `terse_capabilities_reset_overrides()` - Reset overrides
-
-### Output (P0)
-- `terse_clear_screen()` - Clear screen
-- `terse_clear_line()` - Clear line
-- `terse_move_to()` - Absolute cursor movement
-- `terse_move_by()` - Relative cursor movement
-- `terse_show_cursor()` - Show/hide cursor
-- `terse_write_text()` - Write text
-- `terse_flush()` - Flush output (no-op)
-
-### Input (P0)
-- `terse_read_event()` - Read input event
-- `terse_keyboard_enable()` - Enable keyboard features
-- `terse_keyboard_disable()` - Disable keyboard features
-
-### Query (P0)
-- `terse_get_size()` - Get terminal size
-- `terse_get_cursor_position()` - Get cursor position
-- `terse_get_options()` - Get current options
-- `terse_get_last_error()` - Get last error
-
-### State (P0)
-- `terse_capture_state()` - Capture state
-- `terse_restore_state()` - Restore state
-- `terse_push_state()` - Push state to stack
-- `terse_pop_state()` - Pop state from stack
-- `terse_state_override()` - Override state
-- `terse_state_clear()` - Clear override
-
-### Colors/Styles (P1)
-- `terse_color_default()` - Default color
-- `terse_color_basic()` - Basic 16 colors
-- `terse_color_palette()` - 256-color palette
-- `terse_color_truecolor()` - 24-bit RGB
-- `terse_style_default()` - Default style
-- `terse_set_style()` - Apply style
-- `terse_reset_style()` - Reset style
-
-### Mouse/Input (P2)
-- `terse_enable_mouse()` - Enable mouse
-- `terse_disable_mouse()` - Disable mouse
-- `terse_enable_bracketed_paste()` - Enable paste mode
-- `terse_disable_bracketed_paste()` - Disable paste mode
-
-### Window (P2)
-- `terse_set_title()` - Set window title
-- `terse_set_hyperlink()` - Create hyperlink
-
-### Extended (P3)
-- `terse_set_clipboard()` - Write to clipboard
-- `terse_set_cursor_shape()` - Set cursor shape
-- `terse_display_image()` - Display image
-- `terse_display_image_inline()` - Display image (legacy)
-- `terse_notify()` - Send notification
+3. ターミナルを確認(iTerm2、WezTerm、kittyが画像をサポート)
 
 ---
 
-## Additional Resources
+## APIリファレンス概要
 
-- Specification: `docs/terse-specs.md`
-- Progress overview: `docs/progress-overview.md`
-- Graphics roadmap: `docs/graphics-roadmap.md`
-- Platform porting: `docs/terse-platform-porting.md`
-- Mini iconv implementation: `docs/mini-iconv-plan.md`
+### ライフサイクル
+- `terse_open()` - セッションを開く
+- `terse_close()` - セッションを閉じる
+- `terse_validate_options()` - オプションを検証
+
+### 能力
+- `terse_get_capabilities()` - 能力を問い合わせる
+- `terse_capabilities_enable()` - 機能を有効化
+- `terse_capabilities_disable()` - 機能を無効化
+- `terse_capabilities_reset_overrides()` - オーバーライドをリセット
+
+### 出力 (P0)
+- `terse_clear_screen()` - 画面をクリア
+- `terse_clear_line()` - 行をクリア
+- `terse_move_to()` - 絶対カーソル移動
+- `terse_move_by()` - 相対カーソル移動
+- `terse_show_cursor()` - カーソルの表示/非表示
+- `terse_write_text()` - テキストを書く
+- `terse_flush()` - 出力をフラッシュ(何もしない)
+
+### 入力 (P0)
+- `terse_read_event()` - 入力イベントを読む
+- `terse_keyboard_enable()` - キーボード機能を有効化
+- `terse_keyboard_disable()` - キーボード機能を無効化
+
+### クエリ (P0)
+- `terse_get_size()` - ターミナルサイズを取得
+- `terse_get_cursor_position()` - カーソル位置を取得
+- `terse_get_options()` - 現在のオプションを取得
+- `terse_get_last_error()` - 最後のエラーを取得
+
+### 状態 (P0)
+- `terse_capture_state()` - 状態をキャプチャ
+- `terse_restore_state()` - 状態を復元
+- `terse_push_state()` - 状態をスタックにプッシュ
+- `terse_pop_state()` - 状態をスタックからポップ
+- `terse_state_override()` - 状態をオーバーライド
+- `terse_state_clear()` - オーバーライドをクリア
+
+### 色/スタイル (P1)
+- `terse_color_default()` - デフォルト色
+- `terse_color_basic()` - 基本16色
+- `terse_color_palette()` - 256色パレット
+- `terse_color_truecolor()` - 24ビットRGB
+- `terse_style_default()` - デフォルトスタイル
+- `terse_set_style()` - スタイルを適用
+- `terse_reset_style()` - スタイルをリセット
+
+### マウス/入力 (P2)
+- `terse_enable_mouse()` - マウスを有効化
+- `terse_disable_mouse()` - マウスを無効化
+- `terse_enable_bracketed_paste()` - ペーストモードを有効化
+- `terse_disable_bracketed_paste()` - ペーストモードを無効化
+
+### ウィンドウ (P2)
+- `terse_set_title()` - ウィンドウタイトルを設定
+- `terse_set_hyperlink()` - ハイパーリンクを作成
+
+### 拡張 (P3)
+- `terse_set_clipboard()` - クリップボードに書き込む
+- `terse_set_cursor_shape()` - カーソル形状を設定
+- `terse_display_image()` - 画像を表示
+- `terse_display_image_inline()` - 画像を表示(レガシー)
+- `terse_notify()` - 通知を送信
 
 ---
 
-**End of Terse API User Guide**
+## 追加リソース
+
+- 仕様書: `docs/terse-specs.md`
+- 進捗概要: `docs/progress-overview.md`
+- グラフィックスロードマップ: `docs/graphics-roadmap.md`
+- プラットフォーム移植: `docs/terse-platform-porting.md`
+- mini iconv実装: `docs/mini-iconv-plan.md`
+
+---
+
+**Terse APIユーザーガイド 終**
