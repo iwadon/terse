@@ -4,7 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+
+#include "sample_compat.h"
 
 static void print_capabilities(const terse_capabilities_t *caps)
 {

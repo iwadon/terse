@@ -4,7 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+
+#include "sample_compat.h"
 
 // Generate a simple 16x16 RGBA test pattern (4-color gradient)
 static unsigned char *generate_test_image(size_t *out_size)

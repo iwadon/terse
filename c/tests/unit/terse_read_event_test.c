@@ -4,7 +4,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
-#include <unistd.h>
+#include "test_compat.h"
+
+#ifdef HAVE_POSIX_PIPE
 
 static void create_input_handle_with_codec(const char *codec, terse_handle_t *out_handle, int fds[2])
 {
@@ -584,6 +586,8 @@ TEST(TerseReadEvent, ReturnsRawSequence_OnUnknownEscape)
 	close(fds[1]);
 }
 
+#endif /* HAVE_POSIX_PIPE */
+
 TEST(TerseReadEvent, ReturnsEINVAL_OnNullArguments)
 {
 	terse_event_t event;
@@ -598,6 +602,8 @@ TEST(TerseReadEvent, ReturnsEINVAL_OnNullArguments)
 	EXPECT_EQ(EINVAL, errno);
 	terse_close(handle);
 }
+
+#ifdef HAVE_POSIX_PIPE
 
 TEST(TerseReadEvent, ReturnsEpipe_OnPipeClosed)
 {
@@ -617,3 +623,5 @@ TEST(TerseReadEvent, ReturnsEpipe_OnPipeClosed)
 	terse_close(handle);
 	close(fds[0]);
 }
+
+#endif /* HAVE_POSIX_PIPE */

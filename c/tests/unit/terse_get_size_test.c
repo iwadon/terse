@@ -7,9 +7,12 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include "test_compat.h"
+
+#ifdef HAVE_POSIX_PIPE
+
 #include <sys/ioctl.h>
 #include <termios.h>
-#include <unistd.h>
 
 static void create_pipe_handle(terse_handle_t *out_handle, int fds[2])
 {
@@ -202,3 +205,5 @@ TEST(TerseGetSize, ReturnsUnknown_WhenCapabilityDisabled)
 	close(master_fd);
 	close(slave_fd);
 }
+
+#endif /* HAVE_POSIX_PIPE */

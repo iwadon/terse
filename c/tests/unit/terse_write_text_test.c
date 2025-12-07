@@ -3,8 +3,10 @@
 
 #include <errno.h>
 #include <string.h>
-#include <unistd.h>
 
+#include "test_compat.h"
+
+#ifdef HAVE_POSIX_PIPE
 TEST(TerseWriteText, Succeeds_OnPipeOutput)
 {
 	int fds[2];
@@ -91,4 +93,5 @@ TEST(TerseWriteText, WritesReplacement_OnUnencodable)
 	close(fds[0]);
 	close(fds[1]);
 }
-#endif
+#endif /* TERSE_HAVE_ICONV */
+#endif /* HAVE_POSIX_PIPE */

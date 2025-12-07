@@ -3,8 +3,10 @@
 
 #include <errno.h>
 #include <string.h>
-#include <unistd.h>
 
+#include "test_compat.h"
+
+#ifdef HAVE_POSIX_PIPE
 static void create_pipe_handle(terse_handle_t *out_handle, int fds[2])
 {
 	EXPECT_TRUE(pipe(fds) == 0);
@@ -79,6 +81,7 @@ TEST(TerseClose, SkipsReset_WhenBasicOutputDisabled)
 	EXPECT_EQ(TERSE_OK, err);
 	close(fds[0]);
 }
+#endif /* HAVE_POSIX_PIPE */
 
 TEST(TerseClose, AcceptsNullHandle)
 {

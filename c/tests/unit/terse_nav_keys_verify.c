@@ -4,7 +4,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
-#include <unistd.h>
+#include "test_compat.h"
+
+#ifdef HAVE_POSIX_PIPE
 
 static void create_input_handle(terse_handle_t *out_handle, int fds[2])
 {
@@ -287,3 +289,5 @@ TEST(TerseNavKeys, Delete_WithAlt)
 	close(fds[0]);
 	close(fds[1]);
 }
+
+#endif /* HAVE_POSIX_PIPE */

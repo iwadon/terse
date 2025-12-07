@@ -1,7 +1,8 @@
 #include "terse.h"
 
 #include <stdio.h>
-#include <unistd.h>
+
+#include "sample_compat.h"
 
 static void wait_briefly(void)
 {

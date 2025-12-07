@@ -4,39 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <termios.h>
-#include <unistd.h>
 
-static struct termios g_original_termios;
-static int g_raw_installed = 0;
-
-static void restore_terminal(void)
-{
-	if (g_raw_installed) {
-		(void)tcsetattr(STDIN_FILENO, TCSANOW, &g_original_termios);
-		g_raw_installed = 0;
-	}
-}
-
-static int install_raw_terminal(void)
-{
-	if (tcgetattr(STDIN_FILENO, &g_original_termios) != 0) {
-		return -1;
-	}
-	struct termios raw = g_original_termios;
-	raw.c_lflag &= ~(ICANON | ECHO | IEXTEN | ISIG);
-	raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-	raw.c_cflag |= CS8;
-	raw.c_oflag &= ~(OPOST);
-	raw.c_cc[VMIN] = 1;
-	raw.c_cc[VTIME] = 0;
-	if (tcsetattr(STDIN_FILENO, TCSANOW, &raw) != 0) {
-		return -1;
-	}
-	g_raw_installed = 1;
-	atexit(restore_terminal);
-	return 0;
-}
+#include "raw_terminal.h"
+#include "sample_compat.h"
 
 typedef struct {
 	int row;
@@ -77,13 +47,13 @@ static void redraw_screen(terse_handle_t handle, const char *last_event_msg)
 			terse_move_to(handle, marks[i].row, marks[i].col);
 			switch (marks[i].button) {
 			case TERSE_MOUSE_BUTTON_LEFT:
-				terse_write_text(handle, "●");
+				terse_write_text(handle, "\xE2\x97\x8F"); /* ● U+25CF */
 				break;
 			case TERSE_MOUSE_BUTTON_RIGHT:
-				terse_write_text(handle, "○");
+				terse_write_text(handle, "\xE2\x97\x8B"); /* ○ U+25CB */
 				break;
 			case TERSE_MOUSE_BUTTON_MIDDLE:
-				terse_write_text(handle, "◆");
+				terse_write_text(handle, "\xE2\x97\x86"); /* ◆ U+25C6 */
 				break;
 			default:
 				break;

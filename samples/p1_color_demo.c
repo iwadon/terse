@@ -1,7 +1,8 @@
 #include "terse.h"
 
 #include <stdio.h>
-#include <unistd.h>
+
+#include "sample_compat.h"
 
 static const char *const k_basic_names[8] = {
 	"Blk",

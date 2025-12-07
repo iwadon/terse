@@ -2,7 +2,8 @@
 #include <attest/attest.h>
 
 #include <errno.h>
-#include <unistd.h>
+
+#include "test_compat.h"
 
 TEST(TerseValidateOptions, ReturnsZero_OnNull)
 {
@@ -45,6 +46,7 @@ TEST(TerseOpen, ReturnsNull_OnInvalidOptions)
 	EXPECT_EQ(EBADF, errno);
 }
 
+#ifdef HAVE_POSIX_PIPE
 TEST(TerseGetOptions, CopiesHandleOptions_OnValidHandle)
 {
 	int fds[2];
@@ -100,6 +102,7 @@ TEST(TerseOpen, ReturnsEnosys_OnShiftJisWithoutIconv)
 	close(fds[1]);
 }
 #endif
+#endif /* HAVE_POSIX_PIPE */
 
 TEST(TerseCapabilities, DefaultsMatchP0)
 {

@@ -5,41 +5,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <termios.h>
-#include <unistd.h>
+
+#include "raw_terminal.h"
+#include "sample_compat.h"
+
+#ifdef _WIN32
+#include <conio.h>
+#else
 #include <sys/select.h>
 #include <errno.h>
-
-static struct termios original_termios;
-static int raw_installed = 0;
-
-static void restore_terminal(void)
-{
-	if (raw_installed) {
-		(void)tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
-		raw_installed = 0;
-	}
-}
-
-static int install_raw_terminal(void)
-{
-	if (tcgetattr(STDIN_FILENO, &original_termios) != 0) {
-		return -1;
-	}
-	struct termios raw = original_termios;
-	raw.c_lflag &= ~(ICANON | ECHO | IEXTEN | ISIG);
-	raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-	raw.c_cflag |= CS8;
-	raw.c_oflag &= ~(OPOST);
-	raw.c_cc[VMIN] = 0;
-	raw.c_cc[VTIME] = 0;
-	if (tcsetattr(STDIN_FILENO, TCSANOW, &raw) != 0) {
-		return -1;
-	}
-	raw_installed = 1;
-	atexit(restore_terminal);
-	return 0;
-}
+#endif
 
 static void print_hex_bytes(const unsigned char *bytes, size_t len)
 {
@@ -86,6 +61,80 @@ int main(void)
 	unsigned char buffer[256];
 	int ctrl_c_count = 0;
 
+#ifdef _WIN32
+	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+	if (hStdin == INVALID_HANDLE_VALUE) {
+		fprintf(stderr, "GetStdHandle failed\r\n");
+		return 1;
+	}
+
+	while (1) {
+		DWORD waitResult = WaitForSingleObject(hStdin, 1000);
+		if (waitResult == WAIT_TIMEOUT) {
+			continue;
+		}
+		if (waitResult != WAIT_OBJECT_0) {
+			break;
+		}
+
+		INPUT_RECORD rec;
+		DWORD numRead;
+		if (!PeekConsoleInput(hStdin, &rec, 1, &numRead) || numRead == 0) {
+			continue;
+		}
+
+		if (!ReadConsoleInput(hStdin, &rec, 1, &numRead) || numRead == 0) {
+			continue;
+		}
+
+		if (rec.EventType != KEY_EVENT || !rec.Event.KeyEvent.bKeyDown) {
+			continue;
+		}
+
+		size_t n = 0;
+		KEY_EVENT_RECORD *key = &rec.Event.KeyEvent;
+
+		if (key->uChar.UnicodeChar != 0) {
+			/* Convert Unicode character to UTF-8 */
+			WCHAR wc = key->uChar.UnicodeChar;
+			int len = WideCharToMultiByte(CP_UTF8, 0, &wc, 1, (char *)buffer, sizeof(buffer) - 1, NULL, NULL);
+			if (len > 0) {
+				n = (size_t)len;
+			}
+		} else {
+			/* Virtual key code only - report it */
+			printf("VK: 0x%02X Scan: 0x%02X Mods: 0x%lx\r\n",
+				key->wVirtualKeyCode, key->wVirtualScanCode, key->dwControlKeyState);
+			fflush(stdout);
+			continue;
+		}
+
+		if (n == 0) {
+			continue;
+		}
+
+		/* Check for Ctrl+C */
+		if (n == 1 && buffer[0] == 0x03) {
+			ctrl_c_count++;
+			if (ctrl_c_count >= 2) {
+				printf("\r\nCtrl+C detected twice, exiting.\r\n");
+				break;
+			}
+			printf("\r\nCtrl+C detected once more to exit.\r\n");
+		} else {
+			ctrl_c_count = 0;
+		}
+
+		printf("Read %zu bytes:\r\n", n);
+		printf("  HEX: ");
+		print_hex_bytes(buffer, n);
+		printf("\r\n");
+		printf("  SEQ: ");
+		print_readable(buffer, n);
+		printf("\r\n\r\n");
+		fflush(stdout);
+	}
+#else
 	while (1) {
 		fd_set readfds;
 		FD_ZERO(&readfds);
@@ -111,7 +160,7 @@ int main(void)
 			break;
 		}
 
-		// Check for Ctrl+C
+		/* Check for Ctrl+C */
 		if (n == 1 && buffer[0] == 0x03) {
 			ctrl_c_count++;
 			if (ctrl_c_count >= 2) {
@@ -132,6 +181,7 @@ int main(void)
 		printf("\r\n\r\n");
 		fflush(stdout);
 	}
+#endif
 
 	return 0;
 }

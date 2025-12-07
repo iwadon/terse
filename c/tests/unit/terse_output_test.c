@@ -6,8 +6,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 
+#include "test_compat.h"
+
+#ifdef HAVE_POSIX_PIPE
 static void create_pipe_handle(terse_handle_t *out_handle, int fds[2])
 {
 	EXPECT_TRUE(pipe(fds) == 0);
@@ -254,17 +256,6 @@ TEST(TerseOutputState, SkipsDuplicateMoveTo)
 	terse_close(handle);
 	close(fds[0]);
 	close(fds[1]);
-}
-
-TEST(TerseOutputError, ReturnsConfigError_OnInvalidMode)
-{
-	terse_handle_t handle = terse_open(TERSE_P0, NULL);
-	EXPECT_TRUE(handle != NULL);
-	terse_error_t rc = terse_clear_screen(handle, 99);
-	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
-	terse_error_t err = terse_get_last_error(handle);
-	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
-	terse_close(handle);
 }
 
 TEST(TerseOutputError, ReturnsTransportError_OnWriteFailure)
@@ -737,6 +728,18 @@ TEST(TerseResetStyle, NoOutputWhenCapabilitiesDisabled)
 	terse_close(handle);
 	close(fds[0]);
 	close(fds[1]);
+}
+#endif /* HAVE_POSIX_PIPE */
+
+TEST(TerseOutputError, ReturnsConfigError_OnInvalidMode)
+{
+	terse_handle_t handle = terse_open(TERSE_P0, NULL);
+	EXPECT_TRUE(handle != NULL);
+	terse_error_t rc = terse_clear_screen(handle, 99);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
+	terse_error_t err = terse_get_last_error(handle);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
+	terse_close(handle);
 }
 
 TEST(TerseResetStyle, ReturnsEINVAL_OnInvalidScope)

@@ -5,7 +5,9 @@
 #include <fcntl.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
+#include "test_compat.h"
+
+#ifdef HAVE_POSIX_PIPE
 
 static void set_nonblocking(int fd)
 {
@@ -94,3 +96,5 @@ TEST(TerseCursorShape, Noop_WhenCapabilityDisabled)
 	close(in_pipe[0]);
 	close(in_pipe[1]);
 }
+
+#endif /* HAVE_POSIX_PIPE */

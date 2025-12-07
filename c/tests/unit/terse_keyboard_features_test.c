@@ -5,7 +5,9 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include "test_compat.h"
+
+#ifdef HAVE_POSIX_PIPE
 
 static char *save_env(const char *name)
 {
@@ -230,3 +232,5 @@ TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
 	restore_env("GNOME_TERMINAL_SERVICE", saved_gnome_service);
 	restore_env("VTE_VERSION", saved_vte_version);
 }
+
+#endif /* HAVE_POSIX_PIPE */

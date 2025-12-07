@@ -4,7 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+
+#include "sample_compat.h"
 
 static const char *filename_component(const char *path)
 {

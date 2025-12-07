@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "test_compat.h"
+
 #define ARRAY_LEN(x) (sizeof(x) / sizeof((x)[0]))
 
 typedef struct env_backup {

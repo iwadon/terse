@@ -1,7 +1,9 @@
 #include "terse.h"
 #include <attest/attest.h>
 
-#include <unistd.h>
+#include "test_compat.h"
+
+#ifdef HAVE_POSIX_PIPE
 
 static void assert_ctrl_char(unsigned int expected_scalar, unsigned int expected_mod, terse_event_t event)
 {
@@ -38,3 +40,5 @@ TEST(TerseReadEventCtrl, ReportsCtrlModifier_OnControlSequence)
 	close(fds[0]);
 	close(fds[1]);
 }
+
+#endif /* HAVE_POSIX_PIPE */

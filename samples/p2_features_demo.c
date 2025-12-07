@@ -5,40 +5,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <termios.h>
-#include <unistd.h>
 
-static struct termios g_original_termios;
-static int g_raw_installed = 0;
+#include "raw_terminal.h"
+#include "sample_compat.h"
+
 static volatile sig_atomic_t g_stop = 0;
-
-static void restore_terminal(void)
-{
-	if (g_raw_installed) {
-		(void)tcsetattr(STDIN_FILENO, TCSANOW, &g_original_termios);
-		g_raw_installed = 0;
-	}
-}
-
-static int install_raw_terminal(void)
-{
-	if (tcgetattr(STDIN_FILENO, &g_original_termios) != 0) {
-		return -1;
-	}
-	struct termios raw = g_original_termios;
-	raw.c_lflag &= ~(ICANON | ECHO | IEXTEN | ISIG);
-	raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-	raw.c_cflag |= CS8;
-	raw.c_oflag &= ~(OPOST);
-	raw.c_cc[VMIN] = 1;
-	raw.c_cc[VTIME] = 0;
-	if (tcsetattr(STDIN_FILENO, TCSANOW, &raw) != 0) {
-		return -1;
-	}
-	g_raw_installed = 1;
-	atexit(restore_terminal);
-	return 0;
-}
 
 static void handle_signal(int sig)
 {
@@ -48,11 +19,16 @@ static void handle_signal(int sig)
 
 static void install_signal_handlers(void)
 {
+#ifdef _WIN32
+	signal(SIGINT, handle_signal);
+	signal(SIGTERM, handle_signal);
+#else
 	struct sigaction sa;
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = handle_signal;
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGTERM, &sa, NULL);
+#endif
 }
 
 static void print_error(const char *label, terse_handle_t handle)

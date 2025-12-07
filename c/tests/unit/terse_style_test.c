@@ -5,8 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
+#include "test_compat.h"
+
+#ifdef HAVE_POSIX_PIPE
 // Helper to read all data from a file descriptor until EOF.
 static char *
 read_all(int fd)
@@ -187,3 +189,4 @@ TEST(TerseStyle, ResetStyleResetsToDefault)
 	free(output);
 	terse_close(handle);
 }
+#endif /* HAVE_POSIX_PIPE */

@@ -7,7 +7,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
+
+#include "sample_compat.h"
 
 static void print_separator(void)
 {
