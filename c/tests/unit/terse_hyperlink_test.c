@@ -43,7 +43,7 @@ TEST(TerseHyperlink, SetsHyperlink)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P2, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 
 	const char *url = "https://example.com";
 	const char *label = "Example";

@@ -26,7 +26,7 @@ TEST(TerseReadEventCtrl, ReportsCtrlModifier_OnControlSequence)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 
 	const char ctrl_c[] = "\x03";
 	EXPECT_TRUE(write(fds[1], ctrl_c, sizeof(ctrl_c) - 1) == (ssize_t)(sizeof(ctrl_c) - 1));

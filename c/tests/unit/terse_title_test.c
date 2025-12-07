@@ -43,7 +43,7 @@ TEST(TerseTitle, SetTitleWritesOsc)
 		.enabled_caps = TERSE_CAP_ENABLE_TITLE,
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(0, terse_set_title(handle, "Hello"));
 	char buffer[64];
 	ssize_t n = read_pipe_data(out_pipe[0], buffer, sizeof(buffer));
@@ -70,7 +70,7 @@ TEST(TerseTitle, SetHyperlinkWritesOsc8)
 		.enabled_caps = TERSE_CAP_ENABLE_HYPERLINK,
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(0, terse_set_hyperlink(handle, "https://example.com", "Link"));
 	char buffer[128];
 	ssize_t n = read_pipe_data(out_pipe[0], buffer, sizeof(buffer));
@@ -97,7 +97,7 @@ TEST(TerseTitle, NoopOnUnsupportedTerminal)
 		.enabled_caps = 0,
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(0, terse_set_title(handle, "Hello"));
 	EXPECT_EQ(0, terse_set_hyperlink(handle, "https://example.com", "Link"));
 	set_nonblocking(out_pipe[0]);

@@ -47,7 +47,7 @@ static char *save_env_value(const char *name)
 		return NULL;
 	}
 	char *copy = strdup(value);
-	EXPECT_TRUE(copy != NULL);
+	EXPECT_NOT_NULL(copy);
 	return copy;
 }
 
@@ -75,7 +75,7 @@ TEST(TerseImage, WritesItermSequence)
 		.enabled_caps = TERSE_CAP_ENABLE_IMAGE_INLINE,
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	unsigned char payload[] = { 0x01, 0x02, 0x03 };
 	EXPECT_EQ(0, terse_display_image_inline(handle, payload, sizeof(payload), "demo"));
 	char buffer[256];
@@ -106,7 +106,7 @@ TEST(TerseImage, WritesItermSequenceViaRequest)
 		.enabled_caps = TERSE_CAP_ENABLE_IMAGE_INLINE,
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	unsigned char payload[] = { 0xAA, 0xBB, 0xCC };
 	terse_image_request_t request = {
 		.data = payload,
@@ -146,7 +146,7 @@ TEST(TerseImage, NoopWhenDisabled)
 		.enabled_caps = 0,
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	unsigned char payload[] = { 0x01, 0x02, 0x03 };
 	EXPECT_EQ(0, terse_display_image_inline(handle, payload, sizeof(payload), "demo"));
 	set_nonblocking(out_pipe[0]);
@@ -198,7 +198,7 @@ TEST(TerseImage, WritesSixelSequenceWhenAvailable)
 		.enabled_caps = 0,
 	};
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(TERSE_IMAGE_SIXEL, caps.images);
 	unsigned char payload[] = "#$-!";
@@ -251,7 +251,7 @@ TEST(TerseImage, DegradesWhenFormatMismatch)
 		.enabled_caps = TERSE_CAP_ENABLE_IMAGE_INLINE,
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	unsigned char payload[] = { 0x11, 0x22 };
 	terse_image_request_t request = {
 		.data = payload,
@@ -312,7 +312,7 @@ TEST(TerseImage, WritesKittySequenceWhenAvailable)
 		.enabled_caps = 0,
 	};
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(TERSE_IMAGE_KITTY, caps.images);
 	unsigned char payload[] = { 0x01, 0x02, 0x03 };
@@ -366,7 +366,7 @@ TEST(TerseImage, ErrorsWhenFormatMismatchWithoutDegrade)
 		.enabled_caps = TERSE_CAP_ENABLE_IMAGE_INLINE,
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	unsigned char payload[] = { 0x44, 0x55 };
 	terse_image_request_t request = {
 		.data = payload,
@@ -392,7 +392,7 @@ TEST(TerseImage, ErrorsWhenFormatMismatchWithoutDegrade)
 TEST(TerseImage, ErrorsOnInvalidRequest)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_display_image(handle, NULL));
 	terse_error_t err = terse_get_last_error(handle);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
@@ -402,7 +402,7 @@ TEST(TerseImage, ErrorsOnInvalidRequest)
 TEST(TerseImage, ErrorsOnMissingData)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_image_request_t request = {
 		.data = NULL,
 		.size = 10,

@@ -23,7 +23,7 @@ static void create_pipe_handle(terse_handle_t *out_handle, int fds[2])
 	};
 
 	*out_handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(*out_handle != NULL);
+	EXPECT_NOT_NULL(*out_handle);
 }
 
 static ssize_t read_pipe(int fd, char *buffer, size_t size)
@@ -114,7 +114,7 @@ TEST(TerseOutputCapabilities, NoOutput_WhenClearScreenDisabled)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	int flags = fcntl(fds[0], F_GETFL);
 	EXPECT_TRUE(flags != -1);
 	EXPECT_TRUE(fcntl(fds[0], F_SETFL, flags | O_NONBLOCK) == 0);
@@ -143,7 +143,7 @@ TEST(TerseOutputCapabilities, NoOutput_WhenMoveDisabled)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	int flags = fcntl(fds[0], F_GETFL);
 	EXPECT_TRUE(flags != -1);
 	EXPECT_TRUE(fcntl(fds[0], F_SETFL, flags | O_NONBLOCK) == 0);
@@ -174,7 +174,7 @@ TEST(TerseOutputCapabilities, NoOutput_WhenCursorHiddenUnsupported)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	int flags = fcntl(fds[0], F_GETFL);
 	EXPECT_TRUE(flags != -1);
 	EXPECT_TRUE(fcntl(fds[0], F_SETFL, flags | O_NONBLOCK) == 0);
@@ -203,7 +203,7 @@ TEST(TerseOutputCapabilities, NoOutput_WhenBasicOutputDisabled)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	int flags = fcntl(fds[0], F_GETFL);
 	EXPECT_TRUE(flags != -1);
 	EXPECT_TRUE(fcntl(fds[0], F_SETFL, flags | O_NONBLOCK) == 0);
@@ -269,7 +269,7 @@ TEST(TerseOutputError, ReturnsTransportError_OnWriteFailure)
 		.disabled_caps = 0,
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	close(fds[1]);
 	terse_error_t rc = terse_write_text(handle, "hi");
 	EXPECT_EQ(TERSE_ERR_IO, rc);
@@ -400,7 +400,7 @@ TEST(TerseWriteText, ReturnsEBadf_OnUnreadableFd)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	close(fds[1]);
 
 	errno = 0;
@@ -424,7 +424,7 @@ TEST(TerseStateCapture, RestoresCursorPositionAndVisibility)
 		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES
 	};
 	terse_handle_t handle1 = terse_open(TERSE_P0, &opt1);
-	EXPECT_TRUE(handle1 != NULL);
+	EXPECT_NOT_NULL(handle1);
 	EXPECT_EQ(TERSE_OK, terse_move_to(handle1, 3, 6));
 	EXPECT_EQ(TERSE_OK, terse_show_cursor(handle1, 0));
 	terse_style_t capture_style = make_effects_style(TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE);
@@ -445,7 +445,7 @@ TEST(TerseStateCapture, RestoresCursorPositionAndVisibility)
 		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES
 	};
 	terse_handle_t handle2 = terse_open(TERSE_P0, &opt2);
-	EXPECT_TRUE(handle2 != NULL);
+	EXPECT_NOT_NULL(handle2);
 	EXPECT_EQ(TERSE_OK, terse_restore_state(handle2, &state));
 	char buf[64];
 	ssize_t n = read_pipe(fds2[0], buf, sizeof(buf));
@@ -471,7 +471,7 @@ TEST(TerseSetStyle, EmitsSequences_WhenTextStylesEnabled)
 		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_style_t bold_underline = make_effects_style(TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE);
 	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &bold_underline));
 	char buf[64];
@@ -504,7 +504,7 @@ TEST(TerseSetStyle, EmitsFaintAndBlinkSequences)
 		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_style_t style = make_effects_style(TERSE_STYLE_FAINT | TERSE_STYLE_BLINK);
 	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &style));
 	char buf[64];
@@ -544,7 +544,7 @@ TEST(TerseSetStyle, EmitsBasicColorSequence)
 		.enabled_caps = TERSE_CAP_ENABLE_SGR_BASIC
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_style_t red = make_basic_foreground_style(TERSE_BASIC_COLOR_RED, 0);
 	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &red));
 	char buf[64];
@@ -569,7 +569,7 @@ TEST(TerseSetStyle, DegradesPaletteToBasicWhenOnlyBasicSupported)
 		.enabled_caps = TERSE_CAP_ENABLE_SGR_BASIC
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_style_t palette_red = make_palette_foreground_style(196);
 	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &palette_red));
 	char buf[64];
@@ -594,7 +594,7 @@ TEST(TerseSetStyle, EmitsPaletteColorSequence)
 		.enabled_caps = TERSE_CAP_ENABLE_SGR_EXTENDED
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_style_t palette = make_palette_foreground_style(82);
 	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &palette));
 	char buf[64];
@@ -619,7 +619,7 @@ TEST(TerseSetStyle, EmitsTruecolorSequence)
 		.enabled_caps = TERSE_CAP_ENABLE_TRUECOLOR
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_style_t truecolor = make_truecolor_style(12, 34, 200);
 	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &truecolor));
 	char buf[96];
@@ -644,7 +644,7 @@ TEST(TerseResetStyle, EmitsAllResetSequence)
 		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES | TERSE_CAP_ENABLE_SGR_BASIC
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_style_t style = terse_style_default();
 	style.effects = TERSE_STYLE_BOLD;
 	style.foreground.kind = TERSE_COLOR_KIND_BASIC16;
@@ -674,7 +674,7 @@ TEST(TerseResetStyle, EmitsColorResetSequence)
 		.enabled_caps = TERSE_CAP_ENABLE_SGR_BASIC
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_style_t style = terse_style_default();
 	style.foreground.kind = TERSE_COLOR_KIND_BASIC16;
 	style.foreground.data.basic16.color = TERSE_BASIC_COLOR_BLUE;
@@ -703,7 +703,7 @@ TEST(TerseResetStyle, EmitsEffectResetSequence)
 		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_style_t style = make_effects_style(TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE);
 	EXPECT_EQ(TERSE_OK, terse_set_style(handle, &style));
 	char drain[64];
@@ -734,7 +734,7 @@ TEST(TerseResetStyle, NoOutputWhenCapabilitiesDisabled)
 TEST(TerseOutputError, ReturnsConfigError_OnInvalidMode)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_error_t rc = terse_clear_screen(handle, 99);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
 	terse_error_t err = terse_get_last_error(handle);
@@ -745,7 +745,7 @@ TEST(TerseOutputError, ReturnsConfigError_OnInvalidMode)
 TEST(TerseResetStyle, ReturnsEINVAL_OnInvalidScope)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	errno = 0;
 	terse_error_t rc = terse_reset_style(handle, (terse_reset_scope_t)99);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
@@ -757,7 +757,7 @@ TEST(TerseResetStyle, ReturnsEINVAL_OnInvalidScope)
 TEST(TerseStateCapture, ReturnsConfigError_OnNullState)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_error_t rc = terse_capture_state(handle, NULL);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
 	terse_error_t err = terse_get_last_error(handle);
@@ -768,7 +768,7 @@ TEST(TerseStateCapture, ReturnsConfigError_OnNullState)
 TEST(TerseStateRestore, ReturnsConfigError_OnNullState)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_error_t rc = terse_restore_state(handle, NULL);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
 	terse_error_t err = terse_get_last_error(handle);

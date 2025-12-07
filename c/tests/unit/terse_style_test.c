@@ -45,7 +45,7 @@ TEST(TerseStyle, AppliesBasicStyleAndEffects)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P1, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 
 	terse_style_t style = terse_style_default();
 	style.foreground = terse_color_basic(TERSE_BASIC_COLOR_RED, 0);
@@ -85,7 +85,7 @@ TEST(TerseStyle, SetStyleIsNoOpForSameStyle)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P1, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 
 	terse_style_t style = terse_style_default();
 	style.foreground = terse_color_basic(TERSE_BASIC_COLOR_MAGENTA, 0);
@@ -128,7 +128,7 @@ TEST(TerseStyle, SetStyleDegradesTrueColorTo256)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P1, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 
 	// This color should be approximated to index 209 in the 256-color palette.
 	terse_style_t style = terse_style_default();
@@ -163,7 +163,7 @@ TEST(TerseStyle, ResetStyleResetsToDefault)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P1, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 
 	// Set an initial style
 	terse_style_t style = terse_style_default();

@@ -20,7 +20,7 @@ static void create_input_handle_with_codec(const char *codec, terse_handle_t *ou
 	};
 
 	*out_handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(*out_handle != NULL);
+	EXPECT_NOT_NULL(*out_handle);
 }
 
 static void create_input_handle(terse_handle_t *out_handle, int fds[2])
@@ -597,7 +597,7 @@ TEST(TerseReadEvent, ReturnsEINVAL_OnNullArguments)
 
 	errno = 0;
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_read_event(handle, 0, NULL));
 	EXPECT_EQ(EINVAL, errno);
 	terse_close(handle);

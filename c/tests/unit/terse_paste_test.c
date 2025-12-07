@@ -51,7 +51,7 @@ static terse_handle_t create_paste_handle(int out_pipe[2], int in_pipe[2], unsig
 		.enabled_caps = enabled_caps,
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	return handle;
 }
 

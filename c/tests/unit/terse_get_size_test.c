@@ -26,7 +26,7 @@ static void create_pipe_handle(terse_handle_t *out_handle, int fds[2])
 	};
 
 	*out_handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(*out_handle != NULL);
+	EXPECT_NOT_NULL(*out_handle);
 }
 
 TEST(TerseGetSize, ReturnsUnknown_OnPipe)
@@ -118,7 +118,7 @@ TEST(TerseGetSize, ReturnsKnown_OnPty)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 
 	terse_size_t size = terse_get_size(handle);
 	EXPECT_TRUE(size.known == 1);
@@ -151,7 +151,7 @@ TEST(TerseGetSize, UpdatesOnResizeEvent)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 
 	const char resize_seq[] = "\x1b[8;30;90t";
 	EXPECT_TRUE(write(master_fd, resize_seq, sizeof(resize_seq) - 1) == (ssize_t)(sizeof(resize_seq) - 1));
@@ -194,7 +194,7 @@ TEST(TerseGetSize, ReturnsUnknown_WhenCapabilityDisabled)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_TRUE(caps.has_size == 0);

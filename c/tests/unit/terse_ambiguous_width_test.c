@@ -21,7 +21,7 @@ static void create_input_handle_with_ambiguous_option(int ambiguous_as_wide, ter
 	};
 
 	*out_handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(*out_handle != NULL);
+	EXPECT_NOT_NULL(*out_handle);
 }
 
 // Test East Asian Ambiguous Width characters as narrow (default: width = 1)

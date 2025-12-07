@@ -55,7 +55,7 @@ TEST(TerseNotification, BellWritesBel)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(0, terse_notify(handle, TERSE_NOTIFICATION_KIND_BELL, NULL));
 	char buffer[16];
 	size_t n = (size_t)read_pipe_data(out_pipe[0], buffer, sizeof(buffer));
@@ -85,7 +85,7 @@ TEST(TerseNotification, NoopWhenUnsupported)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(0, terse_notify(handle, TERSE_NOTIFICATION_KIND_BELL, NULL));
 	expect_pipe_empty(out_pipe[0]);
 	terse_close(handle);
@@ -111,7 +111,7 @@ TEST(TerseNotification, DesktopWritesOsc9)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(0, terse_notify(handle, TERSE_NOTIFICATION_KIND_DESKTOP, "hello"));
 	char buffer[64];
 	size_t n = (size_t)read_pipe_data(out_pipe[0], buffer, sizeof(buffer));
@@ -141,7 +141,7 @@ TEST(TerseNotification, DesktopRejectsInvalidPayload)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_notify(handle, TERSE_NOTIFICATION_KIND_DESKTOP, "bad\x1bpayload"));
 	expect_pipe_empty(out_pipe[0]);
 	terse_close(handle);

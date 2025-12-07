@@ -42,7 +42,7 @@ TEST(TerseOpen, ReturnsNull_OnInvalidOptions)
 	};
 	errno = 0;
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle == NULL);
+	EXPECT_NULL(handle);
 	EXPECT_EQ(EBADF, errno);
 }
 
@@ -66,7 +66,7 @@ TEST(TerseGetOptions, CopiesHandleOptions_OnValidHandle)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 
 	terse_options_t got;
 	EXPECT_EQ(TERSE_OK, terse_get_options(handle, &got));
@@ -95,7 +95,7 @@ TEST(TerseOpen, ReturnsEnosys_OnShiftJisWithoutIconv)
 
 	errno = 0;
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle == NULL);
+	EXPECT_NULL(handle);
 	EXPECT_EQ(ENOSYS, errno);
 
 	close(fds[0]);
@@ -107,7 +107,7 @@ TEST(TerseOpen, ReturnsEnosys_OnShiftJisWithoutIconv)
 TEST(TerseCapabilities, DefaultsMatchP0)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(TERSE_P0, caps.profile);
 	EXPECT_EQ(1, caps.has_basic_output);
@@ -135,7 +135,7 @@ TEST(TerseCapabilities, DefaultsMatchP0)
 TEST(TerseGetOptions, ReturnsEINVAL_OnNullOut)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	errno = 0;
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_get_options(handle, NULL));
 	EXPECT_EQ(EINVAL, errno);

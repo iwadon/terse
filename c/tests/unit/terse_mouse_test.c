@@ -53,7 +53,7 @@ static terse_handle_t create_mouse_handle(int output_pipe[2], int input_pipe[2])
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	return handle;
 }
 
@@ -149,7 +149,7 @@ TEST(TerseMouse, EnableOnUnsupportedTerminal_IsNoop)
 		.enabled_caps = 0,
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(0, terse_enable_mouse(handle, TERSE_MOUSE_SGR));
 	char buffer[32];
 	expect_no_bytes_available_fd(out_pipe[0]);

@@ -80,14 +80,14 @@ restore_env_list(env_backup_t *backups, size_t count)
 TEST(TerseOpen, ReturnsNonNull_OnValidProfile)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_close(handle);
 }
 
 TEST(TerseOpen, ReturnsNull_OnInvalidProfile)
 {
 	terse_handle_t handle = terse_open((terse_profile_t)999, NULL);
-	EXPECT_TRUE(handle == NULL);
+	EXPECT_NULL(handle);
 }
 
 TEST(TerseOpen, ReturnsP0Profile_OnExplicitP3WithoutHints)
@@ -110,7 +110,7 @@ TEST(TerseOpen, ReturnsP0Profile_OnExplicitP3WithoutHints)
 	backup_env_list(backups, ARRAY_LEN(names), names);
 	clear_detection_environment();
 	terse_handle_t handle = terse_open(TERSE_P3, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P0);
 	terse_close(handle);
@@ -137,7 +137,7 @@ TEST(TerseOpen, ReturnsP0Profile_OnAutoWithoutHints)
 	backup_env_list(backups, ARRAY_LEN(names), names);
 	clear_detection_environment();
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P0);
 	terse_close(handle);
@@ -161,7 +161,7 @@ TEST(TerseOpen, DetectsP1Profile_OnAppleTerminalEnv)
 	setenv("LC_TERMINAL", "Apple_Terminal", 1);
 	setenv("COLORTERM", "truecolor", 1);
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P1);
 	EXPECT_EQ(caps.has_truecolor, 1);
@@ -188,7 +188,7 @@ TEST(TerseOpen, DetectsP1Profile_OnWarpTerminal)
 	setenv("COLORTERM", "truecolor", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>0;95;0c", 1);
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P1);
 	EXPECT_EQ(caps.has_truecolor, 1);
@@ -215,7 +215,7 @@ TEST(TerseOpen, DetectsP2Profile_OnVteSignatures)
 	setenv("COLORTERM", "truecolor", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>61;7800;1c", 1);
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P2);
 	EXPECT_EQ(caps.mouse, TERSE_MOUSE_SGR);
@@ -244,7 +244,7 @@ TEST(TerseOpen, DetectsP3Profile_OnITermEnv)
 	setenv("COLORTERM", "truecolor", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>64;2500;0c", 1);
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P3);
 	EXPECT_EQ(caps.images, TERSE_IMAGE_ITERM_INLINE);
@@ -274,7 +274,7 @@ TEST(TerseOpen, DetectsP3Profile_OnWezTermEnv)
 	setenv("WEZTERM_EXECUTABLE", "/Applications/WezTerm.app/Contents/MacOS/wezterm-gui", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;277;0c", 1);
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P3);
 	EXPECT_EQ(caps.images, TERSE_IMAGE_KITTY);
@@ -300,7 +300,7 @@ TEST(TerseOpen, DetectsP3Profile_OnKittyEnv)
 	setenv("KITTY_PID", "12345", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;4000;42c", 1);
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P3);
 	EXPECT_EQ(caps.images, TERSE_IMAGE_KITTY);
@@ -328,7 +328,7 @@ TEST(TerseOpen, DetectsP3Profile_OnGhosttyEnv)
 	setenv("COLORTERM", "truecolor", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;10;0c", 1);
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P3);
 	EXPECT_EQ(caps.has_clipboard_write, 1);
@@ -349,7 +349,7 @@ TEST(TerseCapabilitiesOverride, EnablesFeaturesOnP0Baseline)
 	backup_env_list(backups, ARRAY_LEN(names), names);
 	clear_detection_environment();
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P0);
 	EXPECT_EQ(caps.has_sgr_basic, 0);
@@ -391,7 +391,7 @@ TEST(TerseCapabilitiesOverride, DisablesAndResetsOnP3Baseline)
 	setenv("COLORTERM", "truecolor", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>64;2500;0c", 1);
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P3);
 	EXPECT_EQ(caps.images, TERSE_IMAGE_ITERM_INLINE);
@@ -425,7 +425,7 @@ TEST(TerseStateOverride, OverridesAndCapture)
 	backup_env_list(backups, ARRAY_LEN(names), names);
 	clear_detection_environment();
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_state_t override_state = {
 		.cursor_known = 1,
 		.cursor_visible = 0,
@@ -462,7 +462,7 @@ TEST(TerseStateOverride, ClearResetsState)
 	backup_env_list(backups, ARRAY_LEN(names), names);
 	clear_detection_environment();
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_state_t override_state = {
 		.cursor_known = 1,
 		.cursor_visible = 0,
@@ -495,7 +495,7 @@ TEST(TerseRestoreState, UpdatesWhenCapabilitiesMissing)
 	backup_env_list(backups, ARRAY_LEN(names), names);
 	clear_detection_environment();
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_state_t restore_state = {
 		.cursor_known = 1,
 		.cursor_visible = 0,
@@ -534,7 +534,7 @@ TEST(TerseOpen, DetectsP3Profile_OnWindowsTerminalEnv)
 	setenv("WT_SESSION", "7b39308d-4eee-4f17-b3dc-71fbb23be859", 1);
 	setenv("COLORTERM", "truecolor", 1);
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P3);
 	EXPECT_EQ(caps.images, TERSE_IMAGE_SIXEL);
@@ -558,7 +558,7 @@ TEST(TerseOpen, DetectsP3Profile_OnWindowsTerminalDA)
 	setenv("TERM", "xterm-256color", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>0;10;1c", 1);
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P3);
 	EXPECT_EQ(caps.images, TERSE_IMAGE_SIXEL);

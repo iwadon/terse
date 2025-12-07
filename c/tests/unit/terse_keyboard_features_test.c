@@ -68,7 +68,7 @@ TEST(TerseKeyboardFeatures, EnablesModifyOtherKeysAndTracksState)
 	EXPECT_TRUE(getenv("LC_TERMINAL") == NULL);
 	EXPECT_TRUE(getenv("GNOME_TERMINAL_SERVICE") == NULL);
 	const char *secondary_hint = getenv("TERSE_SECONDARY_DA_HINT");
-	EXPECT_TRUE(secondary_hint != NULL);
+	EXPECT_NOT_NULL(secondary_hint);
 	EXPECT_EQ(11u, (unsigned)strlen(secondary_hint));
 
 	int fds[2];
@@ -84,7 +84,7 @@ TEST(TerseKeyboardFeatures, EnablesModifyOtherKeysAndTracksState)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(TERSE_P3, caps.profile);
 	EXPECT_EQ(TERSE_IMAGE_KITTY, caps.images);
@@ -156,7 +156,7 @@ TEST(TerseKeyboardFeatures, EnableDegradesWhenUnsupported)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(0u, terse_keyboard_get_supported(handle));
 
 	EXPECT_EQ(0, terse_keyboard_enable(handle, TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS));
@@ -203,7 +203,7 @@ TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
 		.enabled_caps = 0,
 	};
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_TRUE((terse_keyboard_get_supported(handle) & TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL) != 0);
 	EXPECT_EQ(0, terse_keyboard_enable(handle, TERSE_KEYBOARD_FEATURE_KITTY_PROTOCOL));
 	char buffer[32] = { 0 };

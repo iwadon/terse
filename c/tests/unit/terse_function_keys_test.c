@@ -20,7 +20,7 @@ static void create_input_handle(terse_handle_t *out_handle, int fds[2])
 	};
 
 	*out_handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(*out_handle != NULL);
+	EXPECT_NOT_NULL(*out_handle);
 }
 
 // VT100 Function Keys (F1-F4): ESC O P/Q/R/S

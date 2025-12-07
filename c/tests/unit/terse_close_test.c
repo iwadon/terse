@@ -19,7 +19,7 @@ static void create_pipe_handle(terse_handle_t *out_handle, int fds[2])
 	};
 
 	*out_handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(*out_handle != NULL);
+	EXPECT_NOT_NULL(*out_handle);
 }
 
 static ssize_t read_pipe(int fd, char *buffer, size_t size)
@@ -69,7 +69,7 @@ TEST(TerseClose, SkipsReset_WhenBasicOutputDisabled)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 
 	char buf[32];
 	errno = 0;

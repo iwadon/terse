@@ -55,7 +55,7 @@ TEST(TerseClipboard, WritesOsc52Sequence)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(0, terse_set_clipboard(handle, "hello"));
 	char buffer[128];
 	size_t n = (size_t)read_pipe_data(out_pipe[0], buffer, sizeof(buffer));
@@ -85,7 +85,7 @@ TEST(TerseClipboard, NoopWhenDisabled)
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(0, terse_set_clipboard(handle, "hello"));
 	set_nonblocking(out_pipe[0]);
 	char tmp[16];

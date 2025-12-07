@@ -43,7 +43,7 @@ TEST(TerseCursorShape, WritesSequences_OnSupportedTerminal)
 		.enabled_caps = TERSE_CAP_ENABLE_CURSOR_SHAPE,
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 
 	char buffer[32];
 	EXPECT_EQ(0, terse_set_cursor_shape(handle, TERSE_CURSOR_SHAPE_BLOCK, 1));
@@ -82,7 +82,7 @@ TEST(TerseCursorShape, Noop_WhenCapabilityDisabled)
 		.enabled_caps = 0,
 	};
 	terse_handle_t handle = terse_open(TERSE_P0, &options);
-	EXPECT_TRUE(handle != NULL);
+	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(0, terse_set_cursor_shape(handle, TERSE_CURSOR_SHAPE_BAR, 0));
 	set_nonblocking(out_pipe[0]);
 	char tmp[16];
