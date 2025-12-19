@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Terse is a C library that unifies rendering, input, and terminal capability detection for POSIX text UI environments. It abstracts terminal differences with graceful degradation, supporting colors, mouse, images, and other extended features through a profile-based system (P0-P3). The library automatically detects terminal capabilities (Apple Terminal, GNOME Terminal/VTE, iTerm2, WezTerm, kitty, Ghostty, Warp) and adapts features accordingly.
+Terse is a C library that unifies rendering, input, and terminal capability detection for POSIX text UI environments. It abstracts terminal differences with graceful degradation, supporting colors, mouse, images, and other extended features through a profile-based system (P0-P3). The library automatically detects terminal capabilities and adapts features accordingly. See `docs/progress-overview.md` for currently supported terminals.
 
 ## Build Commands
 
@@ -64,18 +64,18 @@ Windows:
 ctest --test-dir build --output-on-failure -C Debug
 ```
 
-### Running Individual Tests
+### Running Tests Directly
+
+All tests are compiled into a unified binary. Run it directly for verbose output:
 
 Unix-like systems:
 ```sh
-./build/c/tests/terse_open_test
-./build/c/tests/terse_style_test
+./build/c/tests/terse_unit_test
 ```
 
 Windows:
 ```cmd
-build\c\tests\Debug\terse_open_test.exe
-build\c\tests\Debug\terse_style_test.exe
+build\c\tests\Debug\terse_unit_test.exe
 ```
 
 ### Building Samples
@@ -110,7 +110,7 @@ The library organizes terminal features into hierarchical profiles:
 - **P2**: Advanced input/output (mouse tracking, bracketed paste, window title, hyperlinks)
 - **P3**: Extended features (clipboard, inline images, cursor shapes, notifications)
 
-`TERSE_PROFILE_AUTO` enables automatic detection and graceful degradation based on terminal capabilities.
+`TERSE_PROFILE_AUTO` enables automatic detection and graceful degradation based on terminal capabilities. See `docs/terse-specs.md` for detailed profile specifications.
 
 ### Core Handle and State Management
 - **terse_handle_t**: Opaque session handle created by `terse_open()` and destroyed by `terse_close()`
@@ -119,36 +119,20 @@ The library organizes terminal features into hierarchical profiles:
 - **Coordinate system**: 0-based coordinates (0, 0) = top-left; internally converts to 1-based for terminal escape sequences
 
 ### Platform Abstraction (c/src/terse_platform.h)
-The library uses a platform abstraction layer with implementations for:
-- **POSIX** (macOS/Linux): Uses termios, poll, and ioctl for terminal control
-- **Windows**: Uses Win32 Console API (ReadConsoleInput, WriteConsoleW) with Unicode support
-- **Human68k**: X68000 system support via x68k/dos.h
-- Platform selection is automatic via CMake based on target system
+The library provides platform abstraction through `c/src/terse_platform.h` with implementations for POSIX (macOS/Linux), Windows, Human68k, and a stub for unsupported platforms. Platform selection is automatic via CMake. See `docs/terse-platform-porting.md` for porting details.
 
 ### Terminal Detection
 Environment variable inspection (`TERM_PROGRAM`, `TERM`, `VTE_VERSION`, etc.) combined with Secondary Device Attributes (DA) sequences to identify specific terminals and their feature sets. On Windows, uses console mode and VT sequence support detection.
 
 ### Codec Support (c/src/terse.c and c/src/mini_iconv.c)
-- UTF-8 and Shift_JIS support with multibyte decoding/encoding
-- East Asian Width-based cell width estimation (combining characters=0, full-width=2)
-- Built-in mini iconv when system iconv unavailable (design in `docs/mini-iconv-plan.md`)
+- Multibyte character codec support with East Asian Width-based cell width estimation
+- Built-in mini iconv when system iconv unavailable. See `docs/mini-iconv-plan.md` for supported charsets and design rationale
 
 ### Input Normalization (terse_read_event)
-Parses terminal input into `terse_event_t` structures covering:
-- ASCII, control keys, arrows (with modifiers)
-- Resize events, bracketed paste sequences
-- SGR mouse events (button down/up/move/scroll with modifiers)
-- Raw unrecognized sequences fall through as `TERSE_EVENT_RAW_SEQUENCE`
-
-Currently limited: function keys and complex grapheme clusters need expansion.
+Parses terminal input into `terse_event_t` structures covering keyboard input, mouse events, resize events, and paste sequences. Unrecognized sequences fall through as `TERSE_EVENT_RAW_SEQUENCE`. See `docs/progress-overview.md` for current input handling status.
 
 ### Image Display (P3)
-`terse_display_image()` automatically selects the best available protocol:
-- iTerm2 inline images (OSC 1337)
-- Sixel graphics
-- kitty graphics protocol
-
-Legacy `terse_display_image_inline()` wraps the new API for compatibility.
+`terse_display_image()` automatically selects the best available image protocol based on terminal capability detection. See `docs/graphics-roadmap.md` for supported protocols and the image feature roadmap.
 
 ## Key Implementation Files
 
@@ -168,7 +152,7 @@ All unit tests located in `c/tests/unit/`:
 - Tests are registered via `add_test()` in `c/tests/CMakeLists.txt`
 - Run all tests: `ctest --test-dir build --output-on-failure`
 - Run unified test binary directly: `./build/c/tests/terse_unit_test` (Unix) or `build\c\tests\Debug\terse_unit_test.exe` (Windows)
-- Test coverage includes: open/close, output primitives, input parsing, styles, mouse, clipboard, images, notifications, keyboard features, ambiguous width handling
+- Test coverage spans core API and feature areas. See `c/tests/CMakeLists.txt` for the complete list
 
 ### Test Mode
 Build with `-DTERSE_ENABLE_TEST_MODE=ON` to enable test mode features:
