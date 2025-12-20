@@ -147,5 +147,6 @@ CMakeUserPresets.json
 # This project specifically ignores:
 .claude/session-state.md
 .claude/settings.local.json
+.docqa/
 build-*/
 build/
