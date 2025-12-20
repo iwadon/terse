@@ -172,12 +172,21 @@ Example usage in `samples/test_mode_demo.c` demonstrates recording API calls and
 
 ## Documentation Structure
 
+See `docs/README.md` for the full documentation index.
+
+### User Documentation
 - `docs/terse-api-user.md`: Application developer API guide
 - `docs/terse-specs.md`: Profile specifications and degradation rules (large file, read with offset/limit as needed)
 - `docs/progress-overview.md`: Implementation status summary
+
+### Feature & Platform Documentation
 - `docs/graphics-roadmap.md`: Image features roadmap
-- `docs/terse-platform-porting.md`: Porting guide for additional platforms
 - `docs/mini-iconv-plan.md`: mini iconv implementation notes
+- `docs/terse-platform-porting.md`: Porting guide for additional platforms
+- `docs/human68k-keyboard.md`: Human68k keyboard mapping reference
+
+### Internal Research Notes
+- `docs/research/`: Terminal inspection results and detection research (for contributors)
 
 ## Adding New Features
 
