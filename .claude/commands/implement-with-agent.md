@@ -9,181 +9,91 @@ $ARGUMENTS
 
 ---
 
-**IMPORTANT**: If the user request is empty:
-- Ask the user: "What feature would you like to implement? Please provide specific requirements."
-- Confirm implementation details (target files, feature overview, etc.) before starting
-- Do NOT proceed to task analysis or execution at this point
+**IMPORTANT**: If the user request is empty, ask the user for specific requirements before proceeding.
 
 ---
 
-You act as an **Architect** and delegate implementation details to subagents:
+You act as an **Architect** and delegate implementation to subagents:
 
-## Execution Steps
+## Prerequisites Check
 
-1. **Task Analysis** (Parent Claude):
-   - Understand the user request above
-   - Decide high-level approach
-   - Identify required files/functions
-   - Split implementation into independent subtasks
+Before starting implementation:
 
-2. **Delegate to Subagents** (Context isolation):
-   - **Select appropriate subagent** based on subtask nature:
-     - **Refactoring** (multi-file, function/type rename) → `refactoring` (Sonnet)
-     - **New features** (Phase implementation, complex algorithms) → `implementation` (Sonnet)
-     - **Small fixes** (add comments, error messages, 1-3 files) → `quick-fix` (Haiku)
-     - **Code research** (understand existing code, pattern search) → `research` (Haiku)
-   - Provide detailed implementation instructions to each subagent
-   - Subagents work autonomously (read files, search, implement)
-   - Execute subtasks sequentially (or in parallel if explicitly needed)
+1. **Identify dependencies**: List all features/APIs required for the task
+2. **Check availability**: Verify each dependency is already implemented in terse
+3. **Report blockers**: If critical features are missing, STOP and report:
+   - What feature is needed
+   - Why it's needed for this task
+   - Recommended implementation order
 
-3. **Review Results** (Parent Claude):
-   - Receive concise summaries from each subagent
-   - Provide additional instructions if needed
-   - Integrate and report to user
+**Do NOT create workarounds** for missing features without explicit user approval.
 
-## Delegation Method
+## Workflow
 
-For each subtask, **select the appropriate subagent** based on task nature, then invoke using this format:
-
-### Task Classification Guide
-
-1. **Use `refactoring` agent (Sonnet)** when:
-   - Renaming functions/types/variables across multiple files
-   - Wide-reaching changes including test files
-   - Structural reorganization (file splits, function moves, etc.)
-   - Updating all call sites after API changes
-
-2. **Use `implementation` agent (Sonnet)** when:
-   - Adding new features (Phase implementations, etc.)
-   - Implementing complex algorithms
-   - Integrating multiple components
-   - Implementation with test creation
-
-3. **Use `quick-fix` agent (Haiku)** when:
-   - Adding comments or documentation
-   - Improving error messages
-   - Small fixes within 1-3 files
-   - Fixing typos or formatting
-
-4. **Use `research` agent (Haiku)** when:
-   - Investigating/understanding existing implementation
-   - Searching for patterns or usage examples
-   - Analyzing codebase structure
-   - Gathering information before implementation
-
+1. **Analyze** the user request and split into subtasks
+2. **Select appropriate subagent** for each subtask:
+   - `refactoring` (Sonnet) - Multi-file renames, structural changes
+   - `implementation` (Sonnet) - New features, complex algorithms
+   - `quick-fix` (Haiku) - Comments, error messages, small fixes (1-3 files)
+   - `research` (Haiku) - Code investigation, pattern search
+3. **Delegate** with detailed instructions
+4. **Review** results and integrate
 
 ### Delegation Format
 
 ```
 Use the `[agent-name]` subagent to execute the following task:
 
-**Original user request**: [Summarize user request]
+**Original user request**: [Summary]
 
-**Subtask objective**: [Specific implementation details]
+**Subtask objective**: [Specific details]
 
 **Requirements**:
 - [Requirement 1]
 - [Requirement 2]
 
-**Implementation location**: [File paths, function names, etc.]
+**Implementation location**: [Files/functions]
 
-**Reference info**: [Similar existing code, related files]
+**Reference info**: [Similar code/related files]
+
+**CRITICAL**: Apply changes using Edit/Write tools directly. NO patch files or scripts.
 
 **Expected results**:
-- Implementation summary (max 500 chars)
-- List of modified files
-- Test results (pass/fail)
-- Issues or notes
-
-**IMPORTANT**: Return only summary, not detailed code or full file contents.
+- Summary (max 500 chars)
+- Modified files (with "✅ Applied via Edit/Write")
+- Test results
+- Verification: "✅ Direct edits completed"
 ```
 
-## Benefits
+## Verification
 
-- ✅ Minimize parent session context consumption
-- ✅ Each subagent works in independent context window
-- ✅ Session persists even with large implementations
-- ✅ Execute multiple independent tasks incrementally
-- ✅ Retry failed tasks without affecting parent session
+After each subagent completes, check for "✅ Direct edits completed". If patch files/scripts were created instead, reject and re-delegate with stronger emphasis on direct editing.
 
-## Important Notes
+## Example Usage
 
-- These subagents must be defined in `.claude/agents/`:
-  - `research.md` - Code investigation (Haiku)
-  - `quick-fix.md` - Small fixes (Haiku)
-  - `implementation.md` - New features (Sonnet)
-  - `refactoring.md` - Large-scale refactoring (Sonnet)
-- Command fails if subagents don't exist
-- **Proper agent selection is critical** for cost/quality balance:
-  - Haiku (`research`, `quick-fix`): Fast, low-cost, ideal for simple tasks
-  - Sonnet (`implementation`, `refactoring`): High-quality, high-cost, required for complex tasks
-
-## Usage Examples
-
-### Example 1: New Feature (implementation agent)
-
+**New feature:**
 ```
-/implement-with-agent Implement Phase 7: Add Ctrl+Y (yank), Ctrl+T (transpose)
+/implement-with-agent Add P2 mouse tracking support
 
-Parent Claude: Using implementation agent based on task analysis.
-
-Use the `implementation` subagent to execute the following task:
-
-**Subtask objective**: Phase 7 - yank/transpose functionality
-
-**Requirements**:
-- Ctrl+Y (yank): Insert last deleted text
-- Ctrl+T (transpose): Swap characters before/after cursor
-- Follow existing key binding patterns
-- Add test cases
-
-**Implementation location**: src/tprompt.c, tests/test_keybindings.c
-
-[Subagent implements, tests, reports]
+→ Use `implementation` agent
+→ Provide requirements, target files, reference code
+→ Agent implements, tests, reports with "✅ Direct edits completed"
 ```
 
-### Example 2: Refactoring (refactoring agent)
-
+**Multi-file refactoring:**
 ```
-/implement-with-agent Rename tprompt_cursor_move_foo to tprompt_cursor_foo
+/implement-with-agent Rename terse_cursor_move_foo to terse_cursor_foo
 
-Parent Claude: Using refactoring agent for multi-file changes.
-
-Use the `refactoring` subagent to execute the following task:
-
-**Subtask objective**: Improve function name consistency
-
-**Requirements**:
-- Update declaration in src/tprompt_internal.h
-- Update definition and all call sites in src/tprompt.c
-- Update all test files in tests/
-- Verify build and all tests pass
-
-[Subagent searches thoroughly, updates, verifies]
+→ Use `refactoring` agent
+→ Agent searches all files, updates declarations/call sites
+→ Verifies build and tests pass
 ```
 
-### Example 3: Research + Quick Fix (research + quick-fix)
-
+**Research + Fix:**
 ```
-/implement-with-agent Find all TODO comments, prioritize, and fix simple ones
+/implement-with-agent Find and fix simple TODOs
 
-Parent Claude: Splitting into 2 phases.
-
-**Step 1**: Use `research` subagent to investigate TODOs
-**Step 2**: Use `quick-fix` subagent to fix simple ones
-
-[Each agent executes sequentially]
+→ Step 1: Use `research` agent to find/categorize TODOs
+→ Step 2: Use `quick-fix` agent to fix simple ones
+→ Execute sequentially
 ```
-
-## Agent Selection Cheat Sheet
-
-| Task Type | Agent | Model | Reason |
-|-----------|-------|-------|--------|
-| Function rename (multi-file) | `refactoring` | Sonnet | Thorough search & update needed |
-| New Phase implementation | `implementation` | Sonnet | Complex integration & testing |
-| Add comments | `quick-fix` | Haiku | Simple & fast |
-| Improve error messages | `quick-fix` | Haiku | Low risk, fast |
-| TODO investigation | `research` | Haiku | Info gathering only, low cost |
-| Understand codebase | `research` | Haiku | Specialized for exploration |
-| Complex algorithm | `implementation` | Sonnet | Careful design needed |
-| API migration | `refactoring` | Sonnet | Update all call sites |

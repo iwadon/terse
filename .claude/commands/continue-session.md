@@ -4,12 +4,34 @@ description: Save session state and generate continuation prompt
 
 Save current session state and generate prompt for next session.
 
+## CRITICAL: Verify Before Saving
+
+**Before writing session-state.md, you MUST verify the actual state:**
+
+1. **Check git status and recent commits**:
+   ```bash
+   git log -3 --oneline
+   git log -1 --stat
+   ```
+
+2. **For each "Next Step" you plan to write**:
+   - Search the codebase to confirm it's NOT already implemented
+   - Use `grep` or `Glob` to find existing implementations
+   - If found, move it to "Completed Work" instead
+
+3. **Run tests** to confirm current state:
+   ```bash
+   ctest --test-dir build --output-on-failure 2>&1 | tail -10
+   ```
+
+This prevents stale/incorrect session state that wastes time in the next session.
+
 ## What It Does
 
 1. Save to `.claude/session-state.md`:
    - Current task summary
-   - Completed work (from TodoList)
-   - Next tasks to execute
+   - Completed work (verified against git commits)
+   - Next tasks to execute (verified NOT already done)
    - Important context (file paths, error messages, etc.)
    - Running subagent tasks (if any)
 
