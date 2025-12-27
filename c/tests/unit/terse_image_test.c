@@ -92,6 +92,33 @@ TEST(TerseImage, WritesItermSequence)
 	close(in_pipe[1]);
 }
 
+TEST(TerseImage, RejectsNameWithControlChars)
+{
+	int out_pipe[2];
+	int in_pipe[2];
+	EXPECT_TRUE(pipe(out_pipe) == 0);
+	EXPECT_TRUE(pipe(in_pipe) == 0);
+	terse_options_t options = {
+		.input_fd = in_pipe[0],
+		.output_fd = out_pipe[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = TERSE_CAP_ENABLE_IMAGE_INLINE,
+	};
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_NOT_NULL(handle);
+	unsigned char payload[] = { 0x01, 0x02, 0x03 };
+	errno = 0;
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_display_image_inline(handle, payload, sizeof(payload), "bad\x07""name"));
+	EXPECT_EQ(EINVAL, errno);
+	expect_no_bytes_available_fd(out_pipe[0]);
+	terse_close(handle);
+	close(out_pipe[0]);
+	close(out_pipe[1]);
+	close(in_pipe[0]);
+	close(in_pipe[1]);
+}
+
 TEST(TerseImage, WritesItermSequenceViaRequest)
 {
 	int out_pipe[2];

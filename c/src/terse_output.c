@@ -745,6 +745,11 @@ terse_error_t terse_set_clipboard(terse_handle_t handle, const char *data)
 int
 send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
 {
+	if (payload_has_disallowed_chars(name)) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
+	}
 	size_t name_len = 0;
 	char *name_encoded = base64_encode((const unsigned char *)name, strlen(name), &name_len);
 	size_t data_len = 0;
