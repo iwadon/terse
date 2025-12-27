@@ -5,6 +5,7 @@ add_executable(terse_unit_test
 	unit/terse_clipboard_test.c
 	unit/terse_close_test.c
 	unit/terse_cursor_shape_test.c
+	unit/terse_encode_utf8_test.c
 	unit/terse_function_keys_test.c
 	unit/terse_get_cursor_position_test.c
 	unit/terse_get_size_test.c

@@ -407,4 +407,12 @@ terse_error_t terse_display_image(terse_handle_t handle, const terse_image_reque
 terse_error_t terse_display_image_inline(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
 terse_error_t terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const char *payload);
 
+/*
+ * UTF-8 encoding utility
+ * Encodes a Unicode scalar value to UTF-8 bytes.
+ * Returns the number of bytes written (1-4), or 0 on error.
+ * The out buffer must have room for at least 4 bytes.
+ */
+int terse_encode_utf8(unsigned int scalar, unsigned char *out);
+
 #endif // TERSE_H_INCLUDED

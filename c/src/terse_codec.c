@@ -179,3 +179,37 @@ terse_decode_shift_jis_stream(terse_handle_t handle, int fd, unsigned char first
 	*out_scalar = TERSE_SHIFT_JIS_REPLACEMENT;
 	return 0;
 }
+
+int
+terse_encode_utf8(unsigned int scalar, unsigned char *out)
+{
+	if (!out) {
+		return 0;
+	}
+	if (scalar < 0x80) {
+		out[0] = (unsigned char)scalar;
+		return 1;
+	}
+	if (scalar < 0x800) {
+		out[0] = (unsigned char)(0xc0 | (scalar >> 6));
+		out[1] = (unsigned char)(0x80 | (scalar & 0x3f));
+		return 2;
+	}
+	if (scalar < 0x10000) {
+		if (scalar >= 0xd800 && scalar <= 0xdfff) {
+			return 0; /* surrogate pair - invalid */
+		}
+		out[0] = (unsigned char)(0xe0 | (scalar >> 12));
+		out[1] = (unsigned char)(0x80 | ((scalar >> 6) & 0x3f));
+		out[2] = (unsigned char)(0x80 | (scalar & 0x3f));
+		return 3;
+	}
+	if (scalar <= 0x10ffff) {
+		out[0] = (unsigned char)(0xf0 | (scalar >> 18));
+		out[1] = (unsigned char)(0x80 | ((scalar >> 12) & 0x3f));
+		out[2] = (unsigned char)(0x80 | ((scalar >> 6) & 0x3f));
+		out[3] = (unsigned char)(0x80 | (scalar & 0x3f));
+		return 4;
+	}
+	return 0; /* out of range */
+}
