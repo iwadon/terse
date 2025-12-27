@@ -1054,7 +1054,11 @@ terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 #endif
 
 	if (handle->codec_kind == TERSE_CODEC_UTF8) {
-		return write_literal(handle, graphemes);
+		terse_error_t result = write_literal(handle, graphemes);
+		if (result == TERSE_OK) {
+			handle->cursor_known = 0;
+		}
+		return result;
 	}
 	if (handle->codec_kind == TERSE_CODEC_SHIFT_JIS) {
 		if (handle->utf8_to_codec == (iconv_t)-1) {
@@ -1103,10 +1107,15 @@ terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 			}
 		}
 		terse_codec_reset_iconv_state(handle->utf8_to_codec);
+		handle->cursor_known = 0;
 		clear_error(handle);
 		return 0;
 	}
-	return write_literal(handle, graphemes);
+	terse_error_t result = write_literal(handle, graphemes);
+	if (result == TERSE_OK) {
+		handle->cursor_known = 0;
+	}
+	return result;
 }
 
 terse_error_t terse_flush(terse_handle_t handle)
