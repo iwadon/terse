@@ -22,6 +22,7 @@ add_executable(terse_unit_test
 	unit/terse_paste_test.c
 	unit/terse_read_event_ctrl_test.c
 	unit/terse_read_event_test.c
+	unit/terse_state_stack_test.c
 	unit/terse_style_test.c
 	unit/terse_title_test.c
 	unit/terse_write_text_test.c

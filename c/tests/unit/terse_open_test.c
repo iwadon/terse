@@ -109,6 +109,7 @@ TEST(TerseOpen, ReturnsP0Profile_OnExplicitP3WithoutHints)
 	env_backup_t backups[ARRAY_LEN(names)];
 	backup_env_list(backups, ARRAY_LEN(names), names);
 	clear_detection_environment();
+	setenv("TERSE_SECONDARY_DA_HINT", "x", 1);
 	terse_handle_t handle = terse_open(TERSE_P3, NULL);
 	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
@@ -136,6 +137,7 @@ TEST(TerseOpen, ReturnsP0Profile_OnAutoWithoutHints)
 	env_backup_t backups[ARRAY_LEN(names)];
 	backup_env_list(backups, ARRAY_LEN(names), names);
 	clear_detection_environment();
+	setenv("TERSE_SECONDARY_DA_HINT", "x", 1);
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
 	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
@@ -348,6 +350,7 @@ TEST(TerseCapabilitiesOverride, EnablesFeaturesOnP0Baseline)
 	env_backup_t backups[ARRAY_LEN(names)];
 	backup_env_list(backups, ARRAY_LEN(names), names);
 	clear_detection_environment();
+	setenv("TERSE_SECONDARY_DA_HINT", "x", 1);
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
 	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
