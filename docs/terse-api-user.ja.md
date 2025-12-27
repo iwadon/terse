@@ -996,6 +996,8 @@ terse_disable_bracketed_paste(handle);
 int terse_set_title(terse_handle_t handle, const char *title);
 ```
 
+**注意:** `title` に ESC (0x1B) または BEL (0x07) を含めることはできません。含まれている場合は `TERSE_ERR_INVALID_ARGUMENT` を返します。
+
 **例:**
 ```c
 terse_set_title(handle, "My Awesome TUI App v1.0");
@@ -1011,6 +1013,7 @@ int terse_set_hyperlink(terse_handle_t handle, const char *url, const char *labe
 ```
 
 サポートされているターミナル(iTerm2、現代的なターミナル)でクリック可能なハイパーリンクを作成します。
+**注意:** `url` と `label` に ESC (0x1B) または BEL (0x07) を含めることはできません。含まれている場合は `TERSE_ERR_INVALID_ARGUMENT` を返します。
 
 **例:**
 ```c
@@ -1038,6 +1041,7 @@ int terse_set_clipboard(terse_handle_t handle, const char *data);
 ```
 
 OSC 52を使用してシステムクリップボードにテキストを書き込みます。
+**注意:** `data` に ESC (0x1B) または BEL (0x07) を含めることはできません。含まれている場合は `TERSE_ERR_INVALID_ARGUMENT` を返します。
 
 **例:**
 ```c
@@ -1100,6 +1104,8 @@ typedef struct terse_image_request {
     unsigned int flags;         // Display flags
 } terse_image_request_t;
 ```
+
+**注意:** `name` に ESC (0x1B) または BEL (0x07) を含めることはできません。含まれている場合は `TERSE_ERR_INVALID_ARGUMENT` を返します。
 
 **画像フォーマット:**
 ```c
@@ -1171,6 +1177,8 @@ int terse_notify(terse_handle_t handle,
                  terse_notification_kind_t kind,
                  const char *payload);
 ```
+
+**注意:** `TERSE_NOTIFICATION_KIND_DESKTOP` の `payload` に ESC (0x1B) または BEL (0x07) を含めることはできません。含まれている場合は `TERSE_ERR_INVALID_ARGUMENT` を返します。
 
 **通知タイプ:**
 ```c

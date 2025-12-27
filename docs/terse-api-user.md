@@ -996,6 +996,8 @@ terse_disable_bracketed_paste(handle);
 int terse_set_title(terse_handle_t handle, const char *title);
 ```
 
+**Note:** `title` must not contain ESC (0x1B) or BEL (0x07); if present, returns `TERSE_ERR_INVALID_ARGUMENT`.
+
 **Example:**
 ```c
 terse_set_title(handle, "My Awesome TUI App v1.0");
@@ -1011,6 +1013,7 @@ int terse_set_hyperlink(terse_handle_t handle, const char *url, const char *labe
 ```
 
 Creates clickable hyperlinks in supported terminals (iTerm2, modern terminals).
+**Note:** `url` and `label` must not contain ESC (0x1B) or BEL (0x07); if present, returns `TERSE_ERR_INVALID_ARGUMENT`.
 
 **Example:**
 ```c
@@ -1038,6 +1041,7 @@ int terse_set_clipboard(terse_handle_t handle, const char *data);
 ```
 
 Writes text to system clipboard using OSC 52.
+**Note:** `data` must not contain ESC (0x1B) or BEL (0x07); if present, returns `TERSE_ERR_INVALID_ARGUMENT`.
 
 **Example:**
 ```c
@@ -1100,6 +1104,8 @@ typedef struct terse_image_request {
     unsigned int flags;         // Display flags
 } terse_image_request_t;
 ```
+
+**Note:** `name` must not contain ESC (0x1B) or BEL (0x07); if present, returns `TERSE_ERR_INVALID_ARGUMENT`.
 
 **Image Formats:**
 ```c
@@ -1171,6 +1177,8 @@ int terse_notify(terse_handle_t handle,
                  terse_notification_kind_t kind,
                  const char *payload);
 ```
+
+**Note:** For `TERSE_NOTIFICATION_KIND_DESKTOP`, `payload` must not contain ESC (0x1B) or BEL (0x07); if present, returns `TERSE_ERR_INVALID_ARGUMENT`.
 
 **Notification Types:**
 ```c
