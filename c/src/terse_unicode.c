@@ -705,3 +705,14 @@ terse_compute_cell_width(terse_handle_t handle, unsigned int scalar)
 	/* Default narrow width */
 	return 1;
 }
+
+/*
+ * Public API wrapper for terse_compute_cell_width.
+ * This provides the same functionality as the internal function
+ * for use by applications.
+ */
+int
+terse_char_width(terse_handle_t handle, unsigned int scalar)
+{
+	return terse_compute_cell_width(handle, scalar);
+}

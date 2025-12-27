@@ -415,4 +415,14 @@ terse_error_t terse_notify(terse_handle_t handle, terse_notification_kind_t kind
  */
 int terse_encode_utf8(unsigned int scalar, unsigned char *out);
 
+/*
+ * Character width utility
+ * Returns the display width (in terminal cells) of a Unicode scalar value.
+ * Returns 0 for control characters and combining marks.
+ * Returns 1 for narrow characters.
+ * Returns 2 for wide characters (CJK, etc.).
+ * Ambiguous width characters respect the east_asian_ambiguous_as_wide option.
+ */
+int terse_char_width(terse_handle_t handle, unsigned int scalar);
+
 #endif // TERSE_H_INCLUDED
