@@ -586,6 +586,11 @@ terse_error_t terse_set_title(terse_handle_t handle, const char *title)
 		clear_error(handle);
 		return 0;
 	}
+	if (payload_has_disallowed_chars(title)) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
+	}
 	if (write_literal(handle, "\x1b]0;") != 0) {
 		return handle->last_error;
 	}
@@ -614,6 +619,11 @@ terse_error_t terse_set_hyperlink(terse_handle_t handle, const char *url, const 
 	if (!handle->capabilities.has_hyperlinks || !handle->capabilities.has_basic_output) {
 		clear_error(handle);
 		return 0;
+	}
+	if (payload_has_disallowed_chars(url) || payload_has_disallowed_chars(label)) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	if (write_literal(handle, "\x1b]8;;") != 0) {
 		return handle->last_error;
@@ -699,6 +709,11 @@ terse_error_t terse_set_clipboard(terse_handle_t handle, const char *data)
 	if (!handle->capabilities.has_clipboard_write || !handle->capabilities.has_basic_output) {
 		clear_error(handle);
 		return 0;
+	}
+	if (payload_has_disallowed_chars(data)) {
+		errno = EINVAL;
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	size_t encoded_len = 0;
 	char *encoded = base64_encode((const unsigned char *)data, strlen(data), &encoded_len);

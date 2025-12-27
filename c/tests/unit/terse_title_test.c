@@ -29,6 +29,16 @@ static ssize_t read_pipe_data(int fd, char *buffer, size_t size)
 	return n;
 }
 
+static void expect_no_bytes_available_fd(int fd)
+{
+	set_nonblocking(fd);
+	char tmp[16];
+	errno = 0;
+	ssize_t n = read(fd, tmp, sizeof(tmp));
+	EXPECT_TRUE(n == -1);
+	EXPECT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK);
+}
+
 TEST(TerseTitle, SetTitleWritesOsc)
 {
 	int out_pipe[2];
@@ -56,6 +66,32 @@ TEST(TerseTitle, SetTitleWritesOsc)
 	close(in_pipe[1]);
 }
 
+TEST(TerseTitle, RejectsTitleWithControlChars)
+{
+	int out_pipe[2];
+	int in_pipe[2];
+	EXPECT_TRUE(pipe(out_pipe) == 0);
+	EXPECT_TRUE(pipe(in_pipe) == 0);
+	terse_options_t options = {
+		.input_fd = in_pipe[0],
+		.output_fd = out_pipe[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = TERSE_CAP_ENABLE_TITLE,
+	};
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_NOT_NULL(handle);
+	errno = 0;
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_set_title(handle, "Bad\x07Title"));
+	EXPECT_EQ(EINVAL, errno);
+	expect_no_bytes_available_fd(out_pipe[0]);
+	terse_close(handle);
+	close(out_pipe[0]);
+	close(out_pipe[1]);
+	close(in_pipe[0]);
+	close(in_pipe[1]);
+}
+
 TEST(TerseTitle, SetHyperlinkWritesOsc8)
 {
 	int out_pipe[2];
@@ -76,6 +112,32 @@ TEST(TerseTitle, SetHyperlinkWritesOsc8)
 	ssize_t n = read_pipe_data(out_pipe[0], buffer, sizeof(buffer));
 	EXPECT_TRUE(n > 0);
 	EXPECT_TRUE(strstr(buffer, "\x1b]8;;https://example.com\x07Link\x1b]8;;\x07") != NULL);
+	terse_close(handle);
+	close(out_pipe[0]);
+	close(out_pipe[1]);
+	close(in_pipe[0]);
+	close(in_pipe[1]);
+}
+
+TEST(TerseTitle, RejectsHyperlinkWithControlChars)
+{
+	int out_pipe[2];
+	int in_pipe[2];
+	EXPECT_TRUE(pipe(out_pipe) == 0);
+	EXPECT_TRUE(pipe(in_pipe) == 0);
+	terse_options_t options = {
+		.input_fd = in_pipe[0],
+		.output_fd = out_pipe[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = TERSE_CAP_ENABLE_HYPERLINK,
+	};
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_NOT_NULL(handle);
+	errno = 0;
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_set_hyperlink(handle, "https://example.com\x1b", "Link"));
+	EXPECT_EQ(EINVAL, errno);
+	expect_no_bytes_available_fd(out_pipe[0]);
 	terse_close(handle);
 	close(out_pipe[0]);
 	close(out_pipe[1]);
