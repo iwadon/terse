@@ -141,7 +141,7 @@ terse_error_t terse_move_to(terse_handle_t handle, int row, int col)
 	if (col < 0) {
 		col = 0;
 	}
-	if (row == handle->cursor_row && col == handle->cursor_col) {
+	if (handle->cursor_known && row == handle->cursor_row && col == handle->cursor_col) {
 		clear_error(handle);
 		return 0;
 	}
