@@ -24,6 +24,12 @@ typedef struct terse_test_state terse_test_state_t;
  */
 #define TERSE_STATE_STACK_MAX 8
 
+/* Internal buffer sizes for escape sequences and text processing */
+#define TERSE_SMALL_BUFFER_SIZE 16    /* Very small buffers (single escape seq) */
+#define TERSE_ESCAPE_BUFFER_SIZE 32   /* Small escape sequences (cursor, style) */
+#define TERSE_LARGE_BUFFER_SIZE 128   /* Large buffers (DA response, style seq) */
+#define TERSE_TEXT_BUFFER_SIZE 256    /* Text and header buffers */
+
 typedef enum terse_codec_kind {
 	TERSE_CODEC_UNKNOWN = 0,
 	TERSE_CODEC_UTF8,

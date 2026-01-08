@@ -206,7 +206,7 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 	}
 
 	// Read response: CSI row ; col R
-	unsigned char buffer[32];
+	unsigned char buffer[TERSE_ESCAPE_BUFFER_SIZE];
 	size_t length = 0;
 	const int timeout_ms = 200;
 	const int slice = 25;

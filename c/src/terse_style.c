@@ -1,5 +1,6 @@
 #include "terse_style.h"
 #include "terse_detection.h"
+#include "terse_handle.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -373,7 +374,7 @@ terse_style_emit_sequence(terse_handle_t handle, const terse_style_t *style)
 	if (style->effects == 0 && style->foreground.kind == TERSE_COLOR_KIND_DEFAULT && style->background.kind == TERSE_COLOR_KIND_DEFAULT) {
 		return 0;
 	}
-	char seq[128];
+	char seq[TERSE_LARGE_BUFFER_SIZE];
 	int first = 1;
 	int prefix = snprintf(seq, sizeof(seq), "\x1b[");
 	if (prefix < 0 || (size_t)prefix >= sizeof(seq)) {

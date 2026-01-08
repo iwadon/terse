@@ -10,6 +10,7 @@
 
 #include "terse_detection.h"
 #include "terse_platform.h"
+#include "terse_handle.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -395,7 +396,7 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	const char *gnome_service = getenv("GNOME_TERMINAL_SERVICE");
 	const char *vte_version = getenv("VTE_VERSION");
 	const char *secondary_hint = getenv("TERSE_SECONDARY_DA_HINT");
-	unsigned char secondary[128];
+	unsigned char secondary[TERSE_LARGE_BUFFER_SIZE];
 	memset(secondary, 0, sizeof(secondary));
 	size_t secondary_len = 0;
 	if (secondary_hint && *secondary_hint) {

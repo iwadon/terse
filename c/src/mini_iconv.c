@@ -2,6 +2,7 @@
 
 #include "mini_iconv_tables.h"
 #include "terse.h"
+#include "terse_handle.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -41,7 +42,7 @@ mini_iconv_canonicalize(const char *src, char *dst, size_t dst_size)
 static int
 mini_iconv_is_utf8(const char *name)
 {
-	char canonical[16];
+	char canonical[TERSE_SMALL_BUFFER_SIZE];
 	mini_iconv_canonicalize(name, canonical, sizeof(canonical));
 	return strcmp(canonical, "UTF8") == 0;
 }
@@ -49,7 +50,7 @@ mini_iconv_is_utf8(const char *name)
 static int
 mini_iconv_is_shift_jis(const char *name)
 {
-	char canonical[16];
+	char canonical[TERSE_SMALL_BUFFER_SIZE];
 	mini_iconv_canonicalize(name, canonical, sizeof(canonical));
 	return strcmp(canonical, "SHIFTJIS") == 0 || strcmp(canonical, "SJIS") == 0 || strcmp(canonical, "CP932") == 0;
 }

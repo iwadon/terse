@@ -1,4 +1,5 @@
 #include "terse_platform.h"
+#include "terse_handle.h"
 
 #include <errno.h>
 #ifdef TERSE_HAVE_POLL_H
@@ -141,7 +142,7 @@ terse_platform_probe_secondary_da(int input_fd, int output_fd, unsigned char *bu
 		(void)tcsetattr(input_fd, TCSANOW, &original);
 		return 0;
 	}
-	unsigned char local[128];
+	unsigned char local[TERSE_LARGE_BUFFER_SIZE];
 	if (!buffer) {
 		buffer = local;
 	}
@@ -187,7 +188,7 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 	}
 
 	// Read response: CSI row ; col R
-	unsigned char buffer[32];
+	unsigned char buffer[TERSE_ESCAPE_BUFFER_SIZE];
 	size_t length = 0;
 #ifdef TERSE_HAVE_POLL_H
 	struct pollfd pfd = {

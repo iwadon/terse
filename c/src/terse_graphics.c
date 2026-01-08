@@ -98,7 +98,7 @@ send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t
 		set_error(handle, TERSE_ERR_OUT_OF_MEMORY);
 		return TERSE_ERR_OUT_OF_MEMORY;
 	}
-	char header[256];
+	char header[TERSE_TEXT_BUFFER_SIZE];
 	int header_len = snprintf(header,
 		sizeof(header),
 		"\x1b]1337;File=name=%s;size=%zu;inline=1:",

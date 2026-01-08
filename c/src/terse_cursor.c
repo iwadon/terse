@@ -55,7 +55,7 @@ terse_error_t terse_move_to(terse_handle_t handle, int row, int col)
 	}
 
 	// Fall back to standard escape sequence method
-	char sequence[32];
+	char sequence[TERSE_ESCAPE_BUFFER_SIZE];
 	// Terminal escape sequences use 1-based coordinates, convert from 0-based
 	int written = snprintf(sequence, sizeof(sequence), "\x1b[%d;%dH", row + 1, col + 1);
 	if (written <= 0 || (size_t)written >= sizeof(sequence)) {
@@ -88,7 +88,7 @@ terse_error_t terse_move_by(terse_handle_t handle, int drow, int dcol)
 	int new_col = handle->cursor_col;
 
 	if (drow < 0) {
-		char seq[32];
+		char seq[TERSE_ESCAPE_BUFFER_SIZE];
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dA", -drow);
 		if (len <= 0) {
 			errno = EINVAL;
@@ -100,7 +100,7 @@ terse_error_t terse_move_by(terse_handle_t handle, int drow, int dcol)
 		}
 		new_row += drow;
 	} else if (drow > 0) {
-		char seq[32];
+		char seq[TERSE_ESCAPE_BUFFER_SIZE];
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dB", drow);
 		if (len <= 0) {
 			errno = EINVAL;
@@ -114,7 +114,7 @@ terse_error_t terse_move_by(terse_handle_t handle, int drow, int dcol)
 	}
 
 	if (dcol < 0) {
-		char seq[32];
+		char seq[TERSE_ESCAPE_BUFFER_SIZE];
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dD", -dcol);
 		if (len <= 0) {
 			errno = EINVAL;
@@ -126,7 +126,7 @@ terse_error_t terse_move_by(terse_handle_t handle, int drow, int dcol)
 		}
 		new_col += dcol;
 	} else if (dcol > 0) {
-		char seq[32];
+		char seq[TERSE_ESCAPE_BUFFER_SIZE];
 		int len = snprintf(seq, sizeof(seq), "\x1b[%dC", dcol);
 		if (len <= 0) {
 			errno = EINVAL;
@@ -210,7 +210,7 @@ terse_error_t terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t
 		value = 1;
 		break;
 	}
-	char seq[16];
+	char seq[TERSE_SMALL_BUFFER_SIZE];
 	int len = snprintf(seq, sizeof(seq), "\x1b[%d q", value);
 	if (len <= 0 || len >= (int)sizeof(seq)) {
 		errno = EINVAL;

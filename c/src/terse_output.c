@@ -250,7 +250,7 @@ terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 
 #ifdef TERSE_ENABLE_TEST_MODE
 	struct {
-		char text[256];
+		char text[TERSE_TEXT_BUFFER_SIZE];
 	} rec_data;
 	memset(&rec_data, 0, sizeof(rec_data));
 	size_t len = strlen(graphemes);
@@ -277,7 +277,7 @@ terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 		}
 		const char *input = graphemes;
 		size_t in_left = strlen(graphemes);
-		unsigned char outbuf[256];
+		unsigned char outbuf[TERSE_TEXT_BUFFER_SIZE];
 		terse_codec_reset_iconv_state(handle->utf8_to_codec);
 		while (in_left > 0) {
 			char *in_ptr = (char *)input;
