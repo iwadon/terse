@@ -9,18 +9,10 @@
  * - Cursor movement
  * - Text output and flushing
  * - Mouse, bracketed paste control
- * - Window title, hyperlinks
- * - Image display (iTerm2, Sixel, Kitty)
- * - Notifications (bell, visual, desktop)
+ * - Window title, hyperlinks, cursor shape
+ *
+ * Graphics functions (images, clipboard, notifications) moved to terse_graphics.h
  */
-
-/* Helper functions for image display */
-int send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
-int send_sixel_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
-int send_kitty_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
-
-/* Helper for notification validation */
-int payload_has_disallowed_chars(const char *payload);
 
 /* Mouse mode control */
 int set_mouse_mode(terse_handle_t handle, terse_mouse_mode_t mode, int enable);
