@@ -1,6 +1,6 @@
+#include "terse_output.h"
 #include "terse.h"
 #include "terse_handle.h"
-#include "terse_output.h"
 #include "terse_platform.h"
 #ifdef TERSE_ENABLE_TEST_MODE
 #include "terse_test_internal.h"
@@ -37,11 +37,10 @@ terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 	}
 
 #ifdef TERSE_ENABLE_TEST_MODE
-	if (handle->test_state && handle->test_state->recording) {
-		struct { terse_clear_mode_t mode; } rec_data;
-		rec_data.mode = mode;
-		record_call(handle, TERSE_CALL_CLEAR_SCREEN, &rec_data, sizeof(rec_data));
-	}
+	struct {
+		terse_clear_mode_t mode;
+	} rec_data = { mode };
+	TERSE_TEST_RECORD_CALL(handle, TERSE_CALL_CLEAR_SCREEN, rec_data);
 #endif
 
 	// Try platform-specific fast path first
@@ -80,11 +79,10 @@ terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 	}
 
 #ifdef TERSE_ENABLE_TEST_MODE
-	if (handle->test_state && handle->test_state->recording) {
-		struct { terse_clear_mode_t mode; } rec_data;
-		rec_data.mode = mode;
-		record_call(handle, TERSE_CALL_CLEAR_LINE, &rec_data, sizeof(rec_data));
-	}
+	struct {
+		terse_clear_mode_t mode;
+	} rec_data = { mode };
+	TERSE_TEST_RECORD_CALL(handle, TERSE_CALL_CLEAR_LINE, rec_data);
 #endif
 
 	const char *sequence = NULL;
@@ -133,11 +131,10 @@ terse_error_t terse_set_style(terse_handle_t handle, const terse_style_t *style)
 	}
 
 #ifdef TERSE_ENABLE_TEST_MODE
-	if (handle->test_state && handle->test_state->recording) {
-		struct { terse_style_t style; } rec_data;
-		rec_data.style = *style;
-		record_call(handle, TERSE_CALL_SET_STYLE, &rec_data, sizeof(rec_data));
-	}
+	struct {
+		terse_style_t style;
+	} rec_data = { *style };
+	TERSE_TEST_RECORD_CALL(handle, TERSE_CALL_SET_STYLE, rec_data);
 #endif
 
 	terse_style_t requested = terse_style_sanitize_request(style);
@@ -234,13 +231,6 @@ terse_error_t terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope
 
 /* Cursor shape function (terse_set_cursor_shape) moved to terse_cursor.c */
 
-
-
-
-
-
-
-
 /* ========================================================================
  * Text output
  * ======================================================================== */
@@ -259,17 +249,17 @@ terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 	}
 
 #ifdef TERSE_ENABLE_TEST_MODE
-	if (handle->test_state && handle->test_state->recording) {
-		struct { char text[256]; } rec_data;
-		memset(&rec_data, 0, sizeof(rec_data));
-		size_t len = strlen(graphemes);
-		if (len >= sizeof(rec_data.text)) {
-			len = sizeof(rec_data.text) - 1;
-		}
-		memcpy(rec_data.text, graphemes, len);
-		rec_data.text[len] = '\0';
-		record_call(handle, TERSE_CALL_WRITE_TEXT, &rec_data, sizeof(rec_data));
+	struct {
+		char text[256];
+	} rec_data;
+	memset(&rec_data, 0, sizeof(rec_data));
+	size_t len = strlen(graphemes);
+	if (len >= sizeof(rec_data.text)) {
+		len = sizeof(rec_data.text) - 1;
 	}
+	memcpy(rec_data.text, graphemes, len);
+	rec_data.text[len] = '\0';
+	TERSE_TEST_RECORD_CALL(handle, TERSE_CALL_WRITE_TEXT, rec_data);
 #endif
 
 	if (handle->codec_kind == TERSE_CODEC_UTF8) {

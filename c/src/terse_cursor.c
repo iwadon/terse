@@ -38,10 +38,11 @@ terse_error_t terse_move_to(terse_handle_t handle, int row, int col)
 	}
 
 #ifdef TERSE_ENABLE_TEST_MODE
-	if (handle->test_state && handle->test_state->recording) {
-		struct { int row; int col; } rec_data = { row, col };
-		record_call(handle, TERSE_CALL_MOVE_TO, &rec_data, sizeof(rec_data));
-	}
+	struct {
+		int row;
+		int col;
+	} rec_data = { row, col };
+	TERSE_TEST_RECORD_CALL(handle, TERSE_CALL_MOVE_TO, rec_data);
 #endif
 
 	// Try platform-specific fast path first

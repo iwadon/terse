@@ -23,10 +23,22 @@ typedef struct terse_test_state {
 	int mock_event_read_index;
 } terse_test_state_t;
 
-/* Internal function for recording API calls (defined in terse.c).
+/* Internal function for recording API calls (defined in terse_test.c).
  * This is shared across implementation modules that need to record calls.
  */
 void record_call(terse_handle_t handle, terse_call_type_t type, const void *data, size_t data_size);
+
+/* Initialization and cleanup functions */
+void terse_test_state_init(terse_handle_t handle);
+void terse_test_state_destroy(terse_handle_t handle);
+
+/* Convenience macro for recording API calls */
+#define TERSE_TEST_RECORD_CALL(h, call_type, rec_data) \
+	do { \
+		if ((h)->test_state && (h)->test_state->recording) { \
+			record_call((h), (call_type), &(rec_data), sizeof(rec_data)); \
+		} \
+	} while (0)
 
 #endif // TERSE_ENABLE_TEST_MODE
 

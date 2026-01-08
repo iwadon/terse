@@ -13,6 +13,7 @@ add_library(terse
   src/terse_state.c
   src/terse_capabilities.c
   src/terse_keyboard.c
+  src/terse_test.c
 )
 
 include(CheckIncludeFile)
