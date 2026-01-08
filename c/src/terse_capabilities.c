@@ -248,10 +248,7 @@ apply_runtime_overrides(terse_handle_t handle)
 
 terse_error_t terse_capabilities_enable(terse_handle_t handle, unsigned int enable_mask)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (enable_mask == 0) {
 		clear_error(handle);
 		return 0;
@@ -264,10 +261,7 @@ terse_error_t terse_capabilities_enable(terse_handle_t handle, unsigned int enab
 
 terse_error_t terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (disable_mask == 0) {
 		clear_error(handle);
 		return 0;
@@ -280,10 +274,7 @@ terse_error_t terse_capabilities_disable(terse_handle_t handle, unsigned int dis
 
 terse_error_t terse_capabilities_reset_overrides(terse_handle_t handle)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	handle->runtime_enabled = 0;
 	handle->runtime_disabled = 0;
 	apply_runtime_overrides(handle);

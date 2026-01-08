@@ -8,10 +8,7 @@
 
 terse_error_t terse_state_override(terse_handle_t handle, const terse_state_t *state)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!state) {
 		errno = EINVAL;
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
@@ -46,10 +43,7 @@ terse_error_t terse_state_override(terse_handle_t handle, const terse_state_t *s
 
 terse_error_t terse_state_clear(terse_handle_t handle)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	handle->cursor_known = 0;
 	handle->cursor_row = 0;
 	handle->cursor_col = 0;
@@ -106,10 +100,7 @@ terse_error_t terse_pop_state(terse_handle_t handle)
 
 terse_error_t terse_capture_state(terse_handle_t handle, terse_state_t *out_state)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!out_state) {
 		errno = EINVAL;
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
@@ -127,10 +118,7 @@ terse_error_t terse_capture_state(terse_handle_t handle, terse_state_t *out_stat
 
 terse_error_t terse_restore_state(terse_handle_t handle, const terse_state_t *state)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!state) {
 		errno = EINVAL;
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);

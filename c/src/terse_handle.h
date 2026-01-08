@@ -69,4 +69,70 @@ struct terse_handle {
 #endif
 };
 
+/*
+ * Common escape sequences.
+ * Defined in terse.c, shared across modules.
+ */
+extern const char TERSE_RESET_ALL_SEQ[];
+extern const char TERSE_RESET_COLOR_SEQ[];
+extern const char TERSE_RESET_EFFECTS_SEQ[];
+
+/* Lengths for use with write_sequence (excludes null terminator) */
+#define TERSE_RESET_ALL_SEQ_LEN 4
+#define TERSE_RESET_COLOR_SEQ_LEN 8
+#define TERSE_RESET_EFFECTS_SEQ_LEN 17
+
+/*
+ * Common error handling helpers.
+ * These are defined in terse.c and shared across modules.
+ */
+int ensure_handle(terse_handle_t handle);
+void set_error(terse_handle_t handle, terse_error_t error);
+void clear_error(terse_handle_t handle);
+
+/*
+ * Convenience macros for common error handling patterns.
+ * Use these to reduce boilerplate in API functions.
+ */
+
+/* Check handle validity and return early if invalid */
+#define TERSE_CHECK_HANDLE(h) \
+	do { \
+		int _rc = ensure_handle(h); \
+		if (_rc != 0) { \
+			return _rc; \
+		} \
+	} while (0)
+
+/* Check handle and clear error on success */
+#define TERSE_CHECK_HANDLE_CLEAR(h) \
+	do { \
+		int _rc = ensure_handle(h); \
+		if (_rc != 0) { \
+			return _rc; \
+		} \
+		clear_error(h); \
+	} while (0)
+
+/*
+ * Convenience macros for write operations.
+ * These return handle->last_error on failure.
+ */
+
+/* Write a literal string, returning on error */
+#define TERSE_WRITE_LITERAL(h, lit) \
+	do { \
+		if (write_literal((h), (lit)) != 0) { \
+			return (h)->last_error; \
+		} \
+	} while (0)
+
+/* Write a sequence with length, returning on error */
+#define TERSE_WRITE_SEQ(h, seq, len) \
+	do { \
+		if (write_sequence((h), (seq), (len)) != 0) { \
+			return (h)->last_error; \
+		} \
+	} while (0)
+
 #endif // TERSE_HANDLE_H

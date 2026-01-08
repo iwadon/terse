@@ -35,4 +35,25 @@ int terse_handle_escape_prefixed_char(terse_handle_t handle, terse_event_t *even
 /* Map function key code to function key number (F1-F24) */
 int terse_function_number_from_code(int code);
 
+/*
+ * High-level event parsers for terse_read_event()
+ * These functions attempt to parse specific sequence types and return 1 on success.
+ */
+
+/* Parse CSI (ESC [) sequence into an event. Returns 1 if handled, 0 otherwise. */
+int terse_parse_csi_event(terse_handle_t handle, terse_event_t *out_event,
+                          const unsigned char *seq, size_t len);
+
+/* Parse SS3 (ESC O) sequence into an event. Returns 1 if handled, 0 otherwise. */
+int terse_parse_ss3_event(terse_handle_t handle, terse_event_t *out_event,
+                          const unsigned char *seq, size_t len);
+
+/* Parse Linux console function key sequence (ESC [ [). Returns 1 if handled, 0 otherwise. */
+int terse_parse_linux_console_fkey(terse_handle_t handle, terse_event_t *out_event,
+                                   const unsigned char *seq, size_t len);
+
+/* Parse control character (0x01-0x1a, 0x7f, etc.) into event. Returns 1 if handled, 0 otherwise. */
+int terse_parse_control_char(terse_handle_t handle, terse_event_t *out_event,
+                             unsigned char ch);
+
 #endif /* TERSE_INPUT_H_INCLUDED */

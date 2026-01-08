@@ -4,11 +4,8 @@
 #include "terse.h"
 #include "terse_handle.h"
 
-/* Forward declarations for internal functions */
-int ensure_handle(terse_handle_t handle);
-void set_error(terse_handle_t handle, terse_error_t error);
-void clear_error(terse_handle_t handle);
-void update_effective_style(terse_handle_t handle);
+/* External function from terse.c */
+extern void update_effective_style(terse_handle_t handle);
 
 /* Internal state management functions */
 terse_error_t terse_state_override_impl(terse_handle_t handle, const terse_state_t *state);

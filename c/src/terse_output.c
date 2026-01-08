@@ -16,15 +16,7 @@
 #include <unistd.h>
 #endif
 
-/* Reset sequences used by output functions */
-static const char TERSE_RESET_ALL_SEQ[] = "\x1b[0m";
-static const char TERSE_RESET_COLOR_SEQ[] = "\x1b[39;49m";
-static const char TERSE_RESET_EFFECTS_SEQ[] = "\x1b[22;23;24;27;29m";
-
-/* External helper functions from terse.c */
-extern int ensure_handle(terse_handle_t handle);
-extern void set_error(terse_handle_t handle, terse_error_t error);
-extern void clear_error(terse_handle_t handle);
+/* External helper functions from terse.c (ensure_handle, set_error, clear_error, reset sequences are in terse_handle.h) */
 extern int write_literal(terse_handle_t handle, const char *sequence);
 extern int write_sequence(terse_handle_t handle, const char *data, size_t length);
 extern void update_effective_style(terse_handle_t handle);
@@ -36,10 +28,7 @@ extern char *base64_encode(const unsigned char *data, size_t size, size_t *out_l
 
 terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!handle->capabilities.has_clear_screen) {
 		clear_error(handle);
 		return 0;
@@ -82,10 +71,7 @@ terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 
 terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!handle->capabilities.has_clear_line) {
 		clear_error(handle);
 		return 0;
@@ -125,10 +111,7 @@ terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode)
 
 terse_error_t terse_move_to(terse_handle_t handle, int row, int col)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!handle->capabilities.has_move_absolute) {
 		clear_error(handle);
 		return 0;
@@ -182,10 +165,7 @@ terse_error_t terse_move_to(terse_handle_t handle, int row, int col)
 
 terse_error_t terse_move_by(terse_handle_t handle, int drow, int dcol)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!handle->capabilities.has_move_relative) {
 		clear_error(handle);
 		return 0;
@@ -270,10 +250,7 @@ terse_error_t terse_move_by(terse_handle_t handle, int drow, int dcol)
 
 terse_error_t terse_show_cursor(terse_handle_t handle, int visible)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!handle->capabilities.has_cursor_visibility) {
 		clear_error(handle);
 		return 0;
@@ -296,10 +273,7 @@ terse_error_t terse_show_cursor(terse_handle_t handle, int visible)
 
 terse_error_t terse_set_style(terse_handle_t handle, const terse_style_t *style)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!style) {
 		errno = EINVAL;
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
@@ -340,11 +314,11 @@ write_reset_sequence(terse_handle_t handle, terse_reset_scope_t scope)
 {
 	switch (scope) {
 	case TERSE_RESET_ALL:
-		return write_sequence(handle, TERSE_RESET_ALL_SEQ, sizeof(TERSE_RESET_ALL_SEQ) - 1);
+		return write_sequence(handle, TERSE_RESET_ALL_SEQ, TERSE_RESET_ALL_SEQ_LEN);
 	case TERSE_RESET_COLOR_ONLY:
-		return write_sequence(handle, TERSE_RESET_COLOR_SEQ, sizeof(TERSE_RESET_COLOR_SEQ) - 1);
+		return write_sequence(handle, TERSE_RESET_COLOR_SEQ, TERSE_RESET_COLOR_SEQ_LEN);
 	case TERSE_RESET_EFFECTS_ONLY:
-		return write_sequence(handle, TERSE_RESET_EFFECTS_SEQ, sizeof(TERSE_RESET_EFFECTS_SEQ) - 1);
+		return write_sequence(handle, TERSE_RESET_EFFECTS_SEQ, TERSE_RESET_EFFECTS_SEQ_LEN);
 	default:
 		return 0;
 	}
@@ -352,10 +326,7 @@ write_reset_sequence(terse_handle_t handle, terse_reset_scope_t scope)
 
 terse_error_t terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (scope < TERSE_RESET_ALL || scope > TERSE_RESET_EFFECTS_ONLY) {
 		errno = EINVAL;
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
@@ -456,10 +427,7 @@ clamp_mouse_mode(terse_mouse_mode_t requested, terse_mouse_mode_t available)
 
 terse_error_t terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (mode <= TERSE_MOUSE_NONE || mode > TERSE_MOUSE_SGR) {
 		errno = EINVAL;
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
@@ -495,10 +463,7 @@ terse_error_t terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode)
 
 terse_error_t terse_disable_mouse(terse_handle_t handle)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!handle->mouse_enabled) {
 		clear_error(handle);
 		return 0;
@@ -528,10 +493,7 @@ set_bracketed_paste(terse_handle_t handle, int enable)
 
 terse_error_t terse_enable_bracketed_paste(terse_handle_t handle)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!handle->capabilities.has_bracketed_paste || !handle->capabilities.has_basic_output) {
 		handle->paste_enabled = 0;
 		clear_error(handle);
@@ -551,10 +513,7 @@ terse_error_t terse_enable_bracketed_paste(terse_handle_t handle)
 
 terse_error_t terse_disable_bracketed_paste(terse_handle_t handle)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!handle->paste_enabled) {
 		clear_error(handle);
 		return 0;
@@ -575,10 +534,7 @@ terse_error_t terse_disable_bracketed_paste(terse_handle_t handle)
 
 terse_error_t terse_set_title(terse_handle_t handle, const char *title)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!title) {
 		title = "";
 	}
@@ -591,25 +547,16 @@ terse_error_t terse_set_title(terse_handle_t handle, const char *title)
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
 		return TERSE_ERR_INVALID_ARGUMENT;
 	}
-	if (write_literal(handle, "\x1b]0;") != 0) {
-		return handle->last_error;
-	}
-	if (write_sequence(handle, title, strlen(title)) != 0) {
-		return handle->last_error;
-	}
-	if (write_literal(handle, "\x07") != 0) {
-		return handle->last_error;
-	}
+	TERSE_WRITE_LITERAL(handle, "\x1b]0;");
+	TERSE_WRITE_SEQ(handle, title, strlen(title));
+	TERSE_WRITE_LITERAL(handle, "\x07");
 	clear_error(handle);
 	return 0;
 }
 
 terse_error_t terse_set_hyperlink(terse_handle_t handle, const char *url, const char *label)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!url) {
 		url = "";
 	}
@@ -625,21 +572,11 @@ terse_error_t terse_set_hyperlink(terse_handle_t handle, const char *url, const 
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
 		return TERSE_ERR_INVALID_ARGUMENT;
 	}
-	if (write_literal(handle, "\x1b]8;;") != 0) {
-		return handle->last_error;
-	}
-	if (write_sequence(handle, url, strlen(url)) != 0) {
-		return handle->last_error;
-	}
-	if (write_literal(handle, "\x07") != 0) {
-		return handle->last_error;
-	}
-	if (write_sequence(handle, label, strlen(label)) != 0) {
-		return handle->last_error;
-	}
-	if (write_literal(handle, "\x1b]8;;\x07") != 0) {
-		return handle->last_error;
-	}
+	TERSE_WRITE_LITERAL(handle, "\x1b]8;;");
+	TERSE_WRITE_SEQ(handle, url, strlen(url));
+	TERSE_WRITE_LITERAL(handle, "\x07");
+	TERSE_WRITE_SEQ(handle, label, strlen(label));
+	TERSE_WRITE_LITERAL(handle, "\x1b]8;;\x07");
 	clear_error(handle);
 	return 0;
 }
@@ -650,10 +587,7 @@ terse_error_t terse_set_hyperlink(terse_handle_t handle, const char *url, const 
 
 terse_error_t terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, int blinking)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (shape < TERSE_CURSOR_SHAPE_DEFAULT || shape > TERSE_CURSOR_SHAPE_BAR) {
 		errno = EINVAL;
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
@@ -697,10 +631,7 @@ terse_error_t terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t
 
 terse_error_t terse_set_clipboard(terse_handle_t handle, const char *data)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!data) {
 		errno = EINVAL;
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
@@ -865,10 +796,7 @@ terse_error_t terse_display_image_inline(terse_handle_t handle, const unsigned c
 
 terse_error_t terse_display_image(terse_handle_t handle, const terse_image_request_t *request)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!request) {
 		errno = EINVAL;
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
@@ -983,10 +911,7 @@ payload_has_disallowed_chars(const char *payload)
 
 terse_error_t terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const char *payload)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	unsigned int required = 0;
 	switch (kind) {
 	case TERSE_NOTIFICATION_KIND_BELL:
@@ -1045,10 +970,7 @@ terse_error_t terse_notify(terse_handle_t handle, terse_notification_kind_t kind
 
 terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	if (!graphemes) {
 		errno = EINVAL;
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
@@ -1140,10 +1062,7 @@ terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 
 terse_error_t terse_flush(terse_handle_t handle)
 {
-	int rc = ensure_handle(handle);
-	if (rc != 0) {
-		return rc;
-	}
+	TERSE_CHECK_HANDLE(handle);
 	clear_error(handle);
 	return 0;
 }
