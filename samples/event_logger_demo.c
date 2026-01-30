@@ -91,7 +91,7 @@ static int install_raw_terminal(void)
 	return 0;
 }
 
-#else  /* POSIX */
+#else /* POSIX */
 
 #include <termios.h>
 #include <unistd.h>
@@ -127,7 +127,7 @@ static int install_raw_terminal(void)
 	return 0;
 }
 
-#endif  /* _WIN32 */
+#endif /* _WIN32 */
 
 static const char *mod_string(int mods)
 {
@@ -187,16 +187,15 @@ static size_t encode_utf8(unsigned int scalar, char *dest)
 static void log_event(const terse_event_t *event)
 {
 	switch (event->type) {
-	case TERSE_EVENT_CHAR:
-	{
+	case TERSE_EVENT_CHAR: {
 		char utf8[5] = { 0 };
 		size_t len = encode_utf8(event->data.ch.scalar, utf8);
 		utf8[len] = '\0';
 		printf("CHAR scalar=U+%04X text='%s' width=%d mods=%s\r\n",
-			(unsigned int)event->data.ch.scalar,
-			utf8,
-			event->data.ch.width,
-			mod_string(event->data.ch.mods));
+		       (unsigned int)event->data.ch.scalar,
+		       utf8,
+		       event->data.ch.width,
+		       mod_string(event->data.ch.mods));
 		break;
 	}
 	case TERSE_EVENT_ENTER:
@@ -219,34 +218,34 @@ static void log_event(const terse_event_t *event)
 	case TERSE_EVENT_ARROW_LEFT:
 	case TERSE_EVENT_ARROW_RIGHT:
 		printf("%s mods=%s\r\n",
-			(event->type == TERSE_EVENT_HOME) ? "HOME" :
-			(event->type == TERSE_EVENT_END) ? "END" :
-			(event->type == TERSE_EVENT_PAGE_UP) ? "PAGE_UP" :
-			(event->type == TERSE_EVENT_PAGE_DOWN) ? "PAGE_DOWN" :
-			(event->type == TERSE_EVENT_INSERT) ? "INSERT" :
-			(event->type == TERSE_EVENT_DELETE) ? "DELETE" :
-			(event->type == TERSE_EVENT_ARROW_UP) ? "ARROW_UP" :
-			(event->type == TERSE_EVENT_ARROW_DOWN) ? "ARROW_DOWN" :
-			(event->type == TERSE_EVENT_ARROW_LEFT) ? "ARROW_LEFT" : "ARROW_RIGHT",
-			mod_string(event->data.key.mods));
+		       (event->type == TERSE_EVENT_HOME) ? "HOME" : (event->type == TERSE_EVENT_END)      ? "END"
+		                                                : (event->type == TERSE_EVENT_PAGE_UP)    ? "PAGE_UP"
+		                                                : (event->type == TERSE_EVENT_PAGE_DOWN)  ? "PAGE_DOWN"
+		                                                : (event->type == TERSE_EVENT_INSERT)     ? "INSERT"
+		                                                : (event->type == TERSE_EVENT_DELETE)     ? "DELETE"
+		                                                : (event->type == TERSE_EVENT_ARROW_UP)   ? "ARROW_UP"
+		                                                : (event->type == TERSE_EVENT_ARROW_DOWN) ? "ARROW_DOWN"
+		                                                : (event->type == TERSE_EVENT_ARROW_LEFT) ? "ARROW_LEFT"
+		                                                                                          : "ARROW_RIGHT",
+		       mod_string(event->data.key.mods));
 		break;
 	case TERSE_EVENT_FUNCTION:
 		printf("FUNCTION F%d mods=%s\r\n",
-			 event->data.function.number,
-			 mod_string(event->data.function.mods));
+		       event->data.function.number,
+		       mod_string(event->data.function.mods));
 		break;
 	case TERSE_EVENT_MOUSE_DOWN:
 	case TERSE_EVENT_MOUSE_UP:
 	case TERSE_EVENT_MOUSE_MOVE:
 	case TERSE_EVENT_MOUSE_SCROLL:
 		printf("MOUSE %s button=%d row=%d col=%d mods=%s\r\n",
-			(event->type == TERSE_EVENT_MOUSE_DOWN) ? "DOWN" :
-			(event->type == TERSE_EVENT_MOUSE_UP) ? "UP" :
-			(event->type == TERSE_EVENT_MOUSE_MOVE) ? "MOVE" : "SCROLL",
-			event->data.mouse.button,
-			event->data.mouse.row,
-			event->data.mouse.col,
-			mod_string(event->data.mouse.mods));
+		       (event->type == TERSE_EVENT_MOUSE_DOWN) ? "DOWN" : (event->type == TERSE_EVENT_MOUSE_UP) ? "UP"
+		                                                      : (event->type == TERSE_EVENT_MOUSE_MOVE) ? "MOVE"
+		                                                                                                : "SCROLL",
+		       event->data.mouse.button,
+		       event->data.mouse.row,
+		       event->data.mouse.col,
+		       mod_string(event->data.mouse.mods));
 		break;
 	case TERSE_EVENT_PASTE_BEGIN:
 		printf("PASTE_BEGIN\r\n");
@@ -256,11 +255,10 @@ static void log_event(const terse_event_t *event)
 		break;
 	case TERSE_EVENT_RESIZE:
 		printf("RESIZE rows=%d cols=%d\r\n",
-			event->data.resize.rows,
-			event->data.resize.cols);
+		       event->data.resize.rows,
+		       event->data.resize.cols);
 		break;
-	case TERSE_EVENT_RAW_SEQUENCE:
-	{
+	case TERSE_EVENT_RAW_SEQUENCE: {
 		printf("RAW bytes=");
 		for (size_t i = 0; i < (size_t)event->data.raw.length; ++i) {
 			printf("%s%02X", (i == 0) ? "" : " ", event->data.raw.bytes[i]);
@@ -284,8 +282,8 @@ int main(void)
 
 #ifdef _WIN32
 	terse_options_t options = {
-		.input_fd = 0,   /* stdin */
-		.output_fd = 1,  /* stdout */
+		.input_fd = 0,  /* stdin */
+		.output_fd = 1, /* stdout */
 		.codec_name = "UTF-8",
 		.disabled_caps = 0,
 		.enabled_caps = 0,

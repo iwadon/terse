@@ -65,20 +65,19 @@ static size_t encode_utf8(unsigned int scalar, char *dest)
 static void display_event(const terse_event_t *event)
 {
 	switch (event->type) {
-	case TERSE_EVENT_CHAR:
-	{
+	case TERSE_EVENT_CHAR: {
 		char utf8[5] = { 0 };
 		size_t len = encode_utf8(event->data.ch.scalar, utf8);
 		utf8[len] = '\0';
 		if (event->data.ch.mods) {
 			printf("[CHAR] '%s' (U+%04X) Modifiers: %s\r\n",
-				utf8,
-				(unsigned int)event->data.ch.scalar,
-				mod_string(event->data.ch.mods));
+			       utf8,
+			       (unsigned int)event->data.ch.scalar,
+			       mod_string(event->data.ch.mods));
 		} else {
 			printf("[CHAR] '%s' (U+%04X)\r\n",
-				utf8,
-				(unsigned int)event->data.ch.scalar);
+			       utf8,
+			       (unsigned int)event->data.ch.scalar);
 		}
 		break;
 	}
@@ -135,16 +134,15 @@ static void display_event(const terse_event_t *event)
 		break;
 	case TERSE_EVENT_FUNCTION:
 		printf("[FUNCTION KEY] F%d Modifiers: %s\r\n",
-			event->data.function.number,
-			mod_string(event->data.function.mods));
+		       event->data.function.number,
+		       mod_string(event->data.function.mods));
 		break;
 	case TERSE_EVENT_RESIZE:
 		printf("[RESIZE] %d rows x %d cols\r\n",
-			event->data.resize.rows,
-			event->data.resize.cols);
+		       event->data.resize.rows,
+		       event->data.resize.cols);
 		break;
-	case TERSE_EVENT_RAW_SEQUENCE:
-	{
+	case TERSE_EVENT_RAW_SEQUENCE: {
 		printf("[RAW SEQUENCE] %zu bytes: ", event->data.raw.length);
 		for (size_t i = 0; i < event->data.raw.length; ++i) {
 			printf("%02X ", event->data.raw.bytes[i]);

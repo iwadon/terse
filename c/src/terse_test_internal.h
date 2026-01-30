@@ -33,11 +33,11 @@ void terse_test_state_init(terse_handle_t handle);
 void terse_test_state_destroy(terse_handle_t handle);
 
 /* Convenience macro for recording API calls */
-#define TERSE_TEST_RECORD_CALL(h, call_type, rec_data) \
-	do { \
-		if ((h)->test_state && (h)->test_state->recording) { \
+#define TERSE_TEST_RECORD_CALL(h, call_type, rec_data)                    \
+	do {                                                                  \
+		if ((h)->test_state && (h)->test_state->recording) {              \
 			record_call((h), (call_type), &(rec_data), sizeof(rec_data)); \
-		} \
+		}                                                                 \
 	} while (0)
 
 #endif // TERSE_ENABLE_TEST_MODE

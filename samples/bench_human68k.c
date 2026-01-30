@@ -6,8 +6,8 @@
 /* Detect Human68k platform */
 #if defined(__human68k__) || defined(__HUMAN68K__)
 #define BENCH_HUMAN68K 1
-#include <x68k/iocs.h>
 #include <x68k/dos.h>
+#include <x68k/iocs.h>
 #else
 #define BENCH_HUMAN68K 0
 #include <time.h>
@@ -155,8 +155,7 @@ benchmark_clear_screen_direct(void)
 }
 #endif
 
-int
-main(void)
+int main(void)
 {
 	terse_options_t options = {
 		.input_fd = STDIN_FILENO,

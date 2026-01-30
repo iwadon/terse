@@ -8,8 +8,8 @@
 
 #ifdef _WIN32
 
-#include <windows.h>
 #include <io.h>
+#include <windows.h>
 
 /* POSIX file descriptor constants */
 #ifndef STDIN_FILENO

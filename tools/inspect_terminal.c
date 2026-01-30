@@ -15,8 +15,8 @@
 #include <x68k/iocs.h>
 #elif defined(_WIN32)
 /* Windows platform */
-#include <windows.h>
 #include <io.h>
+#include <windows.h>
 #else
 /* POSIX platform */
 #include <poll.h>
@@ -62,7 +62,7 @@ static size_t read_bytes_with_timeout(HANDLE handle, unsigned char *buffer, size
 	const DWORD idle_threshold = 150; // Wait 150ms after last byte before giving up
 
 	// Use overlapped I/O for timeout support
-	OVERLAPPED overlapped = {0};
+	OVERLAPPED overlapped = { 0 };
 	overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (!overlapped.hEvent) {
 		return 0;

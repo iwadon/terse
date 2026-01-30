@@ -25,10 +25,10 @@ typedef struct terse_test_state terse_test_state_t;
 #define TERSE_STATE_STACK_MAX 8
 
 /* Internal buffer sizes for escape sequences and text processing */
-#define TERSE_SMALL_BUFFER_SIZE 16    /* Very small buffers (single escape seq) */
-#define TERSE_ESCAPE_BUFFER_SIZE 32   /* Small escape sequences (cursor, style) */
-#define TERSE_LARGE_BUFFER_SIZE 128   /* Large buffers (DA response, style seq) */
-#define TERSE_TEXT_BUFFER_SIZE 256    /* Text and header buffers */
+#define TERSE_SMALL_BUFFER_SIZE 16  /* Very small buffers (single escape seq) */
+#define TERSE_ESCAPE_BUFFER_SIZE 32 /* Small escape sequences (cursor, style) */
+#define TERSE_LARGE_BUFFER_SIZE 128 /* Large buffers (DA response, style seq) */
+#define TERSE_TEXT_BUFFER_SIZE 256  /* Text and header buffers */
 
 typedef enum terse_codec_kind {
 	TERSE_CODEC_UNKNOWN = 0,
@@ -102,22 +102,22 @@ void clear_error(terse_handle_t handle);
  */
 
 /* Check handle validity and return early if invalid */
-#define TERSE_CHECK_HANDLE(h) \
-	do { \
+#define TERSE_CHECK_HANDLE(h)       \
+	do {                            \
 		int _rc = ensure_handle(h); \
-		if (_rc != 0) { \
-			return _rc; \
-		} \
+		if (_rc != 0) {             \
+			return _rc;             \
+		}                           \
 	} while (0)
 
 /* Check handle and clear error on success */
 #define TERSE_CHECK_HANDLE_CLEAR(h) \
-	do { \
+	do {                            \
 		int _rc = ensure_handle(h); \
-		if (_rc != 0) { \
-			return _rc; \
-		} \
-		clear_error(h); \
+		if (_rc != 0) {             \
+			return _rc;             \
+		}                           \
+		clear_error(h);             \
 	} while (0)
 
 /*
@@ -126,19 +126,19 @@ void clear_error(terse_handle_t handle);
  */
 
 /* Write a literal string, returning on error */
-#define TERSE_WRITE_LITERAL(h, lit) \
-	do { \
+#define TERSE_WRITE_LITERAL(h, lit)           \
+	do {                                      \
 		if (write_literal((h), (lit)) != 0) { \
-			return (h)->last_error; \
-		} \
+			return (h)->last_error;           \
+		}                                     \
 	} while (0)
 
 /* Write a sequence with length, returning on error */
-#define TERSE_WRITE_SEQ(h, seq, len) \
-	do { \
+#define TERSE_WRITE_SEQ(h, seq, len)                  \
+	do {                                              \
 		if (write_sequence((h), (seq), (len)) != 0) { \
-			return (h)->last_error; \
-		} \
+			return (h)->last_error;                   \
+		}                                             \
 	} while (0)
 
 #endif // TERSE_HANDLE_H

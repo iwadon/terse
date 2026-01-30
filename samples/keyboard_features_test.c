@@ -21,8 +21,12 @@ static void restore_terminal(void)
 		HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
 		SetConsoleMode(hStdin, g_original_input_mode);
 		SetConsoleMode(hStdout, g_original_output_mode);
-		if (g_original_cp != 0) SetConsoleCP(g_original_cp);
-		if (g_original_output_cp != 0) SetConsoleOutputCP(g_original_output_cp);
+		if (g_original_cp != 0) {
+			SetConsoleCP(g_original_cp);
+		}
+		if (g_original_output_cp != 0) {
+			SetConsoleOutputCP(g_original_output_cp);
+		}
 		g_raw_installed = 0;
 	}
 }
@@ -66,7 +70,7 @@ static int install_raw_terminal(void)
 	atexit(restore_terminal);
 	return 0;
 }
-#else  /* POSIX */
+#else /* POSIX */
 #include <termios.h>
 #include <unistd.h>
 
@@ -100,7 +104,7 @@ static int install_raw_terminal(void)
 	atexit(restore_terminal);
 	return 0;
 }
-#endif  /* _WIN32 */
+#endif /* _WIN32 */
 
 static const char *mod_string(int mods)
 {
@@ -253,13 +257,13 @@ int main(void)
 		}
 
 		if (event.type == TERSE_EVENT_CHAR) {
-			char utf8[5] = {0};
+			char utf8[5] = { 0 };
 			size_t len = encode_utf8(event.data.ch.scalar, utf8);
 			utf8[len] = '\0';
 			printf("CHAR scalar=U+%04X text='%s' mods=%s\r\n",
-				(unsigned int)event.data.ch.scalar,
-				utf8,
-				mod_string(event.data.ch.mods));
+			       (unsigned int)event.data.ch.scalar,
+			       utf8,
+			       mod_string(event.data.ch.mods));
 
 			// Check for Ctrl+C to exit
 			if ((event.data.ch.mods & TERSE_MOD_CTRL) &&
@@ -272,10 +276,10 @@ int main(void)
 		           event.type == TERSE_EVENT_ARROW_LEFT ||
 		           event.type == TERSE_EVENT_ARROW_RIGHT) {
 			printf("ARROW_%s mods=%s\r\n",
-				(event.type == TERSE_EVENT_ARROW_UP) ? "UP" :
-				(event.type == TERSE_EVENT_ARROW_DOWN) ? "DOWN" :
-				(event.type == TERSE_EVENT_ARROW_LEFT) ? "LEFT" : "RIGHT",
-				mod_string(event.data.key.mods));
+			       (event.type == TERSE_EVENT_ARROW_UP) ? "UP" : (event.type == TERSE_EVENT_ARROW_DOWN) ? "DOWN"
+			                                                 : (event.type == TERSE_EVENT_ARROW_LEFT)   ? "LEFT"
+			                                                                                            : "RIGHT",
+			       mod_string(event.data.key.mods));
 		}
 	}
 

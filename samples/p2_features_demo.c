@@ -79,11 +79,11 @@ static void describe_mouse_event(const terse_event_t *ev)
 		break;
 	}
 	printf("Mouse %-6s button=%s row=%d col=%d mods=0x%x\r\n",
-		type,
-		button,
-		ev->data.mouse.row,
-		ev->data.mouse.col,
-		ev->data.mouse.mods);
+	       type,
+	       button,
+	       ev->data.mouse.row,
+	       ev->data.mouse.col,
+	       ev->data.mouse.mods);
 }
 
 static void describe_event(const terse_event_t *ev)

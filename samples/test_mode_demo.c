@@ -29,7 +29,7 @@ static void demo_recording(terse_handle_t handle)
 	terse_clear_screen(handle, TERSE_CLEAR_ALL);
 	terse_show_cursor(handle, 0);
 
-	terse_style_t style = {0};
+	terse_style_t style = { 0 };
 	style.foreground.kind = TERSE_COLOR_KIND_BASIC16;
 	style.foreground.data.basic16.color = TERSE_BASIC_COLOR_RED;
 	style.foreground.data.basic16.bright = 0;
@@ -50,7 +50,7 @@ static void demo_recording(terse_handle_t handle)
 		switch (call->type) {
 		case TERSE_CALL_MOVE_TO:
 			printf("move_to(row=%d, col=%d)\n",
-				call->data.move_to.row, call->data.move_to.col);
+			       call->data.move_to.row, call->data.move_to.col);
 			break;
 		case TERSE_CALL_WRITE_TEXT:
 			printf("write_text(\"%s\")\n", call->data.write_text.text);
@@ -63,8 +63,8 @@ static void demo_recording(terse_handle_t handle)
 			break;
 		case TERSE_CALL_SET_STYLE:
 			printf("set_style(fg_kind=%d, effects=0x%x)\n",
-				call->data.set_style.style.foreground.kind,
-				call->data.set_style.style.effects);
+			       call->data.set_style.style.foreground.kind,
+			       call->data.set_style.style.effects);
 			break;
 		case TERSE_CALL_FLUSH:
 			printf("flush()\n");
@@ -85,7 +85,7 @@ static void demo_mock_capabilities(terse_handle_t handle)
 	printf("Demo 2: Mocking Capabilities\n");
 	printf("Setting mock capabilities...\n\n");
 
-	terse_capabilities_t mock_caps = {0};
+	terse_capabilities_t mock_caps = { 0 };
 	mock_caps.profile = TERSE_P3;
 	mock_caps.colors = TERSE_COLOR_TRUECOLOR;
 	mock_caps.has_truecolor = 1;
@@ -198,19 +198,19 @@ static void demo_mock_events(terse_handle_t handle)
 				printf("ESC key\n");
 			} else if (event.data.ch.mods & TERSE_MOD_CTRL) {
 				printf("Char '%c' (Ctrl+%c)\n", event.data.ch.scalar,
-					event.data.ch.scalar);
+				       event.data.ch.scalar);
 			} else {
 				printf("Char '%c'\n", event.data.ch.scalar);
 			}
 			break;
 		case TERSE_EVENT_MOUSE_DOWN:
 			printf("Mouse DOWN (button=%d, row=%d, col=%d)\n",
-				event.data.mouse.button, event.data.mouse.row,
-				event.data.mouse.col);
+			       event.data.mouse.button, event.data.mouse.row,
+			       event.data.mouse.col);
 			break;
 		case TERSE_EVENT_RESIZE:
 			printf("Resize (%dx%d)\n", event.data.resize.rows,
-				event.data.resize.cols);
+			       event.data.resize.cols);
 			break;
 		default:
 			printf("Event type %d\n", event.type);

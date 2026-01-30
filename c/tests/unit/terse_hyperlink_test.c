@@ -1,11 +1,11 @@
 #include "terse.h"
 #include <attest/attest.h>
 
+#include "test_compat.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "test_compat.h"
 
 #ifdef HAVE_POSIX_PIPE
 
@@ -55,7 +55,8 @@ TEST(TerseHyperlink, SetsHyperlink)
 	char *output = read_all(fds[0]);
 	close(fds[0]);
 
-	const char *expected = "\x1b]8;;https://example.com\x07"
+	const char *expected =
+		"\x1b]8;;https://example.com\x07"
 		"Example\x1b]8;;\x07";
 	size_t expected_len = strlen(expected);
 	size_t output_len = strlen(output);

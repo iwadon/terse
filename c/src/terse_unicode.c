@@ -656,32 +656,28 @@ static const unicode_interval_t ambiguous_intervals[] = {
 	{ 0x100000, 0x10fffd }
 };
 
-int
-terse_is_combining(unsigned int scalar)
+int terse_is_combining(unsigned int scalar)
 {
 	return interval_contains(combining_intervals,
-				 sizeof(combining_intervals) / sizeof(combining_intervals[0]),
-				 scalar);
+	                         sizeof(combining_intervals) / sizeof(combining_intervals[0]),
+	                         scalar);
 }
 
-int
-terse_is_wide(unsigned int scalar)
+int terse_is_wide(unsigned int scalar)
 {
 	return interval_contains(wide_intervals,
-				 sizeof(wide_intervals) / sizeof(wide_intervals[0]),
-				 scalar);
+	                         sizeof(wide_intervals) / sizeof(wide_intervals[0]),
+	                         scalar);
 }
 
-int
-terse_is_ambiguous(unsigned int scalar)
+int terse_is_ambiguous(unsigned int scalar)
 {
 	return interval_contains(ambiguous_intervals,
-				 sizeof(ambiguous_intervals) / sizeof(ambiguous_intervals[0]),
-				 scalar);
+	                         sizeof(ambiguous_intervals) / sizeof(ambiguous_intervals[0]),
+	                         scalar);
 }
 
-int
-terse_compute_cell_width(terse_handle_t handle, unsigned int scalar)
+int terse_compute_cell_width(terse_handle_t handle, unsigned int scalar)
 {
 	/* NULL and control characters have zero width */
 	if (scalar == 0) {
@@ -711,8 +707,7 @@ terse_compute_cell_width(terse_handle_t handle, unsigned int scalar)
  * This provides the same functionality as the internal function
  * for use by applications.
  */
-int
-terse_char_width(terse_handle_t handle, unsigned int scalar)
+int terse_char_width(terse_handle_t handle, unsigned int scalar)
 {
 	return terse_compute_cell_width(handle, scalar);
 }

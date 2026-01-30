@@ -707,8 +707,8 @@ terse_get_cursor_position(terse_handle_t handle)
 
 	int row = 0, col = 0;
 	int rc = terse_platform_query_cursor_position(handle->options.input_fd,
-		handle->options.output_fd,
-		&row, &col);
+	                                              handle->options.output_fd,
+	                                              &row, &col);
 	if (rc != 0) {
 		// rc is already a terse_error_t
 		set_error(handle, (terse_error_t)rc);

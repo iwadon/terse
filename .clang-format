@@ -1,12 +1,17 @@
 # Language: Cpp
 BasedOnStyle: WebKit
-DerivePointerAlignment: false
-PointerAlignment: Right
+AlignAfterOpenBracket: true
+# AlignConsecutiveMacros: Consecutive
+AlignOperands: Align
 AlignTrailingComments: true
-IndentCaseBlocks: true
-UseTab: Always
-IndentWidth: 4
-TabWidth: 4
 AlwaysBreakBeforeMultilineStrings: true
-NamespaceIndentation: None
+BreakBeforeBinaryOperators: false
+DerivePointerAlignment: false
 FixNamespaceComments: true
+IndentCaseBlocks: false
+IndentWidth: 4
+InsertBraces: true
+NamespaceIndentation: None
+PointerAlignment: Right
+TabWidth: 4
+UseTab: AlignWithSpaces

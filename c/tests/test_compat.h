@@ -9,11 +9,11 @@
 
 #ifdef _WIN32
 
+#include <fcntl.h>
+#include <io.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <io.h>
-#include <fcntl.h>
 #include <windows.h>
 
 /* POSIX file descriptor constants */
@@ -86,9 +86,14 @@ static inline int nanosleep(const struct timespec *req, struct timespec *rem)
  *   }
  */
 #ifdef _WIN32
-#define SKIP_ON_WINDOWS() do { return; } while (0)
+#define SKIP_ON_WINDOWS() \
+	do {                  \
+		return;           \
+	} while (0)
 #else
-#define SKIP_ON_WINDOWS() do { } while (0)
+#define SKIP_ON_WINDOWS() \
+	do {                  \
+	} while (0)
 #endif
 
 /*
@@ -96,9 +101,14 @@ static inline int nanosleep(const struct timespec *req, struct timespec *rem)
  * Windows-specific.
  */
 #ifdef _WIN32
-#define SKIP_ON_POSIX() do { } while (0)
+#define SKIP_ON_POSIX() \
+	do {                \
+	} while (0)
 #else
-#define SKIP_ON_POSIX() do { return; } while (0)
+#define SKIP_ON_POSIX() \
+	do {                \
+		return;         \
+	} while (0)
 #endif
 
 #endif /* TEST_COMPAT_H */

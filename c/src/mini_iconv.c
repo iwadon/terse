@@ -368,8 +368,7 @@ iconv(iconv_t cd, char **inbuf, size_t *inbytesleft, char **outbuf, size_t *outb
 	return mini_iconv_utf8_to_sjis(cd, inbuf, inbytesleft, outbuf, outbytesleft);
 }
 
-int
-iconv_close(iconv_t cd)
+int iconv_close(iconv_t cd)
 {
 	if (!cd) {
 		errno = EBADF;

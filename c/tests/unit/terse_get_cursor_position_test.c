@@ -1,9 +1,9 @@
 #include "terse.h"
+#include "test_compat.h"
 #include <attest/attest.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "test_compat.h"
 
 TEST(CursorPosition, Basic)
 {

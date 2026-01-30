@@ -1,12 +1,12 @@
 #include "terse_input.h"
-#include "terse_internal.h"
-#include "terse_platform.h"
-#include "terse_unicode.h"
 #include "terse_codec.h"
 #include "terse_event_helpers.h"
+#include "terse_internal.h"
+#include "terse_platform.h"
 #include "terse_test.h"
-#include <errno.h>
+#include "terse_unicode.h"
 #include <ctype.h>
+#include <errno.h>
 #include <string.h>
 
 /* Forward declarations for internal helpers */
@@ -44,8 +44,7 @@ clear_error(terse_handle_t handle)
  * CSI sequence parser
  * Parses sequences like ESC [ <params> <final>
  */
-int
-terse_parse_csi_sequence(const unsigned char *seq, size_t len, int *values, size_t max_values, size_t *value_count, char *final)
+int terse_parse_csi_sequence(const unsigned char *seq, size_t len, int *values, size_t max_values, size_t *value_count, char *final)
 {
 	if (len < 2 || seq[0] != 0x1b || seq[1] != '[') {
 		return -1;
@@ -94,8 +93,7 @@ terse_parse_csi_sequence(const unsigned char *seq, size_t len, int *values, size
 /*
  * Modifier conversion functions
  */
-int
-terse_modifier_bits_from_param(int param)
+int terse_modifier_bits_from_param(int param)
 {
 	int mods = 0;
 	switch (param) {
@@ -126,8 +124,7 @@ terse_modifier_bits_from_param(int param)
 	return mods;
 }
 
-int
-terse_mods_from_kitty_param(int param)
+int terse_mods_from_kitty_param(int param)
 {
 	if (param <= 0) {
 		return 0;
@@ -149,8 +146,7 @@ terse_mods_from_kitty_param(int param)
 	return mods;
 }
 
-int
-terse_mouse_modifiers_from_param(int param)
+int terse_mouse_modifiers_from_param(int param)
 {
 	int mods = 0;
 	if (param & 4) {
@@ -168,8 +164,7 @@ terse_mouse_modifiers_from_param(int param)
 /*
  * SGR mouse sequence handler (1006 format)
  */
-int
-terse_handle_sgr_mouse_sequence(terse_handle_t handle, terse_event_t *out_event, const int *values, size_t value_count, char final)
+int terse_handle_sgr_mouse_sequence(terse_handle_t handle, terse_event_t *out_event, const int *values, size_t value_count, char final)
 {
 	if (!handle || value_count < 3) {
 		return 0;
@@ -289,8 +284,7 @@ decode_shift_jis_bytes(terse_handle_t handle, const unsigned char *bytes, size_t
 	return SHIFT_JIS_REPLACEMENT;
 }
 
-int
-terse_function_number_from_code(int code)
+int terse_function_number_from_code(int code)
 {
 	switch (code) {
 	case 11:
@@ -349,8 +343,7 @@ terse_function_number_from_code(int code)
 /*
  * Stream character decoder
  */
-int
-terse_decode_stream_char(terse_handle_t handle, int fd, unsigned char first, terse_event_t *event)
+int terse_decode_stream_char(terse_handle_t handle, int fd, unsigned char first, terse_event_t *event)
 {
 	unsigned int scalar = 0;
 	int rc = 0;
@@ -381,8 +374,7 @@ terse_decode_stream_char(terse_handle_t handle, int fd, unsigned char first, ter
 /*
  * Input byte reader with timeout and pending byte buffer
  */
-int
-terse_read_input_byte(terse_handle_t handle, int timeout_ms, unsigned char *out)
+int terse_read_input_byte(terse_handle_t handle, int timeout_ms, unsigned char *out)
 {
 	if (!handle || !out) {
 		return -TERSE_ERR_INVALID_ARGUMENT;
@@ -414,8 +406,7 @@ terse_read_input_byte(terse_handle_t handle, int timeout_ms, unsigned char *out)
 /*
  * Parse control character into event
  */
-int
-terse_parse_control_char(terse_handle_t handle, terse_event_t *out_event, unsigned char ch)
+int terse_parse_control_char(terse_handle_t handle, terse_event_t *out_event, unsigned char ch)
 {
 	switch (ch) {
 	case '\r':
@@ -443,9 +434,8 @@ terse_parse_control_char(terse_handle_t handle, terse_event_t *out_event, unsign
 /*
  * Parse Linux console function key sequence (ESC [ [ A-L)
  */
-int
-terse_parse_linux_console_fkey(terse_handle_t handle, terse_event_t *out_event,
-                               const unsigned char *seq, size_t len)
+int terse_parse_linux_console_fkey(terse_handle_t handle, terse_event_t *out_event,
+                                   const unsigned char *seq, size_t len)
 {
 	(void)handle;
 	if (len != 4 || seq[1] != '[' || seq[2] != '[') {
@@ -466,9 +456,8 @@ terse_parse_linux_console_fkey(terse_handle_t handle, terse_event_t *out_event,
 /*
  * Parse SS3 (ESC O) sequence into event
  */
-int
-terse_parse_ss3_event(terse_handle_t handle, terse_event_t *out_event,
-                      const unsigned char *seq, size_t len)
+int terse_parse_ss3_event(terse_handle_t handle, terse_event_t *out_event,
+                          const unsigned char *seq, size_t len)
 {
 	(void)handle;
 	if (len < 3 || seq[1] != 'O') {
@@ -516,9 +505,8 @@ terse_parse_ss3_event(terse_handle_t handle, terse_event_t *out_event,
 /*
  * Parse CSI (ESC [) sequence into event
  */
-int
-terse_parse_csi_event(terse_handle_t handle, terse_event_t *out_event,
-                      const unsigned char *seq, size_t len)
+int terse_parse_csi_event(terse_handle_t handle, terse_event_t *out_event,
+                          const unsigned char *seq, size_t len)
 {
 	int values[8] = { 0 };
 	size_t value_count = 0;
@@ -705,8 +693,7 @@ terse_parse_csi_event(terse_handle_t handle, terse_event_t *out_event,
 /*
  * Escape-prefixed character handler (Alt+key combinations)
  */
-int
-terse_handle_escape_prefixed_char(terse_handle_t handle, terse_event_t *event, const unsigned char *seq, size_t len)
+int terse_handle_escape_prefixed_char(terse_handle_t handle, terse_event_t *event, const unsigned char *seq, size_t len)
 {
 	if (len < 2 || !handle) {
 		return 0;

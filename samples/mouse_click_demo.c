@@ -63,14 +63,14 @@ static void redraw_screen(terse_handle_t handle, const char *last_event_msg)
 
 	// Draw status line at bottom
 	if (last_event_msg && last_event_msg[0]) {
-		terse_move_to(handle, rows-1, 0);
+		terse_move_to(handle, rows - 1, 0);
 		terse_clear_line(handle, TERSE_CLEAR_ALL);
-		terse_move_to(handle, rows-1, 0);
+		terse_move_to(handle, rows - 1, 0);
 		terse_write_text(handle, last_event_msg);
 	}
 
 	// Move cursor to bottom-right corner to keep it out of the way
-	terse_move_to(handle, rows-1, cols-1);
+	terse_move_to(handle, rows - 1, cols - 1);
 	terse_flush(handle);
 }
 
@@ -116,7 +116,7 @@ int main(void)
 	// Hide cursor for cleaner display
 	terse_show_cursor(handle, 0);
 
-	char last_event_msg[256] = {0};
+	char last_event_msg[256] = { 0 };
 	redraw_screen(handle, NULL);
 
 	while (running) {

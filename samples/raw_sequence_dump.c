@@ -12,8 +12,8 @@
 #ifdef _WIN32
 #include <conio.h>
 #else
-#include <sys/select.h>
 #include <errno.h>
+#include <sys/select.h>
 #endif
 
 static void print_hex_bytes(const unsigned char *bytes, size_t len)
@@ -104,7 +104,7 @@ int main(void)
 		} else {
 			/* Virtual key code only - report it */
 			printf("VK: 0x%02X Scan: 0x%02X Mods: 0x%lx\r\n",
-				key->wVirtualKeyCode, key->wVirtualScanCode, key->dwControlKeyState);
+			       key->wVirtualKeyCode, key->wVirtualScanCode, key->dwControlKeyState);
 			fflush(stdout);
 			continue;
 		}

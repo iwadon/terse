@@ -1,10 +1,10 @@
 #include "terse.h"
 #include <attest/attest.h>
 
+#include "test_compat.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
-#include "test_compat.h"
 
 #ifdef HAVE_POSIX_PIPE
 

@@ -7,8 +7,7 @@
 #endif
 
 /* iconv reset helper (from terse.c) */
-void
-terse_codec_reset_iconv_state(iconv_t cd)
+void terse_codec_reset_iconv_state(iconv_t cd)
 {
 #if TERSE_USE_SYSTEM_ICONV
 	/* Reset iconv state by calling with NULL input */
@@ -18,8 +17,7 @@ terse_codec_reset_iconv_state(iconv_t cd)
 #endif
 }
 
-int
-terse_is_shift_jis_lead_byte(unsigned char ch)
+int terse_is_shift_jis_lead_byte(unsigned char ch)
 {
 	return (ch >= 0x81 && ch <= 0x9f) || (ch >= 0xe0 && ch <= 0xfc);
 }
@@ -80,8 +78,7 @@ terse_decode_utf8_bytes(const unsigned char *bytes, size_t length)
 	return TERSE_UTF8_REPLACEMENT;
 }
 
-int
-terse_decode_utf8_stream(int fd, unsigned char first, unsigned int *out_scalar)
+int terse_decode_utf8_stream(int fd, unsigned char first, unsigned int *out_scalar)
 {
 	unsigned char bytes[4] = { 0 };
 	bytes[0] = first;
@@ -152,8 +149,7 @@ terse_convert_shift_jis_pair(terse_handle_t handle, unsigned char lead, unsigned
 	return terse_decode_utf8_bytes((const unsigned char *)outbuf, produced);
 }
 
-int
-terse_decode_shift_jis_stream(terse_handle_t handle, int fd, unsigned char first, unsigned int *out_scalar)
+int terse_decode_shift_jis_stream(terse_handle_t handle, int fd, unsigned char first, unsigned int *out_scalar)
 {
 	if (first <= 0x7f) {
 		*out_scalar = first;
@@ -180,8 +176,7 @@ terse_decode_shift_jis_stream(terse_handle_t handle, int fd, unsigned char first
 	return 0;
 }
 
-int
-terse_encode_utf8(unsigned int scalar, unsigned char *out)
+int terse_encode_utf8(unsigned int scalar, unsigned char *out)
 {
 	if (!out) {
 		return 0;

@@ -1,5 +1,5 @@
-#include "terse_platform.h"
 #include "terse_internal.h"
+#include "terse_platform.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -498,9 +498,18 @@ convert_key_event(const KEY_EVENT_RECORD *ker, terse_event_t *out_event)
 		out_event->data.key.mods = mods;
 		return TERSE_OK;
 
-	case VK_F1: case VK_F2: case VK_F3: case VK_F4:
-	case VK_F5: case VK_F6: case VK_F7: case VK_F8:
-	case VK_F9: case VK_F10: case VK_F11: case VK_F12:
+	case VK_F1:
+	case VK_F2:
+	case VK_F3:
+	case VK_F4:
+	case VK_F5:
+	case VK_F6:
+	case VK_F7:
+	case VK_F8:
+	case VK_F9:
+	case VK_F10:
+	case VK_F11:
+	case VK_F12:
 		out_event->type = TERSE_EVENT_FUNCTION;
 		out_event->data.function.number = (vk - VK_F1 + 1);
 		out_event->data.function.mods = mods;
@@ -530,13 +539,13 @@ convert_key_event(const KEY_EVENT_RECORD *ker, terse_event_t *out_event)
 		if (wch < 0x80) {
 			out_event->data.ch.width = 1;
 		} else if (wch >= 0x1100 &&
-		           ((wch >= 0x1100 && wch <= 0x115F) || /* Hangul Jamo */
-		            (wch >= 0x2E80 && wch <= 0x9FFF) || /* CJK */
-		            (wch >= 0xAC00 && wch <= 0xD7AF) || /* Hangul Syllables */
-		            (wch >= 0xF900 && wch <= 0xFAFF) || /* CJK Compatibility */
-		            (wch >= 0xFE10 && wch <= 0xFE19) || /* Vertical forms */
-		            (wch >= 0xFE30 && wch <= 0xFE6F) || /* CJK Compatibility Forms */
-		            (wch >= 0xFF00 && wch <= 0xFF60) || /* Fullwidth Forms */
+		           ((wch >= 0x1100 && wch <= 0x115F) ||  /* Hangul Jamo */
+		            (wch >= 0x2E80 && wch <= 0x9FFF) ||  /* CJK */
+		            (wch >= 0xAC00 && wch <= 0xD7AF) ||  /* Hangul Syllables */
+		            (wch >= 0xF900 && wch <= 0xFAFF) ||  /* CJK Compatibility */
+		            (wch >= 0xFE10 && wch <= 0xFE19) ||  /* Vertical forms */
+		            (wch >= 0xFE30 && wch <= 0xFE6F) ||  /* CJK Compatibility Forms */
+		            (wch >= 0xFF00 && wch <= 0xFF60) ||  /* Fullwidth Forms */
 		            (wch >= 0xFFE0 && wch <= 0xFFE6))) { /* Fullwidth Forms */
 			out_event->data.ch.width = 2;
 		} else {
@@ -593,8 +602,7 @@ terse_platform_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *
 	case KEY_EVENT:
 		return convert_key_event(&input_record.Event.KeyEvent, out_event);
 
-	case WINDOW_BUFFER_SIZE_EVENT:
-	{
+	case WINDOW_BUFFER_SIZE_EVENT: {
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
 		if (GetConsoleScreenBufferInfo(input_handle, &csbi)) {
 			out_event->type = TERSE_EVENT_RESIZE;

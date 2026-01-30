@@ -1,6 +1,6 @@
+#include "terse_device.h"
 #include "terse.h"
 #include "terse_handle.h"
-#include "terse_device.h"
 
 #include <errno.h>
 #include <string.h>
@@ -18,12 +18,11 @@ extern int payload_has_disallowed_chars(const char *payload);
  * Mouse control
  * ======================================================================== */
 
-int
-set_mouse_mode(terse_handle_t handle, terse_mouse_mode_t mode, int enable)
+int set_mouse_mode(terse_handle_t handle, terse_mouse_mode_t mode, int enable)
 {
 	static const char *const enable_seqs[][2] = {
-		{ "\x1b[?1000h", NULL },		  // X10
-		{ "\x1b[?1002h", NULL },		  // VT200
+		{ "\x1b[?1000h", NULL },          // X10
+		{ "\x1b[?1002h", NULL },          // VT200
 		{ "\x1b[?1002h", "\x1b[?1006h" }, // SGR
 	};
 	static const char *const disable_seqs[][2] = {
@@ -122,8 +121,7 @@ terse_error_t terse_disable_mouse(terse_handle_t handle)
  * Bracketed paste control
  * ======================================================================== */
 
-int
-set_bracketed_paste(terse_handle_t handle, int enable)
+int set_bracketed_paste(terse_handle_t handle, int enable)
 {
 	const char *seq = enable ? "\x1b[?2004h" : "\x1b[?2004l";
 	return write_literal(handle, seq);

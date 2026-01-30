@@ -360,8 +360,8 @@ TEST(TerseCapabilitiesOverride, EnablesFeaturesOnP0Baseline)
 	EXPECT_EQ(caps.has_text_styles, 0);
 	EXPECT_EQ(caps.has_bracketed_paste, 0);
 	EXPECT_EQ(terse_capabilities_enable(handle,
-				  TERSE_CAP_ENABLE_SGR_BASIC | TERSE_CAP_ENABLE_TEXT_STYLES | TERSE_CAP_ENABLE_SGR_EXTENDED | TERSE_CAP_ENABLE_TRUECOLOR | TERSE_CAP_ENABLE_BRACKETED_PASTE),
-		0);
+	                                    TERSE_CAP_ENABLE_SGR_BASIC | TERSE_CAP_ENABLE_TEXT_STYLES | TERSE_CAP_ENABLE_SGR_EXTENDED | TERSE_CAP_ENABLE_TRUECOLOR | TERSE_CAP_ENABLE_BRACKETED_PASTE),
+	          0);
 	caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.has_sgr_basic, 1);
 	EXPECT_EQ(caps.has_sgr_extended, 1);
@@ -401,8 +401,8 @@ TEST(TerseCapabilitiesOverride, DisablesAndResetsOnP3Baseline)
 	EXPECT_EQ(caps.has_clipboard_write, 1);
 	EXPECT_NE(caps.notifications & TERSE_NOTIFICATION_SUPPORT_DESKTOP, 0);
 	EXPECT_EQ(terse_capabilities_disable(handle,
-				  TERSE_CAP_DISABLE_IMAGE_INLINE | TERSE_CAP_DISABLE_CLIPBOARD_WRITE | TERSE_CAP_DISABLE_NOTIFICATION_DESKTOP),
-		0);
+	                                     TERSE_CAP_DISABLE_IMAGE_INLINE | TERSE_CAP_DISABLE_CLIPBOARD_WRITE | TERSE_CAP_DISABLE_NOTIFICATION_DESKTOP),
+	          0);
 	caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.images, TERSE_IMAGE_NONE);
 	EXPECT_EQ(caps.has_clipboard_write, 0);

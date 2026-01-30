@@ -5,8 +5,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <x68k/dos.h>
 #include <unistd.h>
+#include <x68k/dos.h>
 
 static void print_bytes(const char *label, unsigned char *buffer, size_t len)
 {
@@ -54,8 +54,8 @@ int main(void)
 			int ch = _dos_inkey();
 			buffer[length++] = (unsigned char)(ch & 0xFF);
 			printf("Read byte %zu: 0x%02X ('%c')\r\n",
-			       length, buffer[length-1],
-			       (buffer[length-1] >= 32 && buffer[length-1] < 127) ? buffer[length-1] : '?');
+			       length, buffer[length - 1],
+			       (buffer[length - 1] >= 32 && buffer[length - 1] < 127) ? buffer[length - 1] : '?');
 
 			/* Check if complete */
 			if (buffer[length - 1] == 'R') {

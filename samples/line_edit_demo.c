@@ -116,7 +116,7 @@ static int install_raw_terminal(void)
 	return 0;
 }
 
-#else  /* POSIX */
+#else /* POSIX */
 
 static void restore_terminal(void)
 {
@@ -146,7 +146,7 @@ static int install_raw_terminal(void)
 	return 0;
 }
 
-#endif  /* _WIN32 */
+#endif /* _WIN32 */
 
 static void print_error(terse_handle_t handle, const char *label)
 {
@@ -421,8 +421,8 @@ int main(int argc, char **argv)
 
 #ifdef _WIN32
 	terse_options_t options = {
-		.input_fd = 0,   /* stdin */
-		.output_fd = 1,  /* stdout */
+		.input_fd = 0,  /* stdin */
+		.output_fd = 1, /* stdout */
 		.codec_name = codec,
 		.disabled_caps = 0,
 		.enabled_caps = TERSE_CAP_ENABLE_TEXT_STYLES | TERSE_CAP_ENABLE_BRACKETED_PASTE | TERSE_CAP_ENABLE_CURSOR_SHAPE

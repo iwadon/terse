@@ -103,8 +103,7 @@ enable_mask_from_disable(unsigned int disable_mask)
 	return mask;
 }
 
-void
-recompute_capabilities(terse_handle_t handle)
+void recompute_capabilities(terse_handle_t handle)
 {
 	if (!handle) {
 		return;

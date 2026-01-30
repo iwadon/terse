@@ -24,8 +24,8 @@ static unsigned char *generate_test_image(size_t *out_size)
 		for (int x = 0; x < width; x++) {
 			int offset = (y * width + x) * bytes_per_pixel;
 			// Horizontal gradient (red -> green -> blue)
-			data[offset + 0] = (unsigned char)((x * 255) / width);  // R
-			data[offset + 1] = (unsigned char)((y * 255) / height); // G
+			data[offset + 0] = (unsigned char)((x * 255) / width);           // R
+			data[offset + 1] = (unsigned char)((y * 255) / height);          // G
 			data[offset + 2] = (unsigned char)(((width - x) * 255) / width); // B
 		}
 	}

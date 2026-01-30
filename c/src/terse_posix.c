@@ -1,5 +1,5 @@
-#include "terse_platform.h"
 #include "terse_handle.h"
+#include "terse_platform.h"
 
 #include <errno.h>
 #ifdef TERSE_HAVE_POLL_H

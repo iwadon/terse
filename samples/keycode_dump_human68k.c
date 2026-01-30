@@ -207,17 +207,17 @@ static int is_shift_jis_lead_byte(unsigned char ch)
 static int is_modifier_key(unsigned int keysns)
 {
 	unsigned int scancode = (keysns >> 8) & 0x7f;
-	return scancode == 0x70 /* SHIFT */
-		|| scancode == 0x71 /* CTRL */
-		|| scancode == 0x72 /* OPT.1 (Alt) */
-		|| scancode == 0x73 /* OPT.2 (AltGr) */
-		|| scancode == 0x5a /* かな */
-		|| scancode == 0x5b /* ローマ字 */
-		|| scancode == 0x5c /* コード入力 */
-		|| scancode == 0x5d /* CAPS */
-		|| scancode == 0x5e /* INS */
-		|| scancode == 0x5f /* ひらがな */
-		|| scancode == 0x60 /* 全角 */
+	return scancode == 0x70    /* SHIFT */
+	       || scancode == 0x71 /* CTRL */
+	       || scancode == 0x72 /* OPT.1 (Alt) */
+	       || scancode == 0x73 /* OPT.2 (AltGr) */
+	       || scancode == 0x5a /* かな */
+	       || scancode == 0x5b /* ローマ字 */
+	       || scancode == 0x5c /* コード入力 */
+	       || scancode == 0x5d /* CAPS */
+	       || scancode == 0x5e /* INS */
+	       || scancode == 0x5f /* ひらがな */
+	       || scancode == 0x60 /* 全角 */
 		;
 }
 

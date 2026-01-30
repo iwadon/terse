@@ -1,12 +1,12 @@
 #include "terse.h"
 #include <attest/attest.h>
 
+#include "test_compat.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "test_compat.h"
 
 #ifdef HAVE_POSIX_PIPE
 
@@ -23,7 +23,7 @@ static ssize_t read_pipe_data(int fd, char *buffer, size_t size)
 	memset(buffer, 0, size);
 	ssize_t n = read(fd, buffer, size);
 	if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-		struct timespec ts = {.tv_sec = 0, .tv_nsec = 1000000};
+		struct timespec ts = { .tv_sec = 0, .tv_nsec = 1000000 };
 		nanosleep(&ts, NULL);
 		n = read(fd, buffer, size);
 	}
@@ -109,7 +109,9 @@ TEST(TerseImage, RejectsNameWithControlChars)
 	EXPECT_NOT_NULL(handle);
 	unsigned char payload[] = { 0x01, 0x02, 0x03 };
 	errno = 0;
-	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_display_image_inline(handle, payload, sizeof(payload), "bad\x07""name"));
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_display_image_inline(handle, payload, sizeof(payload),
+	                                                                 "bad\x07"
+	                                                                 "name"));
 	EXPECT_EQ(EINVAL, errno);
 	expect_no_bytes_available_fd(out_pipe[0]);
 	terse_close(handle);

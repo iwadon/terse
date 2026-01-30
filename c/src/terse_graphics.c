@@ -1,8 +1,9 @@
+#include "terse_graphics.h"
 #include "terse.h"
 #include "terse_handle.h"
-#include "terse_graphics.h"
 
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,8 +18,7 @@ extern char *base64_encode(const unsigned char *data, size_t size, size_t *out_l
  * Payload validation helper (shared with terse_output.c)
  * ======================================================================== */
 
-int
-payload_has_disallowed_chars(const char *payload)
+int payload_has_disallowed_chars(const char *payload)
 {
 	if (!payload) {
 		return 0;
@@ -79,8 +79,7 @@ terse_error_t terse_set_clipboard(terse_handle_t handle, const char *data)
  * Image display helpers
  * ======================================================================== */
 
-int
-send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
+int send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
 {
 	if (payload_has_disallowed_chars(name)) {
 		errno = EINVAL;
@@ -100,10 +99,10 @@ send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t
 	}
 	char header[TERSE_TEXT_BUFFER_SIZE];
 	int header_len = snprintf(header,
-		sizeof(header),
-		"\x1b]1337;File=name=%s;size=%zu;inline=1:",
-		name_encoded,
-		size);
+	                          sizeof(header),
+	                          "\x1b]1337;File=name=%s;size=%zu;inline=1:",
+	                          name_encoded,
+	                          size);
 	free(name_encoded);
 	if (header_len <= 0 || (size_t)header_len >= sizeof(header)) {
 		free(data_encoded);
@@ -127,8 +126,7 @@ send_iterm_inline_image(terse_handle_t handle, const unsigned char *data, size_t
 	return 0;
 }
 
-int
-send_sixel_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
+int send_sixel_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
 {
 	(void)name;
 	static const char prefix[] = "\x1bPq";
@@ -153,8 +151,7 @@ send_sixel_image(terse_handle_t handle, const unsigned char *data, size_t size, 
 	return 0;
 }
 
-int
-send_kitty_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
+int send_kitty_image(terse_handle_t handle, const unsigned char *data, size_t size, const char *name)
 {
 	(void)name;
 	size_t encoded_len = 0;

@@ -3,9 +3,9 @@
  * Tests terse_get_cursor_position() functionality
  */
 
-#include <terse.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <terse.h>
 
 int main(void)
 {

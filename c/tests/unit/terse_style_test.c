@@ -70,7 +70,6 @@ TEST(TerseStyle, AppliesBasicStyleAndEffects)
 	terse_close(handle);
 }
 
-
 TEST(TerseStyle, SetStyleIsNoOpForSameStyle)
 {
 	int fds[2];
@@ -124,7 +123,7 @@ TEST(TerseStyle, SetStyleDegradesTrueColorTo256)
 		.input_fd = fds[0],
 		.output_fd = fds[1],
 		.enabled_caps = TERSE_CAP_ENABLE_SGR_EXTENDED, // Enable 256 colors
-		.disabled_caps = TERSE_CAP_DISABLE_TRUECOLOR, // Disable truecolor
+		.disabled_caps = TERSE_CAP_DISABLE_TRUECOLOR,  // Disable truecolor
 	};
 
 	terse_handle_t handle = terse_open(TERSE_P1, &options);

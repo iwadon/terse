@@ -1,11 +1,11 @@
 #include "terse.h"
 #include <attest/attest.h>
 
+#include "test_compat.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
 #include <time.h>
-#include "test_compat.h"
 
 #ifdef HAVE_POSIX_PIPE
 
@@ -22,7 +22,7 @@ static ssize_t read_pipe_data(int fd, char *buffer, size_t size)
 	memset(buffer, 0, size);
 	ssize_t n = read(fd, buffer, size);
 	if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-		struct timespec ts = {.tv_sec = 0, .tv_nsec = 1000000};
+		struct timespec ts = { .tv_sec = 0, .tv_nsec = 1000000 };
 		nanosleep(&ts, NULL);
 		n = read(fd, buffer, size);
 	}

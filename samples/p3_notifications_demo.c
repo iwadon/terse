@@ -11,9 +11,9 @@ static void print_capabilities(const terse_capabilities_t *caps)
 {
 	printf("Detected profile: P%d\n", caps->profile);
 	printf("Notifications: %s%s%s\n",
-		(caps->notifications & TERSE_NOTIFICATION_SUPPORT_BELL) ? "bell " : "",
-		(caps->notifications & TERSE_NOTIFICATION_SUPPORT_VISUAL) ? "visual " : "",
-		(caps->notifications & TERSE_NOTIFICATION_SUPPORT_DESKTOP) ? "desktop" : "");
+	       (caps->notifications & TERSE_NOTIFICATION_SUPPORT_BELL) ? "bell " : "",
+	       (caps->notifications & TERSE_NOTIFICATION_SUPPORT_VISUAL) ? "visual " : "",
+	       (caps->notifications & TERSE_NOTIFICATION_SUPPORT_DESKTOP) ? "desktop" : "");
 	fflush(stdout);
 }
 

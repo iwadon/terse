@@ -9,8 +9,8 @@
  */
 
 #include "terse_detection.h"
-#include "terse_platform.h"
 #include "terse_handle.h"
+#include "terse_platform.h"
 #include <stdlib.h>
 #include <string.h>
 

@@ -1,9 +1,9 @@
 #include "terse.h"
 #include <attest/attest.h>
 
+#include "test_compat.h"
 #include <errno.h>
 #include <fcntl.h>
-#include "test_compat.h"
 
 #ifdef HAVE_POSIX_PIPE
 
@@ -49,10 +49,10 @@ TEST(TerseCharWidth, ControlCharacters)
 	terse_handle_t handle;
 	create_handle_with_ambiguous_option(0, &handle, fds);
 
-	EXPECT_EQ(0, terse_char_width(handle, 0x00));  /* NUL */
-	EXPECT_EQ(0, terse_char_width(handle, 0x1F));  /* US */
-	EXPECT_EQ(0, terse_char_width(handle, 0x7F));  /* DEL */
-	EXPECT_EQ(0, terse_char_width(handle, 0x9F));  /* C1 control */
+	EXPECT_EQ(0, terse_char_width(handle, 0x00)); /* NUL */
+	EXPECT_EQ(0, terse_char_width(handle, 0x1F)); /* US */
+	EXPECT_EQ(0, terse_char_width(handle, 0x7F)); /* DEL */
+	EXPECT_EQ(0, terse_char_width(handle, 0x9F)); /* C1 control */
 
 	terse_close(handle);
 	close(fds[0]);
@@ -67,10 +67,10 @@ TEST(TerseCharWidth, WideCharacters)
 	terse_handle_t handle;
 	create_handle_with_ambiguous_option(0, &handle, fds);
 
-	EXPECT_EQ(2, terse_char_width(handle, 0x3042));  /* あ HIRAGANA LETTER A */
-	EXPECT_EQ(2, terse_char_width(handle, 0x4E2D));  /* 中 CJK unified ideograph */
-	EXPECT_EQ(2, terse_char_width(handle, 0xAC00));  /* 가 HANGUL SYLLABLE GA */
-	EXPECT_EQ(2, terse_char_width(handle, 0xFF21));  /* Ａ FULLWIDTH LATIN CAPITAL LETTER A */
+	EXPECT_EQ(2, terse_char_width(handle, 0x3042)); /* あ HIRAGANA LETTER A */
+	EXPECT_EQ(2, terse_char_width(handle, 0x4E2D)); /* 中 CJK unified ideograph */
+	EXPECT_EQ(2, terse_char_width(handle, 0xAC00)); /* 가 HANGUL SYLLABLE GA */
+	EXPECT_EQ(2, terse_char_width(handle, 0xFF21)); /* Ａ FULLWIDTH LATIN CAPITAL LETTER A */
 
 	terse_close(handle);
 	close(fds[0]);
@@ -85,10 +85,10 @@ TEST(TerseCharWidth, CombiningCharacters)
 	terse_handle_t handle;
 	create_handle_with_ambiguous_option(0, &handle, fds);
 
-	EXPECT_EQ(0, terse_char_width(handle, 0x0300));  /* COMBINING GRAVE ACCENT */
-	EXPECT_EQ(0, terse_char_width(handle, 0x0301));  /* COMBINING ACUTE ACCENT */
-	EXPECT_EQ(0, terse_char_width(handle, 0x0308));  /* COMBINING DIAERESIS */
-	EXPECT_EQ(0, terse_char_width(handle, 0x20DD));  /* COMBINING ENCLOSING CIRCLE */
+	EXPECT_EQ(0, terse_char_width(handle, 0x0300)); /* COMBINING GRAVE ACCENT */
+	EXPECT_EQ(0, terse_char_width(handle, 0x0301)); /* COMBINING ACUTE ACCENT */
+	EXPECT_EQ(0, terse_char_width(handle, 0x0308)); /* COMBINING DIAERESIS */
+	EXPECT_EQ(0, terse_char_width(handle, 0x20DD)); /* COMBINING ENCLOSING CIRCLE */
 
 	terse_close(handle);
 	close(fds[0]);
@@ -103,10 +103,10 @@ TEST(TerseCharWidth, AmbiguousNarrow)
 	terse_handle_t handle;
 	create_handle_with_ambiguous_option(0, &handle, fds);
 
-	EXPECT_EQ(1, terse_char_width(handle, 0x00B1));  /* ± PLUS-MINUS SIGN */
-	EXPECT_EQ(1, terse_char_width(handle, 0x00A7));  /* § SECTION SIGN */
-	EXPECT_EQ(1, terse_char_width(handle, 0x00B0));  /* ° DEGREE SIGN */
-	EXPECT_EQ(1, terse_char_width(handle, 0x0391));  /* Α GREEK CAPITAL LETTER ALPHA */
+	EXPECT_EQ(1, terse_char_width(handle, 0x00B1)); /* ± PLUS-MINUS SIGN */
+	EXPECT_EQ(1, terse_char_width(handle, 0x00A7)); /* § SECTION SIGN */
+	EXPECT_EQ(1, terse_char_width(handle, 0x00B0)); /* ° DEGREE SIGN */
+	EXPECT_EQ(1, terse_char_width(handle, 0x0391)); /* Α GREEK CAPITAL LETTER ALPHA */
 
 	terse_close(handle);
 	close(fds[0]);
@@ -121,10 +121,10 @@ TEST(TerseCharWidth, AmbiguousWide)
 	terse_handle_t handle;
 	create_handle_with_ambiguous_option(1, &handle, fds);
 
-	EXPECT_EQ(2, terse_char_width(handle, 0x00B1));  /* ± PLUS-MINUS SIGN */
-	EXPECT_EQ(2, terse_char_width(handle, 0x00A7));  /* § SECTION SIGN */
-	EXPECT_EQ(2, terse_char_width(handle, 0x00B0));  /* ° DEGREE SIGN */
-	EXPECT_EQ(2, terse_char_width(handle, 0x0391));  /* Α GREEK CAPITAL LETTER ALPHA */
+	EXPECT_EQ(2, terse_char_width(handle, 0x00B1)); /* ± PLUS-MINUS SIGN */
+	EXPECT_EQ(2, terse_char_width(handle, 0x00A7)); /* § SECTION SIGN */
+	EXPECT_EQ(2, terse_char_width(handle, 0x00B0)); /* ° DEGREE SIGN */
+	EXPECT_EQ(2, terse_char_width(handle, 0x0391)); /* Α GREEK CAPITAL LETTER ALPHA */
 
 	terse_close(handle);
 	close(fds[0]);
@@ -162,9 +162,9 @@ TEST(TerseCharWidth, NullHandle)
 {
 	/* With NULL handle, ambiguous characters should be treated as narrow */
 	EXPECT_EQ(1, terse_char_width(NULL, 'A'));
-	EXPECT_EQ(2, terse_char_width(NULL, 0x3042));  /* あ - wide character */
-	EXPECT_EQ(1, terse_char_width(NULL, 0x00B1));  /* ± - ambiguous, default narrow */
-	EXPECT_EQ(0, terse_char_width(NULL, 0x0300));  /* combining */
+	EXPECT_EQ(2, terse_char_width(NULL, 0x3042)); /* あ - wide character */
+	EXPECT_EQ(1, terse_char_width(NULL, 0x00B1)); /* ± - ambiguous, default narrow */
+	EXPECT_EQ(0, terse_char_width(NULL, 0x0300)); /* combining */
 }
 
 #endif /* HAVE_POSIX_PIPE */

@@ -41,8 +41,7 @@ extern int write_literal(terse_handle_t handle, const char *literal);
 extern int write_sequence(terse_handle_t handle, const char *sequence, size_t length);
 extern void set_error(terse_handle_t handle, terse_error_t error);
 
-int
-terse_style_color_support_rank(terse_color_support_t support)
+int terse_style_color_support_rank(terse_color_support_t support)
 {
 	switch (support) {
 	case TERSE_COLOR_NONE:
@@ -147,8 +146,7 @@ mask_effects(unsigned int effects)
 	return effects & TERSE_STYLE_ALL_SUPPORTED;
 }
 
-int
-terse_style_colors_equal(const terse_color_t *a, const terse_color_t *b)
+int terse_style_colors_equal(const terse_color_t *a, const terse_color_t *b)
 {
 	if (a->kind != b->kind) {
 		return 0;
@@ -167,8 +165,7 @@ terse_style_colors_equal(const terse_color_t *a, const terse_color_t *b)
 	}
 }
 
-int
-terse_style_styles_equal(const terse_style_t *a, const terse_style_t *b)
+int terse_style_styles_equal(const terse_style_t *a, const terse_style_t *b)
 {
 	if (a->effects != b->effects) {
 		return 0;
@@ -197,40 +194,38 @@ terse_style_degrade_color(terse_color_t color, terse_color_support_t support)
 		return color;
 	}
 	switch (support) {
-	case TERSE_COLOR_BASIC16:
-		{
-			unsigned char r = 0;
-			unsigned char g = 0;
-			unsigned char b = 0;
-			if (color.kind == TERSE_COLOR_KIND_TRUECOLOR) {
-				r = color.data.truecolor.r;
-				g = color.data.truecolor.g;
-				b = color.data.truecolor.b;
-			} else if (color.kind == TERSE_COLOR_KIND_PALETTE256) {
-				palette_index_to_rgb(color.data.palette.value, &r, &g, &b);
-			}
-			unsigned char idx = closest_basic16_index(r, g, b);
-			terse_color_t basic = {
-				.kind = TERSE_COLOR_KIND_BASIC16,
-				.data.basic16 = {
-					.color = (terse_basic_color_t)(idx % 8),
-					.bright = idx >= 8,
-				},
+	case TERSE_COLOR_BASIC16: {
+		unsigned char r = 0;
+		unsigned char g = 0;
+		unsigned char b = 0;
+		if (color.kind == TERSE_COLOR_KIND_TRUECOLOR) {
+			r = color.data.truecolor.r;
+			g = color.data.truecolor.g;
+			b = color.data.truecolor.b;
+		} else if (color.kind == TERSE_COLOR_KIND_PALETTE256) {
+			palette_index_to_rgb(color.data.palette.value, &r, &g, &b);
+		}
+		unsigned char idx = closest_basic16_index(r, g, b);
+		terse_color_t basic = {
+			.kind = TERSE_COLOR_KIND_BASIC16,
+			.data.basic16 = {
+				.color = (terse_basic_color_t)(idx % 8),
+				.bright = idx >= 8,
+			},
+		};
+		return basic;
+	}
+	case TERSE_COLOR_PALETTE256: {
+		if (color.kind == TERSE_COLOR_KIND_TRUECOLOR) {
+			unsigned char idx = truecolor_to_palette_index(color.data.truecolor.r, color.data.truecolor.g, color.data.truecolor.b);
+			terse_color_t palette = {
+				.kind = TERSE_COLOR_KIND_PALETTE256,
+				.data.palette = { .value = idx },
 			};
-			return basic;
+			return palette;
 		}
-	case TERSE_COLOR_PALETTE256:
-		{
-			if (color.kind == TERSE_COLOR_KIND_TRUECOLOR) {
-				unsigned char idx = truecolor_to_palette_index(color.data.truecolor.r, color.data.truecolor.g, color.data.truecolor.b);
-				terse_color_t palette = {
-					.kind = TERSE_COLOR_KIND_PALETTE256,
-					.data.palette = { .value = idx },
-				};
-				return palette;
-			}
-			break;
-		}
+		break;
+	}
 	case TERSE_COLOR_TRUECOLOR:
 		break;
 	default:
@@ -364,8 +359,7 @@ append_color(char *seq, size_t size, size_t *pos, int *first, int is_foreground,
 	}
 }
 
-int
-terse_style_emit_sequence(terse_handle_t handle, const terse_style_t *style)
+int terse_style_emit_sequence(terse_handle_t handle, const terse_style_t *style)
 {
 	int reset = write_literal(handle, "\x1b[0m");
 	if (reset != 0) {

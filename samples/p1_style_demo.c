@@ -57,7 +57,7 @@ static void demo_effects(terse_handle_t handle)
 	show_effect(handle, 12, TERSE_STYLE_STRIKE, "Strike");
 	wait_briefly();
 	show_effect(handle, 14, TERSE_STYLE_BOLD | TERSE_STYLE_UNDERLINE | TERSE_STYLE_STRIKE,
-		"Bold+Underline+Strike");
+	            "Bold+Underline+Strike");
 }
 
 int main(void)
