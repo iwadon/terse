@@ -33,12 +33,8 @@ jobs:
         python .github/scripts/get_installation_token.py > /tmp/install_token.txt
         echo "INSTALL_TOKEN=$(cat /tmp/install_token.txt)" >> $GITHUB_ENV
 
-    - name: Checkout repository
-      uses: actions/checkout@v5
-      with:
-        token: ${{ env.INSTALL_TOKEN }}
-        submodules: true
-        fetch-depth: 0
+    - name: Configure git credentials for FetchContent
+      run: git config --global url."https://x-access-token:${INSTALL_TOKEN}@github.com/".insteadOf "https://github.com/"
 
     - name: Install dependencies
       run: |
