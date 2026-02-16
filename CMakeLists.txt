@@ -24,8 +24,14 @@ else()
   option(TERSE_BUILD_TESTING "Build terse tests" OFF)
 endif()
 
+include(FetchContent)
+
 if(TERSE_BUILD_TESTING)
-  add_subdirectory(external/attest)
+  FetchContent_Declare(attest
+    GIT_REPOSITORY https://github.com/iwadon/attest.git
+    GIT_TAG        29ffd9732399c02ad4759d5c1642e8786f665681
+  )
+  FetchContent_MakeAvailable(attest)
 endif()
 
 add_subdirectory(c)

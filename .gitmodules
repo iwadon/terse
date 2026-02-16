@@ -1,3 +1,0 @@
-[submodule "external/attest"]
-	path = external/attest
-	url = https://github.com/iwadon/attest.git
