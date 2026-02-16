@@ -58,28 +58,30 @@ if(TERSE_BUILD_SAMPLES)
   add_subdirectory(samples)
 endif()
 
-set(TERSE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/terse")
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+  set(TERSE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/terse")
 
-write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/terseConfigVersion.cmake"
-  VERSION ${PROJECT_VERSION}
-  COMPATIBILITY SameMajorVersion
-)
+  write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/terseConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+  )
 
-configure_package_config_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/terseConfig.cmake.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/terseConfig.cmake"
-  INSTALL_DESTINATION "${TERSE_INSTALL_CMAKEDIR}"
-)
+  configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/terseConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/terseConfig.cmake"
+    INSTALL_DESTINATION "${TERSE_INSTALL_CMAKEDIR}"
+  )
 
-install(EXPORT terseTargets
-  FILE terseTargets.cmake
-  NAMESPACE terse::
-  DESTINATION "${TERSE_INSTALL_CMAKEDIR}"
-)
+  install(EXPORT terseTargets
+    FILE terseTargets.cmake
+    NAMESPACE terse::
+    DESTINATION "${TERSE_INSTALL_CMAKEDIR}"
+  )
 
-install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/terseConfig.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/terseConfigVersion.cmake"
-  DESTINATION "${TERSE_INSTALL_CMAKEDIR}"
-)
+  install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/terseConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/terseConfigVersion.cmake"
+    DESTINATION "${TERSE_INSTALL_CMAKEDIR}"
+  )
+endif()
