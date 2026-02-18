@@ -1,5 +1,9 @@
 # Sample programs for terse library
 
+if(MSVC)
+  add_compile_options(/source-charset:utf-8)
+endif()
+
 # List of all sample programs
 if(TERSE_PLATFORM_HUMAN68K)
 set(SAMPLES
