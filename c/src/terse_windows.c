@@ -1,4 +1,4 @@
-#include "terse_internal.h"
+#include "terse_handle.h"
 #include "terse_platform.h"
 
 #include <errno.h>
