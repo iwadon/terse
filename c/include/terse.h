@@ -3,6 +3,10 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct terse_handle *terse_handle_t;
 
 typedef enum terse_profile {
@@ -424,5 +428,9 @@ int terse_encode_utf8(unsigned int scalar, unsigned char *out);
  * Ambiguous width characters respect the east_asian_ambiguous_as_wide option.
  */
 int terse_char_width(terse_handle_t handle, unsigned int scalar);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // TERSE_H_INCLUDED

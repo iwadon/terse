@@ -5,6 +5,10 @@
 
 #ifdef TERSE_ENABLE_TEST_MODE
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum terse_call_type {
 	TERSE_CALL_WRITE_TEXT = 0,
 	TERSE_CALL_MOVE_TO,
@@ -60,6 +64,10 @@ int terse_test_mock_capabilities(terse_handle_t handle, const terse_capabilities
 int terse_test_mock_size(terse_handle_t handle, int rows, int cols);
 int terse_test_mock_events(terse_handle_t handle, const terse_event_t *events, int count);
 int terse_test_reset_mocks(terse_handle_t handle);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // TERSE_ENABLE_TEST_MODE
 
