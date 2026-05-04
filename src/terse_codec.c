@@ -45,11 +45,17 @@ passthrough_init(terse_codec_t *codec)
 }
 
 /* ========================================================================
- * iconv backend (POSIX with non-UTF-8 codec, currently unused but kept
- * for future use; Human68k uses mini_iconv via the same interface)
+ * iconv backend (POSIX with non-UTF-8 codec; Human68k uses mini_iconv
+ * via the same interface)
  * ======================================================================== */
 
-#if !defined(_WIN32) && !defined(__human68k__)
+#if !defined(_WIN32)
+
+#if defined(__human68k__)
+/* Human68k has no system iconv; always use mini_iconv */
+#undef TERSE_USE_SYSTEM_ICONV
+#define TERSE_USE_SYSTEM_ICONV 0
+#endif
 
 #ifndef TERSE_USE_SYSTEM_ICONV
 #define TERSE_USE_SYSTEM_ICONV 1
@@ -164,7 +170,7 @@ iconv_codec_init(terse_codec_t *codec, const char *encoding)
 	return 0;
 }
 
-#endif /* !_WIN32 && !__human68k__ */
+#endif /* !_WIN32 */
 
 /* ========================================================================
  * Win32 backend
