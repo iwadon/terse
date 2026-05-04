@@ -196,3 +196,103 @@ TEST(CursorPosition, InvalidHandle)
 	terse_cursor_position_t pos = terse_get_cursor_position(NULL);
 	EXPECT_EQ(0, pos.known);
 }
+
+#ifdef _WIN32
+#include <io.h>
+
+/*
+ * Windows-specific tests for terse_get_cursor_position.
+ *
+ * On Windows we use GetConsoleScreenBufferInfo (not CPR), so:
+ *  - Non-console FDs (files, pipes) must return NOT_TTY without writing
+ *    any escape sequence to the output. The previous CPR-based code would
+ *    leak "\x1b[6n" onto whatever the output_fd pointed at.
+ *  - When the output FD is a real console, the call must succeed and
+ *    return coordinates without producing visible text.
+ */
+
+TEST(CursorPosition, Windows_ReturnsNotTty_WhenOutputIsFile)
+{
+	// Create a temporary file and use it as both input/output FDs.
+	// On Windows this fd is not a console, so the platform layer must
+	// return NOT_TTY and must NOT write the CPR query sequence to it.
+	char tmp_path[MAX_PATH];
+	char tmp_dir[MAX_PATH];
+	DWORD dir_len = GetTempPathA(sizeof(tmp_dir), tmp_dir);
+	EXPECT_TRUE(dir_len > 0 && dir_len < sizeof(tmp_dir));
+	UINT uniq = GetTempFileNameA(tmp_dir, "tcp", 0, tmp_path);
+	EXPECT_TRUE(uniq != 0);
+
+	int fd = _open(tmp_path, _O_RDWR | _O_BINARY);
+	EXPECT_TRUE(fd >= 0);
+
+	terse_options_t options = {
+		.input_fd = fd,
+		.output_fd = fd,
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = 0,
+	};
+
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_NE(NULL, handle);
+
+	terse_cursor_position_t pos = terse_get_cursor_position(handle);
+	EXPECT_EQ(0, pos.known);
+	EXPECT_EQ(TERSE_ERR_NOT_TTY, terse_get_last_error(handle));
+
+	terse_close(handle);
+
+	// Verify nothing (especially no CPR query "\x1b[6n") was written to
+	// the file. terse_close may emit cleanup sequences, so only assert
+	// that no CPR query bytes exist anywhere in the captured output.
+	_lseek(fd, 0, SEEK_SET);
+	unsigned char buf[256];
+	int n = _read(fd, buf, sizeof(buf));
+	for (int i = 0; i + 3 < n; i++) {
+		int leaked = (buf[i] == 0x1b && buf[i + 1] == '[' &&
+		              buf[i + 2] == '6' && buf[i + 3] == 'n');
+		EXPECT_TRUE(!leaked);
+	}
+
+	_close(fd);
+	DeleteFileA(tmp_path);
+}
+
+TEST(CursorPosition, Windows_SucceedsOnRealConsole)
+{
+	// Only run when stdout is actually attached to a Windows console.
+	// In CI or under redirection this test no-ops.
+	HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+	DWORD mode = 0;
+	if (!out || out == INVALID_HANDLE_VALUE || !GetConsoleMode(out, &mode)) {
+		return;
+	}
+
+	terse_options_t options = {
+		.input_fd = 0,
+		.output_fd = 1,
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = 0,
+	};
+
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_NE(NULL, handle);
+
+	terse_cursor_position_t pos = terse_get_cursor_position(handle);
+	EXPECT_EQ(1, pos.known);
+
+	// Cross-check against the Win32 API directly. The library reports
+	// viewport-relative 0-based coords, which must match what we compute
+	// here independently from CONSOLE_SCREEN_BUFFER_INFO.
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	EXPECT_TRUE(GetConsoleScreenBufferInfo(out, &csbi));
+	int expected_row = (int)csbi.dwCursorPosition.Y - (int)csbi.srWindow.Top;
+	int expected_col = (int)csbi.dwCursorPosition.X - (int)csbi.srWindow.Left;
+	EXPECT_EQ(expected_row, pos.row);
+	EXPECT_EQ(expected_col, pos.col);
+
+	terse_close(handle);
+}
+#endif /* _WIN32 */

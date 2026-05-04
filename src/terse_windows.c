@@ -174,108 +174,29 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 
-	HANDLE input_handle = get_console_handle(input_fd);
-	HANDLE output_handle = get_console_handle(output_fd);
+	// Windows Console: query cursor position directly via Win32 API.
+	// We deliberately avoid CPR (CSI 6 n) here. CPR on Windows is fragile —
+	// the response can leak as visible text if input mode flags (ECHO/LINE/
+	// PROCESSED) are not cleared exactly right, and WaitForSingleObject on
+	// the input handle signals on any input record (key/focus/mouse), not
+	// on the CPR reply itself. GetConsoleScreenBufferInfo is authoritative
+	// and side-effect free.
+	(void)input_fd;
 
-	if (!is_console_handle(input_handle) || !is_console_handle(output_handle)) {
+	HANDLE output_handle = get_console_handle(output_fd);
+	if (!is_console_handle(output_handle)) {
 		return TERSE_ERR_NOT_TTY;
 	}
 
-	// Save current console modes
-	DWORD original_input_mode, original_output_mode;
-	if (!GetConsoleMode(input_handle, &original_input_mode) ||
-	    !GetConsoleMode(output_handle, &original_output_mode)) {
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	if (!GetConsoleScreenBufferInfo(output_handle, &csbi)) {
 		return TERSE_ERR_IO;
 	}
 
-	// Set raw mode
-	DWORD raw_input_mode = original_input_mode | ENABLE_VIRTUAL_TERMINAL_INPUT;
-	DWORD raw_output_mode = original_output_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT | DISABLE_NEWLINE_AUTO_RETURN;
-	if (!SetConsoleMode(input_handle, raw_input_mode) ||
-	    !SetConsoleMode(output_handle, raw_output_mode)) {
-		return TERSE_ERR_IO;
-	}
-
-	// Send CPR (Cursor Position Report) request: CSI 6 n
-	const char request[] = "\x1b[6n";
-	DWORD written;
-	if (!WriteFile(output_handle, request, sizeof(request) - 1, &written, NULL)) {
-		SetConsoleMode(input_handle, original_input_mode);
-		SetConsoleMode(output_handle, original_output_mode);
-		return TERSE_ERR_IO;
-	}
-
-	// Read response: CSI row ; col R
-	unsigned char buffer[TERSE_ESCAPE_BUFFER_SIZE];
-	size_t length = 0;
-	const int timeout_ms = 200;
-	const int slice = 25;
-	int remaining = timeout_ms;
-
-	while (length < sizeof(buffer)) {
-		int wait = (remaining < slice) ? remaining : slice;
-		DWORD result = WaitForSingleObject(input_handle, (DWORD)wait);
-
-		if (result == WAIT_TIMEOUT) {
-			remaining -= wait;
-			if (remaining <= 0) {
-				break;
-			}
-			continue;
-		}
-		if (result != WAIT_OBJECT_0) {
-			SetConsoleMode(input_handle, original_input_mode);
-			SetConsoleMode(output_handle, original_output_mode);
-			return TERSE_ERR_IO;
-		}
-
-		DWORD read_count;
-		if (!ReadFile(input_handle, buffer + length, (DWORD)(sizeof(buffer) - length), &read_count, NULL)) {
-			break;
-		}
-		if (read_count == 0) {
-			break;
-		}
-		length += read_count;
-		remaining -= wait;
-
-		// Check if we have a complete response (ends with 'R')
-		if (length > 0 && buffer[length - 1] == 'R') {
-			break;
-		}
-	}
-
-	// Restore console modes
-	SetConsoleMode(input_handle, original_input_mode);
-	SetConsoleMode(output_handle, original_output_mode);
-
-	// Parse response: ESC [ row ; col R
-	if (length < 6 || buffer[0] != 0x1b || buffer[1] != '[' || buffer[length - 1] != 'R') {
-		return TERSE_ERR_PROTOCOL;
-	}
-
-	// Parse row and col
-	int row = 0, col = 0;
-	size_t i = 2;
-	while (i < length && buffer[i] >= '0' && buffer[i] <= '9') {
-		row = row * 10 + (buffer[i] - '0');
-		i++;
-	}
-	if (i >= length || buffer[i] != ';') {
-		return TERSE_ERR_PROTOCOL;
-	}
-	i++; // skip ';'
-	while (i < length && buffer[i] >= '0' && buffer[i] <= '9') {
-		col = col * 10 + (buffer[i] - '0');
-		i++;
-	}
-	if (i >= length || buffer[i] != 'R') {
-		return TERSE_ERR_PROTOCOL;
-	}
-
-	// Terminal returns 1-based coordinates, convert to 0-based
-	*out_row = row - 1;
-	*out_col = col - 1;
+	// Convert buffer-absolute coordinates to viewport-relative (0-based),
+	// matching the coordinate system terse exposes to applications.
+	*out_row = (int)csbi.dwCursorPosition.Y - (int)csbi.srWindow.Top;
+	*out_col = (int)csbi.dwCursorPosition.X - (int)csbi.srWindow.Left;
 	return TERSE_OK;
 }
 
