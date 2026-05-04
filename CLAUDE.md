@@ -70,12 +70,12 @@ All tests are compiled into a unified binary. Run it directly for verbose output
 
 Unix-like systems:
 ```sh
-./build/c/tests/terse_unit_test
+./build/tests/terse_unit_test
 ```
 
 Windows:
 ```cmd
-build\c\tests\Debug\terse_unit_test.exe
+build\tests\Debug\terse_unit_test.exe
 ```
 
 ### Building Samples
@@ -86,13 +86,13 @@ To manually compile a sample after building the library:
 
 Unix-like systems:
 ```sh
-cc -I./c/include -L./build/c -lterse samples/p0_demo.c -o p0_demo
+cc -I./include -L./build -lterse samples/p0_demo.c -o p0_demo
 ./p0_demo
 ```
 
 Windows (using MSVC compiler):
 ```cmd
-cl /I.\c\include samples\p0_demo.c /link /LIBPATH:.\build\c\Debug terse.lib
+cl /I.\include samples\p0_demo.c /link /LIBPATH:.\build\Debug terse.lib
 p0_demo.exe
 ```
 
@@ -118,13 +118,13 @@ The library organizes terminal features into hierarchical profiles:
 - **Error handling**: Functions return `terse_error_t` enum codes; use `terse_get_last_error()` to retrieve the last error code
 - **Coordinate system**: 0-based coordinates (0, 0) = top-left; internally converts to 1-based for terminal escape sequences
 
-### Platform Abstraction (c/src/terse_platform.h)
-The library provides platform abstraction through `c/src/terse_platform.h` with implementations for POSIX (macOS/Linux), Windows, Human68k, and a stub for unsupported platforms. Platform selection is automatic via CMake. See `docs/terse-platform-porting.md` for porting details.
+### Platform Abstraction (src/terse_platform.h)
+The library provides platform abstraction through `src/terse_platform.h` with implementations for POSIX (macOS/Linux), Windows, Human68k, and a stub for unsupported platforms. Platform selection is automatic via CMake. See `docs/terse-platform-porting.md` for porting details.
 
 ### Terminal Detection
 Environment variable inspection (`TERM_PROGRAM`, `TERM`, `VTE_VERSION`, etc.) combined with Secondary Device Attributes (DA) sequences to identify specific terminals and their feature sets. On Windows, uses console mode and VT sequence support detection.
 
-### Codec Support (c/src/terse.c and c/src/mini_iconv.c)
+### Codec Support (src/terse.c and src/mini_iconv.c)
 - Multibyte character codec support with East Asian Width-based cell width estimation
 - Built-in mini iconv when system iconv unavailable. See `docs/mini-iconv-plan.md` for supported charsets and design rationale
 
@@ -136,23 +136,23 @@ Parses terminal input into `terse_event_t` structures covering keyboard input, m
 
 ## Key Implementation Files
 
-- `c/include/terse.h`: Public API surface (all `terse_*` symbols)
-- `c/src/terse.c`: Core library implementation (platform-agnostic)
-- `c/src/terse_posix.c`: POSIX platform layer (macOS/Linux - termios, poll, ioctl)
-- `c/src/terse_windows.c`: Windows platform layer (Win32 Console API, ReadConsoleInput)
-- `c/src/terse_human68k.c`: Human68k platform layer (X68000 system)
-- `c/src/terse_platform_stub.c`: Stub for unsupported platforms
-- `c/src/mini_iconv.c`: Fallback charset converter for Shift_JIS
-- `c/src/terse_platform.h`: Platform abstraction interface
+- `include/terse.h`: Public API surface (all `terse_*` symbols)
+- `src/terse.c`: Core library implementation (platform-agnostic)
+- `src/terse_posix.c`: POSIX platform layer (macOS/Linux - termios, poll, ioctl)
+- `src/terse_windows.c`: Windows platform layer (Win32 Console API, ReadConsoleInput)
+- `src/terse_human68k.c`: Human68k platform layer (X68000 system)
+- `src/terse_platform_stub.c`: Stub for unsupported platforms
+- `src/mini_iconv.c`: Fallback charset converter for Shift_JIS
+- `src/terse_platform.h`: Platform abstraction interface
 
 ## Testing Strategy
 
-All unit tests located in `c/tests/unit/`:
+All unit tests located in `tests/unit/`:
 - Tests are compiled into a unified `terse_unit_test` executable using the attest framework
-- Tests are registered via `add_test()` in `c/tests/CMakeLists.txt`
+- Tests are registered via `add_test()` in `tests/CMakeLists.txt`
 - Run all tests: `ctest --test-dir build --output-on-failure`
-- Run unified test binary directly: `./build/c/tests/terse_unit_test` (Unix) or `build\c\tests\Debug\terse_unit_test.exe` (Windows)
-- Test coverage spans core API and feature areas. See `c/tests/CMakeLists.txt` for the complete list
+- Run unified test binary directly: `./build/tests/terse_unit_test` (Unix) or `build\tests\Debug\terse_unit_test.exe` (Windows)
+- Test coverage spans core API and feature areas. See `tests/CMakeLists.txt` for the complete list
 
 ### Test Mode
 Build with `-DTERSE_ENABLE_TEST_MODE=ON` to enable test mode features:
@@ -166,7 +166,7 @@ Example usage in `samples/test_mode_demo.c` demonstrates recording API calls and
 ## Coding Style
 
 - K&R brace style, tab indentation, one declaration per line
-- Public API uses `terse_` prefix; internal symbols should remain in `c/src`
+- Public API uses `terse_` prefix; internal symbols should remain in `src`
 - Use `clang-format` for large diffs
 - Error returns: `terse_error_t` enum codes; success returns `TERSE_OK` (0)
 
@@ -194,7 +194,7 @@ When extending the library:
 1. Determine the appropriate profile level (P0-P3)
 2. Add capability flags to `terse_capabilities_t` if needed
 3. Implement feature with graceful no-op fallback when unsupported
-4. Add unit test in `c/tests/unit/` and register in `c/tests/CMakeLists.txt`
+4. Add unit test in `tests/unit/` and register in `tests/CMakeLists.txt`
 5. Update `docs/progress-overview.md` to reflect implementation status
 6. Consider adding a sample in `samples/` if the feature is user-facing
 
