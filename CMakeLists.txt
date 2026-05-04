@@ -29,7 +29,7 @@ include(FetchContent)
 if(TERSE_BUILD_TESTING)
   FetchContent_Declare(attest
     GIT_REPOSITORY https://github.com/iwadon/attest.git
-    GIT_TAG        29ffd9732399c02ad4759d5c1642e8786f665681
+    GIT_TAG        ca245b7c754feee46050fbdac92039fa5c259e88
   )
   FetchContent_MakeAvailable(attest)
 endif()
