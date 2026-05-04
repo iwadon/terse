@@ -428,10 +428,16 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	clear_error(handle);
 	refresh_size(handle);
 	handle->has_pending_byte = 0;
+	handle->platform_data = NULL;
 
 #ifdef TERSE_ENABLE_TEST_MODE
 	terse_test_state_init(handle);
 #endif
+
+	/* Platform init may enable VT processing on Windows etc.
+	 * Failures are intentionally non-fatal: a terminal that refuses VT
+	 * still works for plain output, just without escape-sequence features. */
+	(void)terse_platform_init(handle);
 
 	return handle;
 }
@@ -447,6 +453,12 @@ void terse_close(terse_handle_t handle)
 #endif
 	}
 	emit_reset_sequences(handle);
+	if (handle) {
+		/* Restore platform-owned state (e.g. Windows console mode) AFTER
+		 * the final reset sequences have been emitted, so any VT-dependent
+		 * resets reach the terminal before VT processing is turned off. */
+		terse_platform_shutdown(handle);
+	}
 	destroy_codec_handles(handle);
 	free(handle);
 }

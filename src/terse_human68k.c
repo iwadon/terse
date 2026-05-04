@@ -22,6 +22,17 @@ terse_options_t terse_platform_default_options(void)
 	return options;
 }
 
+terse_error_t terse_platform_init(terse_handle_t handle)
+{
+	(void)handle;
+	return TERSE_OK;
+}
+
+void terse_platform_shutdown(terse_handle_t handle)
+{
+	(void)handle;
+}
+
 terse_size_t terse_platform_query_fd_size(int fd)
 {
 	(void)fd; /* Human68k doesn't use fd for console I/O */

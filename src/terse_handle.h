@@ -70,6 +70,10 @@ struct terse_handle {
 	int state_stack_top; // -1 when empty
 	unsigned char pending_byte;
 	int has_pending_byte;
+	/* Platform-specific opaque state, owned by the platform layer.
+	 * Allocated in terse_platform_init() and freed in terse_platform_shutdown().
+	 * Platforms that need no per-handle state leave this NULL. */
+	void *platform_data;
 #ifdef TERSE_ENABLE_TEST_MODE
 	terse_test_state_t *test_state;
 #endif

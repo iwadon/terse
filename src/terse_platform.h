@@ -11,6 +11,16 @@ typedef SSIZE_T ssize_t;
 #include "terse.h"
 
 terse_options_t terse_platform_default_options(void);
+
+/* Platform-specific initialization and shutdown.
+ * init() is called by terse_open() after the handle is otherwise initialized.
+ * shutdown() is called by terse_close() before codec handles are destroyed.
+ * Implementations may use handle->platform_data to store opaque per-handle state.
+ * Both functions must be safe to call even when init() previously failed
+ * (shutdown is invoked unconditionally on close). */
+terse_error_t terse_platform_init(terse_handle_t handle);
+void terse_platform_shutdown(terse_handle_t handle);
+
 terse_size_t terse_platform_query_fd_size(int fd);
 size_t terse_platform_probe_secondary_da(int input_fd, int output_fd, unsigned char *buffer, size_t capacity);
 terse_error_t terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, int *out_col);

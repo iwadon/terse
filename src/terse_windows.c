@@ -3,8 +3,24 @@
 
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <windows.h>
+
+/* Per-handle Windows console state.
+ *
+ * Captures the original console mode at terse_open() so we can restore it
+ * at terse_close(), per Microsoft's recommendation that command-line apps
+ * should leave the console as they found it.
+ * See: https://learn.microsoft.com/windows/console/console-modes
+ */
+typedef struct {
+	HANDLE output_handle;
+	DWORD original_output_mode;
+	int output_mode_saved;
+	DWORD applied_output_mode;
+	int output_mode_changed;
+} windows_platform_data_t;
 
 // Windows handle mapping for stdin/stdout file descriptors
 // fd 0 = stdin, fd 1 = stdout, fd 2 = stderr
@@ -105,6 +121,8 @@ read_bytes_with_timeout(int fd, unsigned char *buffer, size_t capacity, int time
 terse_options_t
 terse_platform_default_options(void)
 {
+	/* Pure: returns defaults without touching console state.
+	 * Console mode setup happens in terse_platform_init(). */
 	terse_options_t options = {
 		.input_fd = 0,  // stdin
 		.output_fd = 1, // stdout
@@ -112,22 +130,86 @@ terse_platform_default_options(void)
 		.disabled_caps = 0,
 		.enabled_caps = 0,
 	};
+	return options;
+}
 
-	// Enable virtual terminal processing on Windows 10+
-	HANDLE output_handle = GetStdHandle(STD_OUTPUT_HANDLE);
-	if (is_console_handle(output_handle)) {
-		DWORD mode;
-		if (GetConsoleMode(output_handle, &mode)) {
-			mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-			SetConsoleMode(output_handle, mode);
-		}
+terse_error_t
+terse_platform_init(terse_handle_t handle)
+{
+	if (!handle) {
+		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 
-	// NOTE: Do NOT enable ENABLE_VIRTUAL_TERMINAL_INPUT here
-	// It breaks ReadConsoleInput() modifier key detection (vk=0, dwControlKeyState=0)
-	// Applications should set console mode before calling terse_open() if needed
+	HANDLE output_handle = get_console_handle(handle->options.output_fd);
+	if (!is_console_handle(output_handle)) {
+		/* Output is redirected (file/pipe) — nothing to configure. */
+		return TERSE_OK;
+	}
 
-	return options;
+	windows_platform_data_t *data = calloc(1, sizeof(*data));
+	if (!data) {
+		return TERSE_ERR_OUT_OF_MEMORY;
+	}
+	data->output_handle = output_handle;
+
+	DWORD original_mode;
+	if (!GetConsoleMode(output_handle, &original_mode)) {
+		/* Cannot query mode — leave platform_data allocated but unmarked
+		 * so shutdown() becomes a no-op restore. */
+		handle->platform_data = data;
+		return TERSE_OK;
+	}
+	data->original_output_mode = original_mode;
+	data->output_mode_saved = 1;
+
+	/* Microsoft-recommended graceful degradation: try the richer flag set
+	 * first, then fall back to just ENABLE_VIRTUAL_TERMINAL_PROCESSING.
+	 * See "Example of Enabling Virtual Terminal Processing":
+	 * https://learn.microsoft.com/windows/console/console-virtual-terminal-sequences */
+	DWORD requested = ENABLE_VIRTUAL_TERMINAL_PROCESSING | DISABLE_NEWLINE_AUTO_RETURN;
+	DWORD desired_mode = original_mode | requested;
+	if (!SetConsoleMode(output_handle, desired_mode)) {
+		requested = ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+		desired_mode = original_mode | requested;
+		if (!SetConsoleMode(output_handle, desired_mode)) {
+			/* Down-level system: VT not available. Keep original_mode
+			 * recorded so shutdown does no harm; output still functions
+			 * for plain text — VT escape sequences will be visible as
+			 * raw characters, which is the documented degradation. */
+			handle->platform_data = data;
+			return TERSE_OK;
+		}
+	}
+	data->applied_output_mode = desired_mode;
+	data->output_mode_changed = (desired_mode != original_mode);
+
+	/* NOTE: Do NOT enable ENABLE_VIRTUAL_TERMINAL_INPUT here.
+	 * It breaks ReadConsoleInput() modifier key detection (vk=0,
+	 * dwControlKeyState=0). Applications that need VT input should set
+	 * the input mode themselves. */
+
+	handle->platform_data = data;
+	return TERSE_OK;
+}
+
+void
+terse_platform_shutdown(terse_handle_t handle)
+{
+	if (!handle || !handle->platform_data) {
+		return;
+	}
+	windows_platform_data_t *data = (windows_platform_data_t *)handle->platform_data;
+	if (data->output_mode_changed && data->output_mode_saved &&
+	    is_console_handle(data->output_handle)) {
+		/* Restore the exact mode we observed at init time. We deliberately
+		 * do NOT re-read the current mode and mask off our flags: another
+		 * actor may have changed the mode in between, and writing back
+		 * the original snapshot is the closest we can get to "leave it
+		 * as we found it." */
+		SetConsoleMode(data->output_handle, data->original_output_mode);
+	}
+	free(data);
+	handle->platform_data = NULL;
 }
 
 terse_size_t
