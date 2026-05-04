@@ -17,25 +17,6 @@ jobs:
         submodules: false
         fetch-depth: 0
 
-    - name: Set up Python and dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install PyJWT requests
-
-    - name: Get GitHub App installation token
-      id: get_token
-      env:
-        APP_ID: ${{ secrets.APP_ID }}
-        APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
-        # Optional: INSTALLATION_ID can be set if you prefer fixed id
-        # INSTALLATION_ID: ${{ secrets.INSTALLATION_ID }}
-      run: |
-        python .github/scripts/get_installation_token.py > /tmp/install_token.txt
-        echo "INSTALL_TOKEN=$(cat /tmp/install_token.txt)" >> $GITHUB_ENV
-
-    - name: Configure git credentials for FetchContent
-      run: git config --global url."https://x-access-token:${INSTALL_TOKEN}@github.com/".insteadOf "https://github.com/"
-
     - name: Install dependencies
       run: |
         sudo apt-get update
