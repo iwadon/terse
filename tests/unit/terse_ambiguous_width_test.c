@@ -14,7 +14,7 @@ static void create_input_handle_with_ambiguous_option(int ambiguous_as_wide, ter
 
 	terse_options_t options = {
 		.input_fd = fds[0],
-		.output_fd = STDOUT_FILENO,
+		.output_fd = fds[1],
 		.codec_name = "UTF-8",
 		.disabled_caps = 0,
 		.east_asian_ambiguous_as_wide = ambiguous_as_wide,

@@ -3,6 +3,12 @@
 
 #include <string.h>
 
+static void close_quietly(terse_handle_t handle)
+{
+	(void)terse_capabilities_disable(handle, TERSE_CAP_DISABLE_BASIC_OUTPUT);
+	terse_close(handle);
+}
+
 TEST(TerseEventHelpers, SetsCharEventFields)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
@@ -15,7 +21,7 @@ TEST(TerseEventHelpers, SetsCharEventFields)
 	EXPECT_EQ(1, event.data.ch.width);
 	EXPECT_EQ(TERSE_MOD_CTRL, event.data.ch.mods);
 
-	terse_close(handle);
+	close_quietly(handle);
 }
 
 TEST(TerseEventHelpers, SetsKeyEventFields)

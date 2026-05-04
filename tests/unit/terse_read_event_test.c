@@ -6,6 +6,12 @@
 #include <fcntl.h>
 #include <string.h>
 
+static void close_quietly(terse_handle_t handle)
+{
+	(void)terse_capabilities_disable(handle, TERSE_CAP_DISABLE_BASIC_OUTPUT);
+	terse_close(handle);
+}
+
 #ifdef HAVE_POSIX_PIPE
 
 static void create_input_handle_with_codec(const char *codec, terse_handle_t *out_handle, int fds[2])
@@ -14,7 +20,7 @@ static void create_input_handle_with_codec(const char *codec, terse_handle_t *ou
 
 	terse_options_t options = {
 		.input_fd = fds[0],
-		.output_fd = STDOUT_FILENO,
+		.output_fd = fds[1],
 		.codec_name = codec,
 		.disabled_caps = 0,
 	};
@@ -600,7 +606,7 @@ TEST(TerseReadEvent, ReturnsEINVAL_OnNullArguments)
 	EXPECT_NOT_NULL(handle);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_read_event(handle, 0, NULL));
 	EXPECT_EQ(EINVAL, errno);
-	terse_close(handle);
+	close_quietly(handle);
 }
 
 #ifdef HAVE_POSIX_PIPE

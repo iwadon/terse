@@ -82,6 +82,12 @@ static terse_style_t make_truecolor_style(unsigned char r, unsigned char g, unsi
 	return style;
 }
 
+static void close_quietly(terse_handle_t handle)
+{
+	(void)terse_capabilities_disable(handle, TERSE_CAP_DISABLE_BASIC_OUTPUT);
+	terse_close(handle);
+}
+
 TEST(TerseClearScreen, EmitsAfterSequence_OnAfter)
 {
 	int fds[2];
@@ -739,7 +745,7 @@ TEST(TerseOutputError, ReturnsConfigError_OnInvalidMode)
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
 	terse_error_t err = terse_get_last_error(handle);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
-	terse_close(handle);
+	close_quietly(handle);
 }
 
 TEST(TerseResetStyle, ReturnsEINVAL_OnInvalidScope)
@@ -751,7 +757,7 @@ TEST(TerseResetStyle, ReturnsEINVAL_OnInvalidScope)
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
 	terse_error_t err = terse_get_last_error(handle);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
-	terse_close(handle);
+	close_quietly(handle);
 }
 
 TEST(TerseStateCapture, ReturnsConfigError_OnNullState)
@@ -762,7 +768,7 @@ TEST(TerseStateCapture, ReturnsConfigError_OnNullState)
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
 	terse_error_t err = terse_get_last_error(handle);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
-	terse_close(handle);
+	close_quietly(handle);
 }
 
 TEST(TerseStateRestore, ReturnsConfigError_OnNullState)
@@ -773,5 +779,5 @@ TEST(TerseStateRestore, ReturnsConfigError_OnNullState)
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
 	terse_error_t err = terse_get_last_error(handle);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
-	terse_close(handle);
+	close_quietly(handle);
 }

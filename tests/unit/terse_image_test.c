@@ -8,6 +8,12 @@
 #include <string.h>
 #include <time.h>
 
+static void close_quietly(terse_handle_t handle)
+{
+	(void)terse_capabilities_disable(handle, TERSE_CAP_DISABLE_BASIC_OUTPUT);
+	terse_close(handle);
+}
+
 #ifdef HAVE_POSIX_PIPE
 
 static void set_nonblocking(int fd)
@@ -425,7 +431,7 @@ TEST(TerseImage, ErrorsOnInvalidRequest)
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_display_image(handle, NULL));
 	terse_error_t err = terse_get_last_error(handle);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
-	terse_close(handle);
+	close_quietly(handle);
 }
 
 TEST(TerseImage, ErrorsOnMissingData)
@@ -444,5 +450,5 @@ TEST(TerseImage, ErrorsOnMissingData)
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_display_image(handle, &request));
 	terse_error_t err = terse_get_last_error(handle);
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, err);
-	terse_close(handle);
+	close_quietly(handle);
 }

@@ -14,7 +14,7 @@ static void create_input_handle(terse_handle_t *out_handle, int fds[2])
 
 	terse_options_t options = {
 		.input_fd = fds[0],
-		.output_fd = STDOUT_FILENO,
+		.output_fd = fds[1],
 		.codec_name = "UTF-8",
 		.disabled_caps = 0,
 	};

@@ -1,6 +1,46 @@
 #include "terse.h"
 #include <attest/attest.h>
 
+#include "test_compat.h"
+
+typedef struct test_handle {
+	terse_handle_t handle;
+	int fds[2];
+} test_handle_t;
+
+static test_handle_t open_test_handle(void)
+{
+	test_handle_t ctx = {
+		.handle = NULL,
+		.fds = { -1, -1 },
+	};
+#ifdef HAVE_POSIX_PIPE
+	EXPECT_TRUE(pipe(ctx.fds) == 0);
+	terse_options_t options = {
+		.input_fd = ctx.fds[0],
+		.output_fd = ctx.fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = 0,
+	};
+	ctx.handle = terse_open(TERSE_PROFILE_AUTO, &options);
+#else
+	ctx.handle = terse_open(TERSE_PROFILE_AUTO, NULL);
+#endif
+	EXPECT_NOT_NULL(ctx.handle);
+	return ctx;
+}
+
+static void close_test_handle(test_handle_t *ctx)
+{
+	(void)terse_capabilities_disable(ctx->handle, TERSE_CAP_DISABLE_BASIC_OUTPUT);
+	terse_close(ctx->handle);
+#ifdef HAVE_POSIX_PIPE
+	close(ctx->fds[0]);
+	close(ctx->fds[1]);
+#endif
+}
+
 static terse_state_t make_known_state(int row, int col, terse_basic_color_t color)
 {
 	terse_state_t state = {
@@ -18,8 +58,8 @@ static terse_state_t make_known_state(int row, int col, terse_basic_color_t colo
 
 TEST(TerseStateStack, RestoresState_OnPop)
 {
-	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_NOT_NULL(handle);
+	test_handle_t ctx = open_test_handle();
+	terse_handle_t handle = ctx.handle;
 
 	terse_state_t initial = make_known_state(6, 2, TERSE_BASIC_COLOR_GREEN);
 	EXPECT_EQ(TERSE_OK, terse_state_override(handle, &initial));
@@ -44,13 +84,13 @@ TEST(TerseStateStack, RestoresState_OnPop)
 	EXPECT_EQ(TERSE_COLOR_KIND_BASIC16, captured.style.foreground.kind);
 	EXPECT_EQ(TERSE_BASIC_COLOR_GREEN, captured.style.foreground.data.basic16.color);
 
-	terse_close(handle);
+	close_test_handle(&ctx);
 }
 
 TEST(TerseStateStack, UnderflowPreservesState_OnEmptyPop)
 {
-	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_NOT_NULL(handle);
+	test_handle_t ctx = open_test_handle();
+	terse_handle_t handle = ctx.handle;
 
 	terse_state_t initial = make_known_state(3, 5, TERSE_BASIC_COLOR_RED);
 	EXPECT_EQ(TERSE_OK, terse_state_override(handle, &initial));
@@ -72,13 +112,13 @@ TEST(TerseStateStack, UnderflowPreservesState_OnEmptyPop)
 	EXPECT_EQ(before.style.foreground.kind, after.style.foreground.kind);
 	EXPECT_EQ(before.style.foreground.data.basic16.color, after.style.foreground.data.basic16.color);
 
-	terse_close(handle);
+	close_test_handle(&ctx);
 }
 
 TEST(TerseStateStack, OverflowSetsLastError_OnTooManyPushes)
 {
-	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
-	EXPECT_NOT_NULL(handle);
+	test_handle_t ctx = open_test_handle();
+	terse_handle_t handle = ctx.handle;
 
 	int overflow_hit = 0;
 	for (int i = 0; i < 32; i++) {
@@ -92,5 +132,5 @@ TEST(TerseStateStack, OverflowSetsLastError_OnTooManyPushes)
 	}
 	EXPECT_TRUE(overflow_hit);
 
-	terse_close(handle);
+	close_test_handle(&ctx);
 }

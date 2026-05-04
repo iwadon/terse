@@ -5,6 +5,12 @@
 
 #include "test_compat.h"
 
+static void close_quietly(terse_handle_t handle)
+{
+	(void)terse_capabilities_disable(handle, TERSE_CAP_DISABLE_BASIC_OUTPUT);
+	terse_close(handle);
+}
+
 TEST(TerseValidateOptions, ReturnsZero_OnNull)
 {
 	errno = 0;
@@ -129,7 +135,7 @@ TEST(TerseCapabilities, DefaultsMatchP0)
 	EXPECT_EQ(0, caps.has_clipboard_write);
 	EXPECT_EQ(TERSE_COLOR_NONE, caps.colors);
 	EXPECT_EQ(0u, caps.effects);
-	terse_close(handle);
+	close_quietly(handle);
 }
 
 TEST(TerseGetOptions, ReturnsEINVAL_OnNullOut)
@@ -139,5 +145,5 @@ TEST(TerseGetOptions, ReturnsEINVAL_OnNullOut)
 	errno = 0;
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_get_options(handle, NULL));
 	EXPECT_EQ(EINVAL, errno);
-	terse_close(handle);
+	close_quietly(handle);
 }

@@ -62,6 +62,16 @@ clear_detection_environment(void)
 }
 
 static void
+close_quietly(terse_handle_t handle)
+{
+	if (!handle) {
+		return;
+	}
+	(void)terse_capabilities_disable(handle, TERSE_CAP_DISABLE_BASIC_OUTPUT);
+	terse_close(handle);
+}
+
+static void
 backup_env_list(env_backup_t *backups, size_t count, const char *const *names)
 {
 	for (size_t i = 0; i < count; ++i) {
@@ -81,7 +91,7 @@ TEST(TerseOpen, ReturnsNonNull_OnValidProfile)
 {
 	terse_handle_t handle = terse_open(TERSE_P0, NULL);
 	EXPECT_NOT_NULL(handle);
-	terse_close(handle);
+	close_quietly(handle);
 }
 
 TEST(TerseOpen, ReturnsNull_OnInvalidProfile)
@@ -114,7 +124,7 @@ TEST(TerseOpen, ReturnsP0Profile_OnExplicitP3WithoutHints)
 	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P0);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -142,7 +152,7 @@ TEST(TerseOpen, ReturnsP0Profile_OnAutoWithoutHints)
 	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
 	EXPECT_EQ(caps.profile, TERSE_P0);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -168,7 +178,7 @@ TEST(TerseOpen, DetectsP1Profile_OnAppleTerminalEnv)
 	EXPECT_EQ(caps.profile, TERSE_P1);
 	EXPECT_EQ(caps.has_truecolor, 1);
 	EXPECT_EQ(caps.has_bracketed_paste, 0);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -195,7 +205,7 @@ TEST(TerseOpen, DetectsP1Profile_OnWarpTerminal)
 	EXPECT_EQ(caps.profile, TERSE_P1);
 	EXPECT_EQ(caps.has_truecolor, 1);
 	EXPECT_EQ(caps.has_bracketed_paste, 0);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -222,7 +232,7 @@ TEST(TerseOpen, DetectsP2Profile_OnVteSignatures)
 	EXPECT_EQ(caps.profile, TERSE_P2);
 	EXPECT_EQ(caps.mouse, TERSE_MOUSE_SGR);
 	EXPECT_EQ(caps.has_bracketed_paste, 1);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -252,7 +262,7 @@ TEST(TerseOpen, DetectsP3Profile_OnITermEnv)
 	EXPECT_EQ(caps.images, TERSE_IMAGE_ITERM_INLINE);
 	EXPECT_EQ(caps.has_clipboard_write, 1);
 	EXPECT_EQ(caps.has_bracketed_paste, 1);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -282,7 +292,7 @@ TEST(TerseOpen, DetectsP3Profile_OnWezTermEnv)
 	EXPECT_EQ(caps.images, TERSE_IMAGE_KITTY);
 	EXPECT_EQ(caps.has_clipboard_write, 1);
 	EXPECT_EQ(caps.mouse, TERSE_MOUSE_SGR);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -308,7 +318,7 @@ TEST(TerseOpen, DetectsP3Profile_OnKittyEnv)
 	EXPECT_EQ(caps.images, TERSE_IMAGE_KITTY);
 	EXPECT_EQ(caps.has_clipboard_write, 1);
 	EXPECT_EQ(caps.has_bracketed_paste, 1);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -335,7 +345,7 @@ TEST(TerseOpen, DetectsP3Profile_OnGhosttyEnv)
 	EXPECT_EQ(caps.profile, TERSE_P3);
 	EXPECT_EQ(caps.has_clipboard_write, 1);
 	EXPECT_EQ(caps.has_bracketed_paste, 1);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -370,7 +380,7 @@ TEST(TerseCapabilitiesOverride, EnablesFeaturesOnP0Baseline)
 	EXPECT_EQ(caps.has_text_styles, 1);
 	EXPECT_EQ(caps.effects, TERSE_STYLE_ALL_SUPPORTED);
 	EXPECT_EQ(caps.has_bracketed_paste, 1);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -412,7 +422,7 @@ TEST(TerseCapabilitiesOverride, DisablesAndResetsOnP3Baseline)
 	EXPECT_EQ(caps.images, TERSE_IMAGE_ITERM_INLINE);
 	EXPECT_EQ(caps.has_clipboard_write, 1);
 	EXPECT_NE(caps.notifications & TERSE_NOTIFICATION_SUPPORT_DESKTOP, 0);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -449,7 +459,7 @@ TEST(TerseStateOverride, OverridesAndCapture)
 	EXPECT_EQ(captured.style_known, 1);
 	EXPECT_NE(captured.style.effects & TERSE_STYLE_BOLD, 0u);
 	EXPECT_EQ(captured.style.foreground.kind, TERSE_COLOR_KIND_BASIC16);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -482,7 +492,7 @@ TEST(TerseStateOverride, ClearResetsState)
 	EXPECT_EQ(captured.cursor_known, 0);
 	EXPECT_EQ(captured.cursor_visible, 1);
 	EXPECT_EQ(captured.style_known, 0);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -497,7 +507,20 @@ TEST(TerseRestoreState, UpdatesWhenCapabilitiesMissing)
 	env_backup_t backups[ARRAY_LEN(names)];
 	backup_env_list(backups, ARRAY_LEN(names), names);
 	clear_detection_environment();
+#ifdef HAVE_POSIX_PIPE
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.disabled_caps = 0,
+		.enabled_caps = 0,
+	};
+	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
+#else
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
+#endif
 	EXPECT_NOT_NULL(handle);
 	terse_state_t restore_state = {
 		.cursor_known = 1,
@@ -518,7 +541,11 @@ TEST(TerseRestoreState, UpdatesWhenCapabilitiesMissing)
 	EXPECT_EQ(captured.cursor_visible, 0);
 	EXPECT_EQ(captured.style_known, 1);
 	EXPECT_NE(captured.style.effects & TERSE_STYLE_UNDERLINE, 0u);
-	terse_close(handle);
+	close_quietly(handle);
+#ifdef HAVE_POSIX_PIPE
+	close(fds[0]);
+	close(fds[1]);
+#endif
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -536,6 +563,7 @@ TEST(TerseOpen, DetectsP3Profile_OnWindowsTerminalEnv)
 	setenv("TERM", "xterm-256color", 1);
 	setenv("WT_SESSION", "7b39308d-4eee-4f17-b3dc-71fbb23be859", 1);
 	setenv("COLORTERM", "truecolor", 1);
+	setenv("TERSE_SECONDARY_DA_HINT", "x", 1);
 	terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, NULL);
 	EXPECT_NOT_NULL(handle);
 	terse_capabilities_t caps = terse_get_capabilities(handle);
@@ -544,7 +572,7 @@ TEST(TerseOpen, DetectsP3Profile_OnWindowsTerminalEnv)
 	EXPECT_EQ(caps.has_bracketed_paste, 1);
 	EXPECT_EQ(caps.has_hyperlinks, 1);
 	EXPECT_EQ(caps.has_cursor_shape, 1);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
 
@@ -568,6 +596,6 @@ TEST(TerseOpen, DetectsP3Profile_OnWindowsTerminalDA)
 	EXPECT_EQ(caps.has_bracketed_paste, 1);
 	EXPECT_EQ(caps.has_hyperlinks, 1);
 	EXPECT_EQ(caps.has_cursor_shape, 1);
-	terse_close(handle);
+	close_quietly(handle);
 	restore_env_list(backups, ARRAY_LEN(names));
 }
