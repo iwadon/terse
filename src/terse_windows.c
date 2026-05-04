@@ -189,8 +189,8 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 	}
 
 	// Set raw mode
-	DWORD raw_input_mode = ENABLE_VIRTUAL_TERMINAL_INPUT;
-	DWORD raw_output_mode = ENABLE_VIRTUAL_TERMINAL_PROCESSING | DISABLE_NEWLINE_AUTO_RETURN;
+	DWORD raw_input_mode = original_input_mode | ENABLE_VIRTUAL_TERMINAL_INPUT;
+	DWORD raw_output_mode = original_output_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT | DISABLE_NEWLINE_AUTO_RETURN;
 	if (!SetConsoleMode(input_handle, raw_input_mode) ||
 	    !SetConsoleMode(output_handle, raw_output_mode)) {
 		return TERSE_ERR_IO;
