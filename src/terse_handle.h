@@ -9,15 +9,7 @@
 typedef struct terse_test_state terse_test_state_t;
 #endif
 
-#ifndef TERSE_USE_SYSTEM_ICONV
-#define TERSE_USE_SYSTEM_ICONV 1
-#endif
-
-#if TERSE_USE_SYSTEM_ICONV
-#include <iconv.h>
-#else
-#include "mini_iconv.h"
-#endif
+#include "terse_codec.h"
 
 /* State history stack depth macro.  Small for sanity, yet enough for
  * typical nested UI layers.
@@ -30,12 +22,6 @@ typedef struct terse_test_state terse_test_state_t;
 #define TERSE_LARGE_BUFFER_SIZE 128 /* Large buffers (DA response, style seq) */
 #define TERSE_TEXT_BUFFER_SIZE 256  /* Text and header buffers */
 
-typedef enum terse_codec_kind {
-	TERSE_CODEC_UNKNOWN = 0,
-	TERSE_CODEC_UTF8,
-	TERSE_CODEC_SHIFT_JIS
-} terse_codec_kind_t;
-
 /* Internal handle structure definition.
  * This is shared across implementation modules (terse.c, terse_output.c, etc.)
  * but NOT exposed to public API.
@@ -45,9 +31,7 @@ struct terse_handle {
 	terse_capabilities_t capabilities;
 	terse_capabilities_t detected_capabilities;
 	terse_options_t options;
-	terse_codec_kind_t codec_kind;
-	iconv_t codec_to_utf8;
-	iconv_t utf8_to_codec;
+	terse_codec_t codec;
 	terse_size_t size;
 	int cursor_visible;
 	int cursor_row;

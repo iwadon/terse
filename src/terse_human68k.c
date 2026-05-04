@@ -451,8 +451,8 @@ terse_platform_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *
 			scalar = TERSE_SHIFT_JIS_REPLACEMENT;
 		}
 	} else {
-		/* Convert 2-byte Shift_JIS to Unicode using iconv */
-		scalar = terse_convert_shift_jis_pair(handle, buf[0], buf[1]);
+		/* Convert 2-byte Shift_JIS to Unicode using codec */
+		scalar = terse_convert_shift_jis_pair(&handle->codec, buf[0], buf[1]);
 	}
 
 	/* Create character event */

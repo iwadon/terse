@@ -11,7 +11,7 @@
 
 /* Forward declarations for internal helpers */
 static size_t expected_bytes_for_codec(terse_codec_kind_t kind, unsigned char first);
-static unsigned int decode_shift_jis_bytes(terse_handle_t handle, const unsigned char *bytes, size_t length);
+static unsigned int decode_shift_jis_bytes(terse_codec_t *codec, const unsigned char *bytes, size_t length);
 
 /* Replacement characters for invalid sequences (from terse_codec.h) */
 #define UTF8_REPLACEMENT TERSE_UTF8_REPLACEMENT
@@ -203,7 +203,19 @@ static size_t
 expected_bytes_for_codec(terse_codec_kind_t kind, unsigned char first)
 {
 	switch (kind) {
-	case TERSE_CODEC_UTF8:
+	case TERSE_CODEC_KIND_SHIFT_JIS:
+		if (first <= 0x7f) {
+			return 1;
+		}
+		if (first >= 0xa1 && first <= 0xdf) {
+			return 1;
+		}
+		if ((first >= 0x81 && first <= 0x9f) || (first >= 0xe0 && first <= 0xfc)) {
+			return 2;
+		}
+		return 0;
+	case TERSE_CODEC_KIND_UTF8:
+	default:
 		if (first < 0x80) {
 			return 1;
 		}
@@ -217,25 +229,11 @@ expected_bytes_for_codec(terse_codec_kind_t kind, unsigned char first)
 			return 4;
 		}
 		return 0;
-	case TERSE_CODEC_SHIFT_JIS:
-		if (first <= 0x7f) {
-			return 1;
-		}
-		if (first >= 0xa1 && first <= 0xdf) {
-			return 1;
-		}
-		if ((first >= 0x81 && first <= 0x9f) || (first >= 0xe0 && first <= 0xfc)) {
-			return 2;
-		}
-		return 0;
-	case TERSE_CODEC_UNKNOWN:
-	default:
-		return 1;
 	}
 }
 
 static unsigned int
-decode_shift_jis_bytes(terse_handle_t handle, const unsigned char *bytes, size_t length)
+decode_shift_jis_bytes(terse_codec_t *codec, const unsigned char *bytes, size_t length)
 {
 	if (length == 0 || !bytes) {
 		return SHIFT_JIS_REPLACEMENT;
@@ -256,7 +254,7 @@ decode_shift_jis_bytes(terse_handle_t handle, const unsigned char *bytes, size_t
 		if (!((trail >= 0x40 && trail <= 0x7e) || (trail >= 0x80 && trail <= 0xfc))) {
 			return SHIFT_JIS_REPLACEMENT;
 		}
-		return terse_convert_shift_jis_pair(handle, lead, trail);
+		return terse_convert_shift_jis_pair(codec, lead, trail);
 	}
 	return SHIFT_JIS_REPLACEMENT;
 }
@@ -324,8 +322,12 @@ int terse_decode_stream_char(terse_handle_t handle, int fd, unsigned char first,
 {
 	unsigned int scalar = 0;
 	int rc = 0;
-	switch (handle->codec_kind) {
-	case TERSE_CODEC_UTF8:
+	if (handle->codec.kind == TERSE_CODEC_KIND_SHIFT_JIS) {
+		rc = terse_decode_shift_jis_stream(&handle->codec, fd, first, &scalar);
+		if (rc < 0) {
+			return rc;
+		}
+	} else {
 		rc = terse_decode_utf8_stream(fd, first, &scalar);
 		if (rc < 0) {
 			return rc;
@@ -333,16 +335,6 @@ int terse_decode_stream_char(terse_handle_t handle, int fd, unsigned char first,
 		if (scalar == 0) {
 			scalar = UTF8_REPLACEMENT;
 		}
-		break;
-	case TERSE_CODEC_SHIFT_JIS:
-		rc = terse_decode_shift_jis_stream(handle, fd, first, &scalar);
-		if (rc < 0) {
-			return rc;
-		}
-		break;
-	default:
-		scalar = first;
-		break;
 	}
 	terse_set_char_event(handle, event, scalar, 0);
 	return 0;
@@ -684,7 +676,7 @@ int terse_handle_escape_prefixed_char(terse_handle_t handle, terse_event_t *even
 	if (first == 0x1b) {
 		return 0;
 	}
-	size_t expected = expected_bytes_for_codec(handle->codec_kind, first);
+	size_t expected = expected_bytes_for_codec(handle->codec.kind, first);
 	if (expected == 0 || expected != payload_len) {
 		return 0;
 	}
@@ -709,20 +701,13 @@ int terse_handle_escape_prefixed_char(terse_handle_t handle, terse_event_t *even
 		}
 	}
 	unsigned int scalar = 0;
-	switch (handle->codec_kind) {
-	case TERSE_CODEC_UTF8:
+	if (handle->codec.kind == TERSE_CODEC_KIND_SHIFT_JIS) {
+		scalar = decode_shift_jis_bytes(&handle->codec, payload, payload_len);
+	} else {
 		scalar = terse_decode_utf8_bytes(payload, payload_len);
 		if (scalar == 0) {
 			scalar = UTF8_REPLACEMENT;
 		}
-		break;
-	case TERSE_CODEC_SHIFT_JIS:
-		scalar = decode_shift_jis_bytes(handle, payload, payload_len);
-		break;
-	case TERSE_CODEC_UNKNOWN:
-	default:
-		scalar = payload[0];
-		break;
 	}
 	terse_set_char_event(handle, event, scalar, mods);
 	return 1;

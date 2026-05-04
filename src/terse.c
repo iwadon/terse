@@ -17,11 +17,6 @@
 
 #include <ctype.h>
 #include <errno.h>
-#if TERSE_USE_SYSTEM_ICONV
-#include <iconv.h>
-#else
-#include "mini_iconv.h"
-#endif
 #include <limits.h>
 #ifndef _WIN32
 #ifdef TERSE_HAVE_POLL_H
@@ -51,21 +46,6 @@ const char TERSE_RESET_COLOR_SEQ[] = "\x1b[39;49m";
 const char TERSE_RESET_EFFECTS_SEQ[] = "\x1b[22;23;24;27;29m";
 
 static const char BASE64_ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-static terse_codec_kind_t
-codec_kind_from_name(const char *name)
-{
-	if (!name) {
-		return TERSE_CODEC_UTF8;
-	}
-	if (strcasecmp(name, "UTF-8") == 0 || strcasecmp(name, "UTF8") == 0) {
-		return TERSE_CODEC_UTF8;
-	}
-	if (strcasecmp(name, "SHIFT_JIS") == 0 || strcasecmp(name, "SHIFT-JIS") == 0 || strcasecmp(name, "Shift_JIS") == 0 || strcasecmp(name, "SJIS") == 0) {
-		return TERSE_CODEC_SHIFT_JIS;
-	}
-	return TERSE_CODEC_UTF8;
-}
 
 terse_color_t
 terse_color_default(void)
@@ -140,22 +120,8 @@ initialize_codec_handles(terse_handle_t handle)
 	if (!handle) {
 		return -1;
 	}
-	handle->codec_kind = codec_kind_from_name(handle->options.codec_name);
-	handle->codec_to_utf8 = (iconv_t)-1;
-	handle->utf8_to_codec = (iconv_t)-1;
-	if (handle->codec_kind == TERSE_CODEC_SHIFT_JIS) {
-		handle->codec_to_utf8 = iconv_open("UTF-8", "SHIFT_JIS");
-		if (handle->codec_to_utf8 == (iconv_t)-1) {
-			return -1;
-		}
-		handle->utf8_to_codec = iconv_open("SHIFT_JIS", "UTF-8");
-		if (handle->utf8_to_codec == (iconv_t)-1) {
-			iconv_close(handle->codec_to_utf8);
-			handle->codec_to_utf8 = (iconv_t)-1;
-			return -1;
-		}
-	}
-	return 0;
+	terse_error_t err = terse_codec_init(&handle->codec, handle->options.codec_name);
+	return (err == TERSE_OK) ? 0 : -1;
 }
 
 static void
@@ -164,14 +130,7 @@ destroy_codec_handles(terse_handle_t handle)
 	if (!handle) {
 		return;
 	}
-	if (handle->codec_to_utf8 != (iconv_t)-1) {
-		iconv_close(handle->codec_to_utf8);
-		handle->codec_to_utf8 = (iconv_t)-1;
-	}
-	if (handle->utf8_to_codec != (iconv_t)-1) {
-		iconv_close(handle->utf8_to_codec);
-		handle->utf8_to_codec = (iconv_t)-1;
-	}
+	terse_codec_destroy(&handle->codec);
 }
 
 char *
@@ -554,7 +513,7 @@ terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_even
 	}
 
 	/* Handle printable characters and multi-byte sequences */
-	if (first >= 0x20 || (handle->codec_kind == TERSE_CODEC_SHIFT_JIS && first >= 0x80)) {
+	if (first >= 0x20 || (handle->codec.kind == TERSE_CODEC_KIND_SHIFT_JIS && first >= 0x80)) {
 		int decode_rc = terse_decode_stream_char(handle, fd, first, out_event);
 		if (decode_rc == 0) {
 			clear_error(handle);

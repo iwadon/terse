@@ -262,69 +262,61 @@ terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 	TERSE_TEST_RECORD_CALL(handle, TERSE_CALL_WRITE_TEXT, rec_data);
 #endif
 
-	if (handle->codec_kind == TERSE_CODEC_UTF8) {
+	if (!handle->codec.from_utf8) {
+		/* passthrough: terminal is UTF-8 */
 		terse_error_t result = write_literal(handle, graphemes);
 		if (result == TERSE_OK) {
 			handle->cursor_known = 0;
 		}
 		return result;
 	}
-	if (handle->codec_kind == TERSE_CODEC_SHIFT_JIS) {
-		if (handle->utf8_to_codec == (iconv_t)-1) {
-			errno = EINVAL;
-			set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
-			return TERSE_ERR_INVALID_ARGUMENT;
-		}
-		const char *input = graphemes;
-		size_t in_left = strlen(graphemes);
-		unsigned char outbuf[TERSE_TEXT_BUFFER_SIZE];
-		terse_codec_reset_iconv_state(handle->utf8_to_codec);
-		while (in_left > 0) {
-			char *in_ptr = (char *)input;
-			size_t local_in_left = in_left;
-			char *out_ptr = (char *)outbuf;
-			size_t out_left = sizeof(outbuf);
-			size_t iconv_rc = iconv(handle->utf8_to_codec, &in_ptr, &local_in_left, &out_ptr, &out_left);
-			size_t produced = (size_t)(out_ptr - (char *)outbuf);
-			if (produced > 0) {
-				if (write_sequence(handle, (const char *)outbuf, produced) != 0) {
-					return handle->last_error;
-				}
-			}
-			input = (const char *)in_ptr;
-			in_left = local_in_left;
-			if (iconv_rc == (size_t)-1) {
-				if (errno == E2BIG) {
-					continue;
-				}
-				if (errno == EILSEQ || errno == EINVAL) {
-					if (in_left > 0) {
-						input++;
-						in_left--;
-					}
-					const char replacement = '?';
-					if (write_sequence(handle, &replacement, 1) != 0) {
-						return handle->last_error;
-					}
-					terse_codec_reset_iconv_state(handle->utf8_to_codec);
-					continue;
-				}
-				// Map errno to terse_error_t
-				terse_error_t err = (errno == EILSEQ) ? TERSE_ERR_INVALID_ENCODING : TERSE_ERR_IO;
-				set_error(handle, err);
-				return err;
+
+	/* Convert UTF-8 input to terminal encoding in chunks */
+	const char *input = graphemes;
+	size_t in_left = strlen(graphemes);
+	unsigned char outbuf[TERSE_TEXT_BUFFER_SIZE];
+	while (in_left > 0) {
+		size_t chunk_in = in_left;
+		size_t out_avail = sizeof(outbuf);
+		terse_error_t conv = handle->codec.from_utf8(&handle->codec,
+		                                             input, chunk_in,
+		                                             (char *)outbuf, &out_avail);
+		if (out_avail > 0) {
+			if (write_sequence(handle, (const char *)outbuf, out_avail) != 0) {
+				return handle->last_error;
 			}
 		}
-		terse_codec_reset_iconv_state(handle->utf8_to_codec);
-		handle->cursor_known = 0;
-		clear_error(handle);
-		return 0;
+		if (conv == TERSE_ERR_BUFFER_TOO_SMALL) {
+			/* chunk was too large for outbuf; advance by one UTF-8 codepoint
+			 * to make progress and retry */
+			if (in_left > 0) {
+				input++;
+				in_left--;
+			}
+			continue;
+		}
+		if (conv == TERSE_ERR_INVALID_ENCODING) {
+			/* skip one byte and emit replacement */
+			if (in_left > 0) {
+				input++;
+				in_left--;
+			}
+			const char replacement = '?';
+			if (write_sequence(handle, &replacement, 1) != 0) {
+				return handle->last_error;
+			}
+			continue;
+		}
+		if (conv != TERSE_OK) {
+			set_error(handle, conv);
+			return conv;
+		}
+		/* full input consumed */
+		break;
 	}
-	terse_error_t result = write_literal(handle, graphemes);
-	if (result == TERSE_OK) {
-		handle->cursor_known = 0;
-	}
-	return result;
+	handle->cursor_known = 0;
+	clear_error(handle);
+	return TERSE_OK;
 }
 
 terse_error_t terse_flush(terse_handle_t handle)
