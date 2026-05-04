@@ -1,7 +1,7 @@
 #include "terse_input.h"
 #include "terse_codec.h"
 #include "terse_event_helpers.h"
-#include "terse_internal.h"
+#include "terse_handle.h"
 #include "terse_platform.h"
 #include "terse_test.h"
 #include "terse_unicode.h"
@@ -12,33 +12,10 @@
 /* Forward declarations for internal helpers */
 static size_t expected_bytes_for_codec(terse_codec_kind_t kind, unsigned char first);
 static unsigned int decode_shift_jis_bytes(terse_handle_t handle, const unsigned char *bytes, size_t length);
-static void set_error(terse_handle_t handle, terse_error_t error);
-static void clear_error(terse_handle_t handle);
 
 /* Replacement characters for invalid sequences (from terse_codec.h) */
 #define UTF8_REPLACEMENT TERSE_UTF8_REPLACEMENT
 #define SHIFT_JIS_REPLACEMENT TERSE_SHIFT_JIS_REPLACEMENT
-
-/*
- * Error handling helpers (minimal wrappers for handle->last_error)
- */
-static void
-set_error(terse_handle_t handle, terse_error_t error)
-{
-	if (!handle) {
-		return;
-	}
-	handle->last_error = error;
-}
-
-static void
-clear_error(terse_handle_t handle)
-{
-	if (!handle) {
-		return;
-	}
-	handle->last_error = TERSE_OK;
-}
 
 /*
  * CSI sequence parser

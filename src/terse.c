@@ -52,74 +52,6 @@ const char TERSE_RESET_EFFECTS_SEQ[] = "\x1b[22;23;24;27;29m";
 
 static const char BASE64_ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-static const unsigned int UTF8_REPLACEMENT = 0xfffdU;
-static const unsigned int SHIFT_JIS_REPLACEMENT = '?';
-
-static void
-reset_iconv_state(iconv_t cd)
-{
-	if (cd == (iconv_t)-1) {
-		return;
-	}
-	(void)iconv(cd, NULL, NULL, NULL, NULL);
-}
-
-static unsigned int
-decode_utf8_bytes(const unsigned char *bytes, size_t length)
-{
-	if (!bytes || length == 0) {
-		return UTF8_REPLACEMENT;
-	}
-	unsigned int scalar = 0;
-	if (length == 1) {
-		unsigned char b0 = bytes[0];
-		if (b0 < 0x80) {
-			return b0;
-		}
-		return UTF8_REPLACEMENT;
-	}
-	if (length == 2) {
-		unsigned char b0 = bytes[0];
-		unsigned char b1 = bytes[1];
-		if ((b0 & 0xe0) != 0xc0 || (b1 & 0xc0) != 0x80) {
-			return UTF8_REPLACEMENT;
-		}
-		scalar = ((unsigned int)(b0 & 0x1f) << 6) | (unsigned int)(b1 & 0x3f);
-		if (scalar < 0x80) {
-			return UTF8_REPLACEMENT;
-		}
-		return scalar;
-	}
-	if (length == 3) {
-		unsigned char b0 = bytes[0];
-		unsigned char b1 = bytes[1];
-		unsigned char b2 = bytes[2];
-		if ((b0 & 0xf0) != 0xe0 || (b1 & 0xc0) != 0x80 || (b2 & 0xc0) != 0x80) {
-			return UTF8_REPLACEMENT;
-		}
-		scalar = ((unsigned int)(b0 & 0x0f) << 12) | ((unsigned int)(b1 & 0x3f) << 6) | (unsigned int)(b2 & 0x3f);
-		if (scalar < 0x800 || (scalar >= 0xd800 && scalar <= 0xdfff)) {
-			return UTF8_REPLACEMENT;
-		}
-		return scalar;
-	}
-	if (length == 4) {
-		unsigned char b0 = bytes[0];
-		unsigned char b1 = bytes[1];
-		unsigned char b2 = bytes[2];
-		unsigned char b3 = bytes[3];
-		if ((b0 & 0xf8) != 0xf0 || (b1 & 0xc0) != 0x80 || (b2 & 0xc0) != 0x80 || (b3 & 0xc0) != 0x80) {
-			return UTF8_REPLACEMENT;
-		}
-		scalar = ((unsigned int)(b0 & 0x07) << 18) | ((unsigned int)(b1 & 0x3f) << 12) | ((unsigned int)(b2 & 0x3f) << 6) | (unsigned int)(b3 & 0x3f);
-		if (scalar < 0x10000 || scalar > 0x10ffff) {
-			return UTF8_REPLACEMENT;
-		}
-		return scalar;
-	}
-	return UTF8_REPLACEMENT;
-}
-
 static terse_codec_kind_t
 codec_kind_from_name(const char *name)
 {
@@ -240,33 +172,6 @@ destroy_codec_handles(terse_handle_t handle)
 		iconv_close(handle->utf8_to_codec);
 		handle->utf8_to_codec = (iconv_t)-1;
 	}
-}
-
-static unsigned int
-convert_shift_jis_pair(terse_handle_t handle, unsigned char lead, unsigned char trail)
-{
-	(void)lead;
-	(void)trail;
-	if (!handle || handle->codec_to_utf8 == (iconv_t)-1) {
-		return SHIFT_JIS_REPLACEMENT;
-	}
-	char inbuf[2];
-	inbuf[0] = (char)lead;
-	inbuf[1] = (char)trail;
-	char *in_ptr = inbuf;
-	size_t in_left = sizeof(inbuf);
-	char outbuf[8] = { 0 };
-	char *out_ptr = outbuf;
-	size_t out_left = sizeof(outbuf);
-	reset_iconv_state(handle->codec_to_utf8);
-	if (iconv(handle->codec_to_utf8, &in_ptr, &in_left, &out_ptr, &out_left) == (size_t)-1) {
-		return SHIFT_JIS_REPLACEMENT;
-	}
-	if (in_left != 0) {
-		return SHIFT_JIS_REPLACEMENT;
-	}
-	size_t produced = (size_t)(out_ptr - outbuf);
-	return decode_utf8_bytes((const unsigned char *)outbuf, produced);
 }
 
 char *

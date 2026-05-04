@@ -1,5 +1,5 @@
 #include "terse_unicode.h"
-#include "terse_internal.h"
+#include "terse_handle.h"
 #include <stddef.h>
 
 /*
