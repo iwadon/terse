@@ -30,4 +30,4 @@ add_executable(terse_unit_test
 )
 target_include_directories(terse_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 target_link_libraries(terse_unit_test PRIVATE terse attest)
-add_test(NAME c.terse_unit_test COMMAND terse_unit_test)
+add_test(NAME terse_unit_test COMMAND terse_unit_test)
