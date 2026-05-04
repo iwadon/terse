@@ -9,6 +9,12 @@
 
 #include "test_compat.h"
 
+static void close_quietly(terse_handle_t handle)
+{
+	(void)terse_capabilities_disable(handle, TERSE_CAP_DISABLE_BASIC_OUTPUT);
+	terse_close(handle);
+}
+
 #ifdef HAVE_POSIX_PIPE
 static void create_pipe_handle(terse_handle_t *out_handle, int fds[2])
 {
@@ -80,12 +86,6 @@ static terse_style_t make_truecolor_style(unsigned char r, unsigned char g, unsi
 	terse_style_t style = terse_style_default();
 	style.foreground = terse_color_truecolor(r, g, b);
 	return style;
-}
-
-static void close_quietly(terse_handle_t handle)
-{
-	(void)terse_capabilities_disable(handle, TERSE_CAP_DISABLE_BASIC_OUTPUT);
-	terse_close(handle);
 }
 
 TEST(TerseClearScreen, EmitsAfterSequence_OnAfter)
