@@ -142,7 +142,7 @@ terse_platform_init(terse_handle_t handle)
 
 	HANDLE output_handle = get_console_handle(handle->options.output_fd);
 	if (!is_console_handle(output_handle)) {
-		/* Output is redirected (file/pipe) — nothing to configure. */
+		/* Output is redirected (file/pipe) -- nothing to configure. */
 		return TERSE_OK;
 	}
 
@@ -154,7 +154,7 @@ terse_platform_init(terse_handle_t handle)
 
 	DWORD original_mode;
 	if (!GetConsoleMode(output_handle, &original_mode)) {
-		/* Cannot query mode — leave platform_data allocated but unmarked
+		/* Cannot query mode -- leave platform_data allocated but unmarked
 		 * so shutdown() becomes a no-op restore. */
 		handle->platform_data = data;
 		return TERSE_OK;
@@ -174,7 +174,7 @@ terse_platform_init(terse_handle_t handle)
 		if (!SetConsoleMode(output_handle, desired_mode)) {
 			/* Down-level system: VT not available. Keep original_mode
 			 * recorded so shutdown does no harm; output still functions
-			 * for plain text — VT escape sequences will be visible as
+			 * for plain text -- VT escape sequences will be visible as
 			 * raw characters, which is the documented degradation. */
 			handle->platform_data = data;
 			return TERSE_OK;
@@ -257,7 +257,7 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 	}
 
 	// Windows Console: query cursor position directly via Win32 API.
-	// We deliberately avoid CPR (CSI 6 n) here. CPR on Windows is fragile —
+	// We deliberately avoid CPR (CSI 6 n) here. CPR on Windows is fragile --
 	// the response can leak as visible text if input mode flags (ECHO/LINE/
 	// PROCESSED) are not cleared exactly right, and WaitForSingleObject on
 	// the input handle signals on any input record (key/focus/mouse), not
