@@ -2,6 +2,7 @@
 #include <attest/attest.h>
 
 #include "test_compat.h"
+#include "test_env.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -44,27 +45,6 @@ static void expect_no_bytes_available_fd(int fd)
 	ssize_t n = read(fd, tmp, sizeof(tmp));
 	EXPECT_TRUE(n == -1);
 	EXPECT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK);
-}
-
-static char *save_env_value(const char *name)
-{
-	const char *value = getenv(name);
-	if (!value) {
-		return NULL;
-	}
-	char *copy = strdup(value);
-	EXPECT_NOT_NULL(copy);
-	return copy;
-}
-
-static void restore_env_value(const char *name, char *saved)
-{
-	if (saved) {
-		setenv(name, saved, 1);
-		free(saved);
-	} else {
-		unsetenv(name);
-	}
 }
 
 TEST(TerseImage, WritesItermSequence)
@@ -199,30 +179,9 @@ TEST(TerseImage, NoopWhenDisabled)
 
 TEST(TerseImage, WritesSixelSequenceWhenAvailable)
 {
-	char *saved_term = save_env_value("TERM");
-	char *saved_term_program = save_env_value("TERM_PROGRAM");
-	char *saved_lc_terminal = save_env_value("LC_TERMINAL");
-	char *saved_wezterm = save_env_value("WEZTERM_EXECUTABLE");
-	char *saved_kitty = save_env_value("KITTY_PID");
-	char *saved_da = save_env_value("TERSE_SECONDARY_DA_HINT");
-	char *saved_tmux = save_env_value("TMUX");
-	char *saved_colorterm = save_env_value("COLORTERM");
-	char *saved_gnome_screen = save_env_value("GNOME_TERMINAL_SCREEN");
-	char *saved_gnome_service = save_env_value("GNOME_TERMINAL_SERVICE");
-	char *saved_vte_version = save_env_value("VTE_VERSION");
-	char *saved_wt_session = save_env_value("WT_SESSION");
+	terse_test_env_backup_t env_backup;
+	terse_test_env_backup_detection(&env_backup);
 	setenv("TERM", "xterm-sixel", 1);
-	unsetenv("TERM_PROGRAM");
-	unsetenv("LC_TERMINAL");
-	unsetenv("WEZTERM_EXECUTABLE");
-	unsetenv("KITTY_PID");
-	unsetenv("TERSE_SECONDARY_DA_HINT");
-	unsetenv("TMUX");
-	unsetenv("COLORTERM");
-	unsetenv("GNOME_TERMINAL_SCREEN");
-	unsetenv("GNOME_TERMINAL_SERVICE");
-	unsetenv("VTE_VERSION");
-	unsetenv("WT_SESSION");
 	int out_pipe[2];
 	int in_pipe[2];
 	EXPECT_TRUE(pipe(out_pipe) == 0);
@@ -261,18 +220,7 @@ TEST(TerseImage, WritesSixelSequenceWhenAvailable)
 	close(out_pipe[1]);
 	close(in_pipe[0]);
 	close(in_pipe[1]);
-	restore_env_value("TERM", saved_term);
-	restore_env_value("TERM_PROGRAM", saved_term_program);
-	restore_env_value("LC_TERMINAL", saved_lc_terminal);
-	restore_env_value("WEZTERM_EXECUTABLE", saved_wezterm);
-	restore_env_value("KITTY_PID", saved_kitty);
-	restore_env_value("TERSE_SECONDARY_DA_HINT", saved_da);
-	restore_env_value("TMUX", saved_tmux);
-	restore_env_value("COLORTERM", saved_colorterm);
-	restore_env_value("GNOME_TERMINAL_SCREEN", saved_gnome_screen);
-	restore_env_value("GNOME_TERMINAL_SERVICE", saved_gnome_service);
-	restore_env_value("VTE_VERSION", saved_vte_version);
-	restore_env_value("WT_SESSION", saved_wt_session);
+	terse_test_env_restore_detection(&env_backup);
 }
 
 TEST(TerseImage, DegradesWhenFormatMismatch)
@@ -316,30 +264,12 @@ TEST(TerseImage, DegradesWhenFormatMismatch)
 
 TEST(TerseImage, WritesKittySequenceWhenAvailable)
 {
-	char *saved_term = save_env_value("TERM");
-	char *saved_term_program = save_env_value("TERM_PROGRAM");
-	char *saved_lc_terminal = save_env_value("LC_TERMINAL");
-	char *saved_wezterm = save_env_value("WEZTERM_EXECUTABLE");
-	char *saved_kitty = save_env_value("KITTY_PID");
-	char *saved_da = save_env_value("TERSE_SECONDARY_DA_HINT");
-	char *saved_tmux = save_env_value("TMUX");
-	char *saved_colorterm = save_env_value("COLORTERM");
-	char *saved_gnome_screen = save_env_value("GNOME_TERMINAL_SCREEN");
-	char *saved_gnome_service = save_env_value("GNOME_TERMINAL_SERVICE");
-	char *saved_vte_version = save_env_value("VTE_VERSION");
-	char *saved_wt_session = save_env_value("WT_SESSION");
+	terse_test_env_backup_t env_backup;
+	terse_test_env_backup_detection(&env_backup);
 	setenv("TERM", "xterm-256color", 1);
 	setenv("TERM_PROGRAM", "WezTerm", 1);
-	unsetenv("LC_TERMINAL");
 	setenv("WEZTERM_EXECUTABLE", "/Applications/WezTerm.app/Contents/MacOS/wezterm-gui", 1);
-	unsetenv("KITTY_PID");
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;277;0c", 1);
-	unsetenv("TMUX");
-	unsetenv("COLORTERM");
-	unsetenv("GNOME_TERMINAL_SCREEN");
-	unsetenv("GNOME_TERMINAL_SERVICE");
-	unsetenv("VTE_VERSION");
-	unsetenv("WT_SESSION");
 	int out_pipe[2];
 	int in_pipe[2];
 	EXPECT_TRUE(pipe(out_pipe) == 0);
@@ -379,18 +309,7 @@ TEST(TerseImage, WritesKittySequenceWhenAvailable)
 	close(out_pipe[1]);
 	close(in_pipe[0]);
 	close(in_pipe[1]);
-	restore_env_value("TERM", saved_term);
-	restore_env_value("TERM_PROGRAM", saved_term_program);
-	restore_env_value("LC_TERMINAL", saved_lc_terminal);
-	restore_env_value("WEZTERM_EXECUTABLE", saved_wezterm);
-	restore_env_value("KITTY_PID", saved_kitty);
-	restore_env_value("TERSE_SECONDARY_DA_HINT", saved_da);
-	restore_env_value("TMUX", saved_tmux);
-	restore_env_value("COLORTERM", saved_colorterm);
-	restore_env_value("GNOME_TERMINAL_SCREEN", saved_gnome_screen);
-	restore_env_value("GNOME_TERMINAL_SERVICE", saved_gnome_service);
-	restore_env_value("VTE_VERSION", saved_vte_version);
-	restore_env_value("WT_SESSION", saved_wt_session);
+	terse_test_env_restore_detection(&env_backup);
 }
 
 TEST(TerseImage, ErrorsWhenFormatMismatchWithoutDegrade)

@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "test_compat.h"
+#include "test_env.h"
 
 #define ARRAY_LEN(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -43,22 +44,16 @@ restore_env(env_backup_t *backup)
 	backup->had_value = 0;
 }
 
+/*
+ * 端末検出に関わる全環境変数を unset する。
+ * 名前のリストは tests/test_env.h の TERSE_TEST_DETECTION_ENV_NAMES に集約。
+ */
 static void
 clear_detection_environment(void)
 {
-	unsetenv("TERM");
-	unsetenv("TERM_PROGRAM");
-	unsetenv("TERM_PROGRAM_VERSION");
-	unsetenv("LC_TERMINAL");
-	unsetenv("LC_TERMINAL_VERSION");
-	unsetenv("COLORTERM");
-	unsetenv("GNOME_TERMINAL_SCREEN");
-	unsetenv("GNOME_TERMINAL_SERVICE");
-	unsetenv("VTE_VERSION");
-	unsetenv("TERSE_SECONDARY_DA_HINT");
-	unsetenv("WEZTERM_EXECUTABLE");
-	unsetenv("KITTY_PID");
-	unsetenv("WT_SESSION");
+	for (size_t i = 0; i < TERSE_TEST_DETECTION_ENV_COUNT; ++i) {
+		unsetenv(TERSE_TEST_DETECTION_ENV_NAMES[i]);
+	}
 }
 
 static void

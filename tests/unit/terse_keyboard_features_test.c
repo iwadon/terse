@@ -2,31 +2,13 @@
 #include <attest/attest.h>
 
 #include "test_compat.h"
+#include "test_env.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 
 #ifdef HAVE_POSIX_PIPE
-
-static char *save_env(const char *name)
-{
-	const char *current = getenv(name);
-	if (!current) {
-		return NULL;
-	}
-	return strdup(current);
-}
-
-static void restore_env(const char *name, char *saved)
-{
-	if (saved) {
-		setenv(name, saved, 1);
-		free(saved);
-	} else {
-		unsetenv(name);
-	}
-}
 
 static void set_nonblocking(int fd)
 {
@@ -37,32 +19,14 @@ static void set_nonblocking(int fd)
 
 TEST(TerseKeyboardFeatures, EnablesModifyOtherKeysAndTracksState)
 {
-	char *saved_term = save_env("TERM");
-	char *saved_term_program = save_env("TERM_PROGRAM");
-	char *saved_term_program_version = save_env("TERM_PROGRAM_VERSION");
-	char *saved_lc_terminal = save_env("LC_TERMINAL");
-	char *saved_lc_terminal_version = save_env("LC_TERMINAL_VERSION");
-	char *saved_colorterm = save_env("COLORTERM");
-	char *saved_gnome_screen = save_env("GNOME_TERMINAL_SCREEN");
-	char *saved_gnome_service = save_env("GNOME_TERMINAL_SERVICE");
-	char *saved_vte_version = save_env("VTE_VERSION");
-	char *saved_kitty_pid = save_env("KITTY_PID");
-	char *saved_wezterm_exec = save_env("WEZTERM_EXECUTABLE");
-	char *saved_secondary_hint = save_env("TERSE_SECONDARY_DA_HINT");
-	char *saved_wt_session = save_env("WT_SESSION");
+	terse_test_env_backup_t env_backup;
+	terse_test_env_backup_detection(&env_backup);
 	setenv("TERM", "xterm-256color", 1);
 	setenv("TERM_PROGRAM", "WezTerm", 1);
 	setenv("TERM_PROGRAM_VERSION", "20240203-110809-5046fc22", 1);
-	unsetenv("LC_TERMINAL");
-	unsetenv("LC_TERMINAL_VERSION");
 	setenv("COLORTERM", "truecolor", 1);
-	unsetenv("GNOME_TERMINAL_SCREEN");
-	unsetenv("GNOME_TERMINAL_SERVICE");
-	unsetenv("VTE_VERSION");
-	unsetenv("KITTY_PID");
 	setenv("WEZTERM_EXECUTABLE", "/Applications/WezTerm.app/Contents/MacOS/wezterm-gui", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;277;0c", 1);
-	unsetenv("WT_SESSION");
 	EXPECT_TRUE(getenv("TERM_PROGRAM") != NULL);
 	EXPECT_TRUE(strcmp("WezTerm", getenv("TERM_PROGRAM")) == 0);
 	EXPECT_TRUE(getenv("COLORTERM") != NULL);
@@ -126,24 +90,13 @@ TEST(TerseKeyboardFeatures, EnablesModifyOtherKeysAndTracksState)
 	close(fds[0]);
 	close(fds[1]);
 
-	restore_env("TERSE_SECONDARY_DA_HINT", saved_secondary_hint);
-	restore_env("WEZTERM_EXECUTABLE", saved_wezterm_exec);
-	restore_env("KITTY_PID", saved_kitty_pid);
-	restore_env("VTE_VERSION", saved_vte_version);
-	restore_env("GNOME_TERMINAL_SERVICE", saved_gnome_service);
-	restore_env("GNOME_TERMINAL_SCREEN", saved_gnome_screen);
-	restore_env("COLORTERM", saved_colorterm);
-	restore_env("LC_TERMINAL_VERSION", saved_lc_terminal_version);
-	restore_env("LC_TERMINAL", saved_lc_terminal);
-	restore_env("TERM_PROGRAM_VERSION", saved_term_program_version);
-	restore_env("TERM_PROGRAM", saved_term_program);
-	restore_env("TERM", saved_term);
-	restore_env("WT_SESSION", saved_wt_session);
+	terse_test_env_restore_detection(&env_backup);
 }
 
 TEST(TerseKeyboardFeatures, EnableDegradesWhenUnsupported)
 {
-	char *saved_term_program = save_env("TERM_PROGRAM");
+	terse_test_env_backup_t env_backup;
+	terse_test_env_backup_detection(&env_backup);
 	setenv("TERM_PROGRAM", "Apple_Terminal", 1);
 
 	int fds[2];
@@ -174,27 +127,14 @@ TEST(TerseKeyboardFeatures, EnableDegradesWhenUnsupported)
 	close(fds[0]);
 	close(fds[1]);
 
-	restore_env("TERM_PROGRAM", saved_term_program);
+	terse_test_env_restore_detection(&env_backup);
 }
 
 TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
 {
-	char *saved_term = save_env("TERM");
-	char *saved_term_program = save_env("TERM_PROGRAM");
-	char *saved_lc_terminal = save_env("LC_TERMINAL");
-	char *saved_colorterm = save_env("COLORTERM");
-	char *saved_gnome_screen = save_env("GNOME_TERMINAL_SCREEN");
-	char *saved_gnome_service = save_env("GNOME_TERMINAL_SERVICE");
-	char *saved_vte_version = save_env("VTE_VERSION");
-	char *saved_wt_session = save_env("WT_SESSION");
+	terse_test_env_backup_t env_backup;
+	terse_test_env_backup_detection(&env_backup);
 	setenv("TERM", "xterm-kitty", 1);
-	unsetenv("TERM_PROGRAM");
-	unsetenv("LC_TERMINAL");
-	unsetenv("COLORTERM");
-	unsetenv("GNOME_TERMINAL_SCREEN");
-	unsetenv("GNOME_TERMINAL_SERVICE");
-	unsetenv("VTE_VERSION");
-	unsetenv("WT_SESSION");
 
 	int fds[2];
 	EXPECT_TRUE(pipe(fds) == 0);
@@ -229,14 +169,7 @@ TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
 	terse_close(handle);
 	close(fds[0]);
 	close(fds[1]);
-	restore_env("TERM", saved_term);
-	restore_env("TERM_PROGRAM", saved_term_program);
-	restore_env("LC_TERMINAL", saved_lc_terminal);
-	restore_env("COLORTERM", saved_colorterm);
-	restore_env("GNOME_TERMINAL_SCREEN", saved_gnome_screen);
-	restore_env("GNOME_TERMINAL_SERVICE", saved_gnome_service);
-	restore_env("VTE_VERSION", saved_vte_version);
-	restore_env("WT_SESSION", saved_wt_session);
+	terse_test_env_restore_detection(&env_backup);
 }
 
 #endif /* HAVE_POSIX_PIPE */
