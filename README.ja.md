@@ -72,16 +72,31 @@ ctest --test-dir build --output-on-failure
 
 ## 動作サンプル
 
-`samples/` にはプロファイル別のデモが揃っています。ビルドするとサンプルもビルドされます。もしサンプルがビルドされていない場合は cmake で `TERSE_BUILD_SAMPLES` を有効にしてからビルドしてください。
+`samples/` には各プロファイルの機能を確認できるデモが揃っており、ライブラリと一緒にビルドされて `build/samples/` に配置されます。サンプルが不要な場合は cmake で `-DTERSE_BUILD_SAMPLES=OFF` を指定してください。
 
-- `p0_demo`: P0のデモ
-- `p1_style_demo.c`: テキスト装飾サンプル
-- `p1_color_demo.c`: 16/256/TrueColor カラーグリッド
-- `p2_features_demo.c`: マウス・ブランケットペースト・タイトル・リンク
-- `p3_notifications_demo.c`: ベル/ビジュアル/デスクトップ通知
-- `p3_image_demo.c`: iTerm2/kitty 向けインライン画像描画
-- `event_logger_demo`: イベントロガーデモ
-- `line_edit_demo.c`: P0 API だけで実装した簡易ラインエディタ
+P0:
+- `p0_demo`: カーソル移動・画面消去・テキスト出力の基本操作
+- `line_edit_demo`: P0 API だけで実装した簡易ラインエディタ
+- `cursor_position_test`: カーソル位置取得の動作確認
+
+P1:
+- `p1_style_demo`: 太字・斜体・下線などテキスト装飾
+- `p1_color_demo`: 16/256/TrueColor のカラーグリッド
+
+P2:
+- `p2_features_demo`: マウス追跡・ブランケットペースト・ウィンドウタイトル・ハイパーリンク
+- `mouse_click_demo`: マウスクリックイベントの取得
+- `input_complete_demo`: キー・マウス・修飾キーを含む入力イベントの網羅的なログ
+
+P3:
+- `p3_notifications_demo`: ベル・ビジュアル・デスクトップ通知
+- `p3_image_demo`: 端末の能力に応じたインライン画像表示
+- `p3_sixel_demo`: Sixel プロトコルでの画像表示
+- `p3_kitty_graphics_demo`: kitty graphics プロトコルでの画像表示
+- `p3_image_protocol_fallback_demo`: 画像プロトコルの自動選択・縮退
+
+その他:
+- `event_logger_demo`: 入力イベントの内容をログ出力
 
 ## 動作確認済み環境
 
