@@ -154,6 +154,9 @@ All unit tests located in `tests/unit/`:
 - Run unified test binary directly: `./build/tests/terse_unit_test` (Unix) or `build\tests\Debug\terse_unit_test.exe` (Windows)
 - Test coverage spans core API and feature areas. See `tests/CMakeLists.txt` for the complete list
 
+### Tests that Depend on Terminal Detection
+Tests that exercise `terse_detection.c` must sanitize the host's environment variables (e.g. `WT_SESSION`, `TMUX`) before running. Use the helpers in `tests/test_env.h` (`terse_test_env_backup_detection` / `terse_test_env_restore_detection`). When you add a new `getenv()` call to `terse_detection.c`, append the name to `TERSE_TEST_DETECTION_ENV_NAMES` in `tests/test_env.h`. See `docs/testing-terminal-detection.md` for details and the prior-incident background.
+
 ### Test Mode
 Build with `-DTERSE_ENABLE_TEST_MODE=ON` to enable test mode features:
 - **API Call Recording**: Records all rendering and control API calls (move_to, write_text, set_style, etc.) for verification in automated tests

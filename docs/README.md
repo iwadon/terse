@@ -25,6 +25,12 @@ This directory contains documentation for the Terse terminal abstraction library
 | [terse-platform-porting.md](terse-platform-porting.md) | Porting guide for additional platforms |
 | [human68k-keyboard.md](human68k-keyboard.md) | Human68k (X68000) keyboard mapping reference |
 
+## Contributor Documentation
+
+| Document | Description |
+|----------|-------------|
+| [testing-terminal-detection.md](testing-terminal-detection.md) | How to write unit tests that depend on terminal detection (env-var hygiene) |
+
 ## Internal Research Notes
 
 The `research/` subdirectory contains internal development notes and investigation logs:
