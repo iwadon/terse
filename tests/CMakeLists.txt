@@ -36,4 +36,8 @@ set_target_properties(terse_unit_test PROPERTIES
 	C_STANDARD_REQUIRED ON
 	C_EXTENSIONS OFF
 )
+# POSIX拡張API (posix_openpt, sigjmp_buf等) を有効にする
+if(UNIX)
+	target_compile_definitions(terse_unit_test PRIVATE _POSIX_C_SOURCE=200809L _XOPEN_SOURCE=700)
+endif()
 add_test(NAME terse_unit_test COMMAND terse_unit_test)

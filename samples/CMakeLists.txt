@@ -40,6 +40,10 @@ foreach(SAMPLE ${SAMPLES})
 	if(WIN32)
 		target_compile_definitions(${SAMPLE} PRIVATE UNICODE _UNICODE)
 	endif()
+	# POSIX拡張API (sigaction, usleep等) を有効にする
+	if(UNIX AND NOT TERSE_PLATFORM_HUMAN68K)
+		target_compile_definitions(${SAMPLE} PRIVATE _POSIX_C_SOURCE=200809L _XOPEN_SOURCE=700)
+	endif()
 endforeach()
 
 # Human68k-specific programs (only built when targeting Human68k)
