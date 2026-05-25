@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14...3.30)
 project(terse VERSION 0.1.0 LANGUAGES C CXX)
 
-# C11標準を使用（C99の機能とmixed declarationsをサポート）
+# terse本体はC99でビルドする（テストはC11、tests/CMakeLists.txtで上書き）
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)

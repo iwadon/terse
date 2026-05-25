@@ -30,4 +30,10 @@ add_executable(terse_unit_test
 )
 target_include_directories(terse_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 target_link_libraries(terse_unit_test PRIVATE terse attest)
+# テストはC11でコンパイルする（terse本体はC99）
+set_target_properties(terse_unit_test PROPERTIES
+	C_STANDARD 11
+	C_STANDARD_REQUIRED ON
+	C_EXTENSIONS OFF
+)
 add_test(NAME terse_unit_test COMMAND terse_unit_test)
