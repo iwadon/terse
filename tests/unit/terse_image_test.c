@@ -210,6 +210,7 @@ TEST(TerseImage, WritesSixelSequenceWhenAvailable)
 	char *saved_gnome_screen = save_env_value("GNOME_TERMINAL_SCREEN");
 	char *saved_gnome_service = save_env_value("GNOME_TERMINAL_SERVICE");
 	char *saved_vte_version = save_env_value("VTE_VERSION");
+	char *saved_wt_session = save_env_value("WT_SESSION");
 	setenv("TERM", "xterm-sixel", 1);
 	unsetenv("TERM_PROGRAM");
 	unsetenv("LC_TERMINAL");
@@ -221,6 +222,7 @@ TEST(TerseImage, WritesSixelSequenceWhenAvailable)
 	unsetenv("GNOME_TERMINAL_SCREEN");
 	unsetenv("GNOME_TERMINAL_SERVICE");
 	unsetenv("VTE_VERSION");
+	unsetenv("WT_SESSION");
 	int out_pipe[2];
 	int in_pipe[2];
 	EXPECT_TRUE(pipe(out_pipe) == 0);
@@ -270,6 +272,7 @@ TEST(TerseImage, WritesSixelSequenceWhenAvailable)
 	restore_env_value("GNOME_TERMINAL_SCREEN", saved_gnome_screen);
 	restore_env_value("GNOME_TERMINAL_SERVICE", saved_gnome_service);
 	restore_env_value("VTE_VERSION", saved_vte_version);
+	restore_env_value("WT_SESSION", saved_wt_session);
 }
 
 TEST(TerseImage, DegradesWhenFormatMismatch)
@@ -324,6 +327,7 @@ TEST(TerseImage, WritesKittySequenceWhenAvailable)
 	char *saved_gnome_screen = save_env_value("GNOME_TERMINAL_SCREEN");
 	char *saved_gnome_service = save_env_value("GNOME_TERMINAL_SERVICE");
 	char *saved_vte_version = save_env_value("VTE_VERSION");
+	char *saved_wt_session = save_env_value("WT_SESSION");
 	setenv("TERM", "xterm-256color", 1);
 	setenv("TERM_PROGRAM", "WezTerm", 1);
 	unsetenv("LC_TERMINAL");
@@ -335,6 +339,7 @@ TEST(TerseImage, WritesKittySequenceWhenAvailable)
 	unsetenv("GNOME_TERMINAL_SCREEN");
 	unsetenv("GNOME_TERMINAL_SERVICE");
 	unsetenv("VTE_VERSION");
+	unsetenv("WT_SESSION");
 	int out_pipe[2];
 	int in_pipe[2];
 	EXPECT_TRUE(pipe(out_pipe) == 0);
@@ -385,6 +390,7 @@ TEST(TerseImage, WritesKittySequenceWhenAvailable)
 	restore_env_value("GNOME_TERMINAL_SCREEN", saved_gnome_screen);
 	restore_env_value("GNOME_TERMINAL_SERVICE", saved_gnome_service);
 	restore_env_value("VTE_VERSION", saved_vte_version);
+	restore_env_value("WT_SESSION", saved_wt_session);
 }
 
 TEST(TerseImage, ErrorsWhenFormatMismatchWithoutDegrade)

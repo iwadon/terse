@@ -49,6 +49,7 @@ TEST(TerseKeyboardFeatures, EnablesModifyOtherKeysAndTracksState)
 	char *saved_kitty_pid = save_env("KITTY_PID");
 	char *saved_wezterm_exec = save_env("WEZTERM_EXECUTABLE");
 	char *saved_secondary_hint = save_env("TERSE_SECONDARY_DA_HINT");
+	char *saved_wt_session = save_env("WT_SESSION");
 	setenv("TERM", "xterm-256color", 1);
 	setenv("TERM_PROGRAM", "WezTerm", 1);
 	setenv("TERM_PROGRAM_VERSION", "20240203-110809-5046fc22", 1);
@@ -61,6 +62,7 @@ TEST(TerseKeyboardFeatures, EnablesModifyOtherKeysAndTracksState)
 	unsetenv("KITTY_PID");
 	setenv("WEZTERM_EXECUTABLE", "/Applications/WezTerm.app/Contents/MacOS/wezterm-gui", 1);
 	setenv("TERSE_SECONDARY_DA_HINT", "\x1b[>1;277;0c", 1);
+	unsetenv("WT_SESSION");
 	EXPECT_TRUE(getenv("TERM_PROGRAM") != NULL);
 	EXPECT_TRUE(strcmp("WezTerm", getenv("TERM_PROGRAM")) == 0);
 	EXPECT_TRUE(getenv("COLORTERM") != NULL);
@@ -136,6 +138,7 @@ TEST(TerseKeyboardFeatures, EnablesModifyOtherKeysAndTracksState)
 	restore_env("TERM_PROGRAM_VERSION", saved_term_program_version);
 	restore_env("TERM_PROGRAM", saved_term_program);
 	restore_env("TERM", saved_term);
+	restore_env("WT_SESSION", saved_wt_session);
 }
 
 TEST(TerseKeyboardFeatures, EnableDegradesWhenUnsupported)
@@ -183,6 +186,7 @@ TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
 	char *saved_gnome_screen = save_env("GNOME_TERMINAL_SCREEN");
 	char *saved_gnome_service = save_env("GNOME_TERMINAL_SERVICE");
 	char *saved_vte_version = save_env("VTE_VERSION");
+	char *saved_wt_session = save_env("WT_SESSION");
 	setenv("TERM", "xterm-kitty", 1);
 	unsetenv("TERM_PROGRAM");
 	unsetenv("LC_TERMINAL");
@@ -190,6 +194,7 @@ TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
 	unsetenv("GNOME_TERMINAL_SCREEN");
 	unsetenv("GNOME_TERMINAL_SERVICE");
 	unsetenv("VTE_VERSION");
+	unsetenv("WT_SESSION");
 
 	int fds[2];
 	EXPECT_TRUE(pipe(fds) == 0);
@@ -231,6 +236,7 @@ TEST(TerseKeyboardFeatures, KittyProtocolHandshake)
 	restore_env("GNOME_TERMINAL_SCREEN", saved_gnome_screen);
 	restore_env("GNOME_TERMINAL_SERVICE", saved_gnome_service);
 	restore_env("VTE_VERSION", saved_vte_version);
+	restore_env("WT_SESSION", saved_wt_session);
 }
 
 #endif /* HAVE_POSIX_PIPE */
