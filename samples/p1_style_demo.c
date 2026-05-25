@@ -6,7 +6,7 @@
 
 static void wait_briefly(void)
 {
-	usleep(150000);
+	sample_sleep_ms(150);
 }
 
 static void print_error(const char *label, terse_handle_t handle)

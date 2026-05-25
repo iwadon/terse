@@ -22,13 +22,6 @@
 #define STDERR_FILENO 2
 #endif
 
-/* usleep compatibility (microseconds) */
-static inline void usleep(unsigned int usec)
-{
-	/* Windows Sleep() takes milliseconds */
-	Sleep((usec + 999) / 1000);
-}
-
 /* sleep compatibility (seconds) */
 static inline unsigned int sleep(unsigned int seconds)
 {
@@ -36,9 +29,25 @@ static inline unsigned int sleep(unsigned int seconds)
 	return 0;
 }
 
+static inline void sample_sleep_ms(unsigned int msec)
+{
+	Sleep(msec);
+}
+
 #else /* POSIX */
 
+#include <time.h>
 #include <unistd.h>
+
+/* nanosleep ベースのミリ秒スリープ
+ * usleep は POSIX.1-2008 で廃止されたため代わりに nanosleep を使う */
+static inline void sample_sleep_ms(unsigned int msec)
+{
+	struct timespec ts;
+	ts.tv_sec = (time_t)(msec / 1000);
+	ts.tv_nsec = (long)((msec % 1000) * 1000000L);
+	nanosleep(&ts, NULL);
+}
 
 #endif /* _WIN32 */
 

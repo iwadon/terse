@@ -6,7 +6,7 @@
 
 static void wait_briefly(void)
 {
-	usleep(200000); // 200ms for visual effect
+	sample_sleep_ms(200); // 200ms for visual effect
 }
 
 static void print_error(const char *label, terse_handle_t handle)
