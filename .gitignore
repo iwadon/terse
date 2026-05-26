@@ -145,9 +145,10 @@ CMakeUserPresets.json
 
 
 # This project specifically ignores:
+.cache/
 .claude/session-state.md
 .claude/settings.local.json
 .docqa/
+.DS_Store
 build-*/
 build/
-.cache/
