@@ -40,10 +40,14 @@ static unsigned char *generate_test_image(size_t *out_size)
 // This is a minimal PNG encoder for demonstration purposes
 static unsigned char *rgb_to_png(const unsigned char *rgb_data, int width, int height, size_t *out_size)
 {
+	if (!out_size || width <= 0 || height <= 0) {
+		return NULL;
+	}
+
 	// For simplicity, return raw RGB data and let the terminal handle it
 	// In production, you'd use a proper PNG encoder
 	// Kitty graphics protocol supports raw RGB format (f=24)
-	*out_size = width * height * 3;
+	*out_size = (size_t)width * (size_t)height * 3u;
 	unsigned char *result = (unsigned char *)malloc(*out_size);
 	if (result) {
 		memcpy(result, rgb_data, *out_size);
