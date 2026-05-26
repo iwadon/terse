@@ -2,31 +2,31 @@ name: Build and Test
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-      with:
-        submodules: false
-        fetch-depth: 0
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: false
+          fetch-depth: 0
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ninja-build cmake build-essential
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake build-essential
 
-    - name: Configure project
-      run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Configure project
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
-    - name: Build project
-      run: ninja -C build
+      - name: Build project
+        run: ninja -C build
 
-    - name: Run tests
-      run: ctest --test-dir build --output-on-failure
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
