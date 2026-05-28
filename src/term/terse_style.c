@@ -172,32 +172,45 @@ degrade_color_to_rgb(terse_color_t color, unsigned char *r, unsigned char *g, un
 }
 
 /*
- * RGB を 4 色（黒・赤・緑・青）の最近傍へ寄せる暫定マッピング。
- * Phase 4.5 で Human68k のテキスト 4 色の実機定義に合わせて見直す。
+ * RGB を Human68k テキスト画面の 4 色（黒・シアン・黄・白）の最近傍へ寄せる。
+ *
+ * 代表色は Human68k のテキストパレット初期値 pal[0..3]（IPLROM リセット初期化が
+ * 設定する実機の色）に基づく。テキスト画面は 4 プレーン構成で下位 16 色のうち
+ * 先頭 4 色がブートコンソールで実用される（pal[0]=背景, pal[1]=前景）。
+ * 5bit GRB → 8bit RGB 換算（v<<3 | v>>2）:
+ *   pal[0] $0000 → (0,0,0)       黒
+ *   pal[1] $f83e → (8,255,255)   シアン寄り（緑＋青）
+ *   pal[2] $ffc0 → (255,255,0)   黄
+ *   pal[3] $fffe → (255,255,255) 白
+ * 出典: ~/src/x68k/human68k_dis_ai/iocscall.md §テキストパレット初期値
+ *
+ * 返す basic_color は SGR 標準色番号に対応（黒=0/黄=3/シアン=6/白=7）。
+ * SGR 経由（^[[3Nm）で出力され、Human68k 上で pal[0..3] 相当の表示を期待する。
  */
 static terse_basic_color_t
 closest_basic4_color(unsigned char r, unsigned char g, unsigned char b)
 {
-	static const terse_basic_color_t palette4[4] = {
-		TERSE_BASIC_COLOR_BLACK,
-		TERSE_BASIC_COLOR_RED,
-		TERSE_BASIC_COLOR_GREEN,
-		TERSE_BASIC_COLOR_BLUE,
+	static const struct {
+		unsigned char r;
+		unsigned char g;
+		unsigned char b;
+		terse_basic_color_t sgr;
+	} text4[4] = {
+		{ 0, 0, 0, TERSE_BASIC_COLOR_BLACK },
+		{ 8, 255, 255, TERSE_BASIC_COLOR_CYAN },
+		{ 255, 255, 0, TERSE_BASIC_COLOR_YELLOW },
+		{ 255, 255, 255, TERSE_BASIC_COLOR_WHITE },
 	};
 	unsigned int best_distance = UINT_MAX;
 	terse_basic_color_t best = TERSE_BASIC_COLOR_BLACK;
 	for (int i = 0; i < 4; ++i) {
-		unsigned char pr = 0;
-		unsigned char pg = 0;
-		unsigned char pb = 0;
-		palette_index_to_rgb((unsigned char)palette4[i], &pr, &pg, &pb);
-		int dr = (int)r - (int)pr;
-		int dg = (int)g - (int)pg;
-		int db = (int)b - (int)pb;
+		int dr = (int)r - (int)text4[i].r;
+		int dg = (int)g - (int)text4[i].g;
+		int db = (int)b - (int)text4[i].b;
 		unsigned int distance = (unsigned int)(dr * dr + dg * dg + db * db);
 		if (distance < best_distance) {
 			best_distance = distance;
-			best = palette4[i];
+			best = text4[i].sgr;
 		}
 	}
 	return best;
@@ -263,9 +276,9 @@ terse_style_degrade_color(terse_color_t color, terse_color_support_t support)
 	switch (support) {
 	case TERSE_COLOR_BASIC4: {
 		/*
-		 * 任意の色を 4 色（黒/赤/緑/青の代表 8 色系下位）に寄せる暫定マッピング。
-		 * いったん basic16 へ縮退してから 4 色枠へ丸める。
-		 * 4 色の具体的な構成は Phase 4.5 で Human68k 実機色に合わせて確定する。
+		 * 任意の色を Human68k テキスト 4 色（黒/シアン/黄/白）へ寄せる。
+		 * いったん RGB へ展開し、実機パレット初期色の最近傍を選ぶ。
+		 * 詳細は closest_basic4_color() のコメント参照。
 		 */
 		unsigned char r = 0;
 		unsigned char g = 0;

@@ -15,13 +15,14 @@ P0のライフサイクル・出力・入力・サイズ取得・エラー返却
 | --- | --- | --- | --- |
 | ライフサイクル (`open`/`close`) | P0 | ✅ 実装済み | オプション検証・初期状態（カーソル表示/SGRリセット）・終了時の安全復帰（マウス/ペースト解除, カーソル表示, SGR 0）。|
 | 能力検出/取得 (`get_capabilities`) | P0-P3 | ✅ 実装済み | 環境検出＋リクエストでクリップ（P0〜P3）。ランタイム enable/disable/リセットで上書き可。色/Effetcs/マウス/ペースト/タイトル/リンク/画像/通知/カーソル形状などを包含。|
+| 能力要求 (`require`/`caps_missing`/`get_active_features`) | P0-P3 | ✅ 実装済み | `TERSE_FEAT_*` ビットマスクで必要機能を宣言し不足分を検査（副作用なし）。色段階は「以上」で充足。|
 | 出力制御 (`clear_*`, `move_*`, `show_cursor`, `write_text`, `flush`) | P0 | ✅ 実装済み | ANSI送出・ノーオペ縮退・重複出力抑止（同位置 `move_to`/同可視状態 `show_cursor`）。`flush` はNo-op。|
 | 入力 (`read_event`) | P0 | ✅ 実装済み（部分） | ASCII/Enter/Backspace/Tab/矢印（修飾付）/Resize/ブランケットペースト/SGRマウスを正規化。未対応：多バイト復号・機能キー全面。|
 | 端末サイズ (`get_size`) | P0 | ✅ 実装済み | `TIOCGWINSZ` ベース。`CSI 8 ; r ; c t` 受信で内部サイズ更新。無効化時は Unknown を返却。|
 | 状態管理（キャプチャ/復元・一時保存） | P0 | ✅ 実装済み | `capture/restore_state` と `push/pop_state` を提供。カーソル位置/可視/スタイルを安全に復元。|
 | 環境検出・プロファイル自動判定 | P0-P3 | ✅ 実装済み | Apple Terminal / VTE / iTerm2 / WezTerm / kitty / Ghostty / Warp を判別（環境変数＋Secondary DA）。|
 | エラー分類/返却 | P0 | ✅ 実装済み（基本） | `terse_error_t` enum 返却と `terse_get_last_error()`。Argument/State/I/O/Protocol/Resource/Encoding を範囲別に区別（1-99, 100-199, 200-299, 300-399, 400-499, 500-599）。|
-| P1: 色・装飾（SGR） | P1 | ✅ 実装済み | `set_style/reset_style` 完了。TrueColor→256→16→既定色への縮退ロジックと効果ビット（Bold/Italic/Underline/…）。|
+| P1: 色・装飾（SGR） | P1 | ✅ 実装済み | `set_style/reset_style` 完了。TrueColor→256→16→4色→既定色への縮退ロジックと効果ビット（Bold/Italic/Underline/…）。色サポートは5段階（NONE/BASIC4/BASIC16/PALETTE256/TRUECOLOR）。4色はHuman68kテキスト画面（黒/シアン/黄/白、実機パレット初期値）に対応。|
 | P2: マウス追跡 | P2 | ✅ 実装済み | `enable/disable_mouse`（X10/VT200/SGR）。SGRマウスの Down/Move/Up/Scroll と修飾を正規化。|
 | P2: ブランケットペースト | P2 | ✅ 実装済み | `enable/disable_bracketed_paste` と `PasteBegin/End` イベント。|
 | P2: タイトル/リンク | P2 | ✅ 実装済み | `OSC 0` タイトル、`OSC 8` ハイパーリンク。妥当性最低限チェック。|

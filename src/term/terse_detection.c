@@ -31,6 +31,9 @@ static terse_capabilities_t make_ghostty_capabilities(int has_truecolor);
 static terse_capabilities_t make_sixel_capabilities(int has_truecolor);
 static terse_capabilities_t make_warp_capabilities(int has_truecolor);
 static terse_capabilities_t make_windows_terminal_capabilities(int has_truecolor);
+#if defined(__human68k__)
+static terse_capabilities_t make_human68k_capabilities(void);
+#endif
 static void clamp_capabilities_to_request(terse_capabilities_t *caps, terse_profile_t requested);
 static int is_multiplexer_session(const char *term);
 static int term_supports_sixel(const char *term);
@@ -269,6 +272,33 @@ make_windows_terminal_capabilities(int has_truecolor)
 	return caps;
 }
 
+#if defined(__human68k__)
+/**
+ * Create capabilities for the Human68k (X68000) text console.
+ *
+ * テキスト画面は SGR エスケープ (^[[Nm) を受け付け、4 プレーン構成の下位 4 色
+ * （黒/シアン/黄/白）が実用される。色数の上限を TERSE_COLOR_BASIC4 として明示し、
+ * Phase 4 で導入した recompute のガードに尊重させる（has_sgr_basic だけでは
+ * 導出が BASIC16 になってしまうため、colors の明示が必須）。マウス・タイトル・
+ * ハイパーリンク・画像・クリップボードは無効。
+ *
+ * @return A P1 capabilities structure for Human68k.
+ */
+static terse_capabilities_t
+make_human68k_capabilities(void)
+{
+	terse_capabilities_t caps = terse_make_p0_capabilities();
+	caps.profile = TERSE_P1;
+	caps.has_size = 1;
+	caps.has_sgr_basic = 1;
+	caps.has_sgr_extended = 0;
+	caps.has_truecolor = 0;
+	caps.has_text_styles = 1;
+	caps.colors = TERSE_COLOR_BASIC4;
+	return caps;
+}
+#endif
+
 /**
  * Clamp capabilities to the requested profile level.
  *
@@ -388,6 +418,15 @@ detect_environment_capabilities(terse_profile_t requested_profile, const terse_o
 	if (!auto_requested && requested_profile == TERSE_P0) {
 		return caps;
 	}
+#if defined(__human68k__)
+	/*
+	 * Human68k はコンパイル時固定環境。環境変数ベースの端末識別は行わず、
+	 * テキストコンソールの 4 色 / SGR ケイパビリティを直接返す。
+	 */
+	caps = make_human68k_capabilities();
+	clamp_capabilities_to_request(&caps, requested_profile);
+	return caps;
+#endif
 	const char *term = getenv("TERM");
 	const char *term_program = getenv("TERM_PROGRAM");
 	const char *lc_terminal = getenv("LC_TERMINAL");

@@ -2,6 +2,7 @@
 add_executable(terse_unit_test
 	unit/terse_unit_test.c
 	unit/terse_ambiguous_width_test.c
+	unit/terse_basic4_test.c
 	unit/terse_char_width_test.c
 	unit/terse_clipboard_test.c
 	unit/terse_close_test.c
