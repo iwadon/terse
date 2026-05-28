@@ -43,9 +43,18 @@ extern void set_error(terse_handle_t handle, terse_error_t error);
 
 int terse_style_color_support_rank(terse_color_support_t support)
 {
+	/*
+	 * ランクは terse_color_kind_rank() と比較可能でなければならない
+	 * （degrade_color が両者を直接比較する）。color_kind には 4 色専用の種別が
+	 * 無く、4 色も 16 色も BASIC16 kind で表す。よって BASIC4 / BASIC16 は
+	 * ともに「basic16 kind を表示できる段」として同じランク 1 を返す。
+	 * 4 色か 16 色かの区別は degrade_color の switch（support 値）が行う。
+	 */
 	switch (support) {
 	case TERSE_COLOR_NONE:
 		return 0;
+	case TERSE_COLOR_BASIC4:
+		return 1;
 	case TERSE_COLOR_BASIC16:
 		return 1;
 	case TERSE_COLOR_PALETTE256:
@@ -140,6 +149,60 @@ closest_basic16_index(unsigned char r, unsigned char g, unsigned char b)
 	return best_index;
 }
 
+/*
+ * 色を RGB へ展開する（truecolor はそのまま、palette は LUT、basic16 は basic16_rgb）。
+ * default 色は黒として扱う（degrade_color 側で default は事前に弾かれている）。
+ */
+static void
+degrade_color_to_rgb(terse_color_t color, unsigned char *r, unsigned char *g, unsigned char *b)
+{
+	*r = 0;
+	*g = 0;
+	*b = 0;
+	if (color.kind == TERSE_COLOR_KIND_TRUECOLOR) {
+		*r = color.data.truecolor.r;
+		*g = color.data.truecolor.g;
+		*b = color.data.truecolor.b;
+	} else if (color.kind == TERSE_COLOR_KIND_PALETTE256) {
+		palette_index_to_rgb(color.data.palette.value, r, g, b);
+	} else if (color.kind == TERSE_COLOR_KIND_BASIC16) {
+		unsigned char idx = (unsigned char)(color.data.basic16.color + (color.data.basic16.bright ? 8 : 0));
+		palette_index_to_rgb(idx, r, g, b);
+	}
+}
+
+/*
+ * RGB を 4 色（黒・赤・緑・青）の最近傍へ寄せる暫定マッピング。
+ * Phase 4.5 で Human68k のテキスト 4 色の実機定義に合わせて見直す。
+ */
+static terse_basic_color_t
+closest_basic4_color(unsigned char r, unsigned char g, unsigned char b)
+{
+	static const terse_basic_color_t palette4[4] = {
+		TERSE_BASIC_COLOR_BLACK,
+		TERSE_BASIC_COLOR_RED,
+		TERSE_BASIC_COLOR_GREEN,
+		TERSE_BASIC_COLOR_BLUE,
+	};
+	unsigned int best_distance = UINT_MAX;
+	terse_basic_color_t best = TERSE_BASIC_COLOR_BLACK;
+	for (int i = 0; i < 4; ++i) {
+		unsigned char pr = 0;
+		unsigned char pg = 0;
+		unsigned char pb = 0;
+		palette_index_to_rgb((unsigned char)palette4[i], &pr, &pg, &pb);
+		int dr = (int)r - (int)pr;
+		int dg = (int)g - (int)pg;
+		int db = (int)b - (int)pb;
+		unsigned int distance = (unsigned int)(dr * dr + dg * dg + db * db);
+		if (distance < best_distance) {
+			best_distance = distance;
+			best = palette4[i];
+		}
+	}
+	return best;
+}
+
 static unsigned int
 mask_effects(unsigned int effects)
 {
@@ -190,21 +253,39 @@ terse_style_degrade_color(terse_color_t color, terse_color_support_t support)
 		return terse_color_default();
 	}
 	int requested_level = terse_color_kind_rank(color.kind);
-	if (requested_level <= support_level) {
+	/*
+	 * BASIC4 は BASIC16 と同ランクだが 16 色をそのまま出せないため、
+	 * basic16 kind が来ても素通りさせず 4 色へ寄せる（下の switch で処理）。
+	 */
+	if (requested_level <= support_level && support != TERSE_COLOR_BASIC4) {
 		return color;
 	}
 	switch (support) {
+	case TERSE_COLOR_BASIC4: {
+		/*
+		 * 任意の色を 4 色（黒/赤/緑/青の代表 8 色系下位）に寄せる暫定マッピング。
+		 * いったん basic16 へ縮退してから 4 色枠へ丸める。
+		 * 4 色の具体的な構成は Phase 4.5 で Human68k 実機色に合わせて確定する。
+		 */
+		unsigned char r = 0;
+		unsigned char g = 0;
+		unsigned char b = 0;
+		degrade_color_to_rgb(color, &r, &g, &b);
+		terse_basic_color_t basic4 = closest_basic4_color(r, g, b);
+		terse_color_t basic = {
+			.kind = TERSE_COLOR_KIND_BASIC16,
+			.data.basic16 = {
+				.color = basic4,
+				.bright = 0,
+			},
+		};
+		return basic;
+	}
 	case TERSE_COLOR_BASIC16: {
 		unsigned char r = 0;
 		unsigned char g = 0;
 		unsigned char b = 0;
-		if (color.kind == TERSE_COLOR_KIND_TRUECOLOR) {
-			r = color.data.truecolor.r;
-			g = color.data.truecolor.g;
-			b = color.data.truecolor.b;
-		} else if (color.kind == TERSE_COLOR_KIND_PALETTE256) {
-			palette_index_to_rgb(color.data.palette.value, &r, &g, &b);
-		}
+		degrade_color_to_rgb(color, &r, &g, &b);
 		unsigned char idx = closest_basic16_index(r, g, b);
 		terse_color_t basic = {
 			.kind = TERSE_COLOR_KIND_BASIC16,

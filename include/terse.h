@@ -2,6 +2,7 @@
 #define TERSE_H_INCLUDED
 
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,6 +26,7 @@ typedef enum terse_clear_mode {
 
 typedef enum terse_color_support {
 	TERSE_COLOR_NONE = 0,
+	TERSE_COLOR_BASIC4, /* 4 colors via SGR (e.g. Human68k); enum 中間挿入のため後続値はシフト */
 	TERSE_COLOR_BASIC16,
 	TERSE_COLOR_PALETTE256,
 	TERSE_COLOR_TRUECOLOR
@@ -201,6 +203,37 @@ typedef enum terse_capability_enable_flag {
 	TERSE_CAP_ENABLE_NOTIFICATION_DESKTOP = 1u << 13
 } terse_capability_enable_flag_t;
 
+/*
+ * terse_require() / terse_caps_missing() / terse_get_active_features() が扱う
+ * 機能ビット。検出ケイパビリティ（terse_capabilities_t）を「要求可能な機能」の
+ * 平坦なビットマスクとして射影したもの。ENABLE/DISABLE override とは別レイヤ。
+ * 色は段階なので「以上」で充足する（端末が PALETTE256 なら BASIC16 の要求も満たす）。
+ */
+enum {
+	TERSE_FEAT_BASIC_OUTPUT = 1ull << 0,
+	TERSE_FEAT_CURSOR_VISIBILITY = 1ull << 1,
+	TERSE_FEAT_MOVE_ABSOLUTE = 1ull << 2,
+	TERSE_FEAT_MOVE_RELATIVE = 1ull << 3,
+	TERSE_FEAT_CLEAR_LINE = 1ull << 4,
+	TERSE_FEAT_CLEAR_SCREEN = 1ull << 5,
+	TERSE_FEAT_SIZE = 1ull << 6,
+	TERSE_FEAT_COLOR_BASIC4 = 1ull << 7,
+	TERSE_FEAT_COLOR_BASIC16 = 1ull << 8,
+	TERSE_FEAT_COLOR_PALETTE256 = 1ull << 9,
+	TERSE_FEAT_COLOR_TRUECOLOR = 1ull << 10,
+	TERSE_FEAT_TEXT_STYLES = 1ull << 11,
+	TERSE_FEAT_MOUSE = 1ull << 12,
+	TERSE_FEAT_BRACKETED_PASTE = 1ull << 13,
+	TERSE_FEAT_TITLE = 1ull << 14,
+	TERSE_FEAT_HYPERLINK = 1ull << 15,
+	TERSE_FEAT_CURSOR_SHAPE = 1ull << 16,
+	TERSE_FEAT_CLIPBOARD_WRITE = 1ull << 17,
+	TERSE_FEAT_IMAGE_INLINE = 1ull << 18,
+	TERSE_FEAT_NOTIFICATION_BELL = 1ull << 19,
+	TERSE_FEAT_NOTIFICATION_VISUAL = 1ull << 20,
+	TERSE_FEAT_NOTIFICATION_DESKTOP = 1ull << 21
+};
+
 typedef enum terse_keyboard_feature {
 	TERSE_KEYBOARD_FEATURE_NONE = 0,
 	TERSE_KEYBOARD_FEATURE_MODIFY_OTHER_KEYS = 1u << 0,
@@ -363,6 +396,18 @@ terse_handle_t terse_open(terse_profile_t requested_profile, const terse_options
 void terse_close(terse_handle_t handle);
 
 terse_capabilities_t terse_get_capabilities(terse_handle_t handle);
+
+/*
+ * ケイパビリティ要求 API（Phase 4, opt-in）。すべて TERSE_FEAT_* ビットマスクで扱う。
+ * これらは検査専用で副作用を持たない（自動有効化はしない）。
+ * 機能の強制有効化/無効化は従来どおり terse_capabilities_enable/disable() を使う。
+ */
+/* wanted のうち端末が現在提供できないビットを返す（0 なら全充足）。 */
+uint64_t terse_caps_missing(terse_handle_t handle, uint64_t wanted);
+/* wanted を要求し、不足ビットを返す。terse_caps_missing の意図明示ラッパ。 */
+uint64_t terse_require(terse_handle_t handle, uint64_t wanted);
+/* override 適用後に現在有効化されている機能ビットを返す。 */
+uint64_t terse_get_active_features(terse_handle_t handle);
 terse_error_t terse_state_override(terse_handle_t handle, const terse_state_t *state);
 terse_error_t terse_state_clear(terse_handle_t handle);
 // Stack helpers for temporary state snapshots.

@@ -223,7 +223,13 @@ void recompute_capabilities(terse_handle_t handle)
 		handle->capabilities.notifications |= TERSE_NOTIFICATION_SUPPORT_DESKTOP;
 	}
 
-	if (handle->capabilities.has_truecolor) {
+	if (handle->detected_capabilities.colors == TERSE_COLOR_BASIC4) {
+		/*
+		 * 検出側が明示した 4 色（Human68k 等）を尊重する。3 フラグからの導出では
+		 * 16 色未満を表現できないため、この経路でのみ BASIC4 が確定する。
+		 */
+		handle->capabilities.colors = TERSE_COLOR_BASIC4;
+	} else if (handle->capabilities.has_truecolor) {
 		handle->capabilities.colors = TERSE_COLOR_TRUECOLOR;
 	} else if (handle->capabilities.has_sgr_extended) {
 		handle->capabilities.colors = TERSE_COLOR_PALETTE256;
@@ -278,4 +284,110 @@ terse_error_t terse_capabilities_reset_overrides(terse_handle_t handle)
 	handle->runtime_disabled = 0;
 	apply_runtime_overrides(handle);
 	return 0;
+}
+
+/*
+ * 検出ケイパビリティを「要求可能な機能」の平坦なビットマスクへ射影する。
+ * 色は段階なので、該当段以下の色ビットをすべて立てる（PALETTE256 端末は
+ * BASIC16 / BASIC4 の要求も満たす）。
+ */
+static uint64_t
+features_from_capabilities(const terse_capabilities_t *caps)
+{
+	uint64_t feats = 0;
+	if (caps->has_basic_output) {
+		feats |= TERSE_FEAT_BASIC_OUTPUT;
+	}
+	if (caps->has_cursor_visibility) {
+		feats |= TERSE_FEAT_CURSOR_VISIBILITY;
+	}
+	if (caps->has_move_absolute) {
+		feats |= TERSE_FEAT_MOVE_ABSOLUTE;
+	}
+	if (caps->has_move_relative) {
+		feats |= TERSE_FEAT_MOVE_RELATIVE;
+	}
+	if (caps->has_clear_line) {
+		feats |= TERSE_FEAT_CLEAR_LINE;
+	}
+	if (caps->has_clear_screen) {
+		feats |= TERSE_FEAT_CLEAR_SCREEN;
+	}
+	if (caps->has_size) {
+		feats |= TERSE_FEAT_SIZE;
+	}
+	switch (caps->colors) {
+	case TERSE_COLOR_TRUECOLOR:
+		feats |= TERSE_FEAT_COLOR_TRUECOLOR;
+		/* fallthrough */
+	case TERSE_COLOR_PALETTE256:
+		feats |= TERSE_FEAT_COLOR_PALETTE256;
+		/* fallthrough */
+	case TERSE_COLOR_BASIC16:
+		feats |= TERSE_FEAT_COLOR_BASIC16;
+		/* fallthrough */
+	case TERSE_COLOR_BASIC4:
+		feats |= TERSE_FEAT_COLOR_BASIC4;
+		/* fallthrough */
+	case TERSE_COLOR_NONE:
+		break;
+	}
+	if (caps->has_text_styles) {
+		feats |= TERSE_FEAT_TEXT_STYLES;
+	}
+	if (caps->mouse != TERSE_MOUSE_NONE) {
+		feats |= TERSE_FEAT_MOUSE;
+	}
+	if (caps->has_bracketed_paste) {
+		feats |= TERSE_FEAT_BRACKETED_PASTE;
+	}
+	if (caps->has_title) {
+		feats |= TERSE_FEAT_TITLE;
+	}
+	if (caps->has_hyperlinks) {
+		feats |= TERSE_FEAT_HYPERLINK;
+	}
+	if (caps->has_cursor_shape) {
+		feats |= TERSE_FEAT_CURSOR_SHAPE;
+	}
+	if (caps->has_clipboard_write) {
+		feats |= TERSE_FEAT_CLIPBOARD_WRITE;
+	}
+	if (caps->images != TERSE_IMAGE_NONE) {
+		feats |= TERSE_FEAT_IMAGE_INLINE;
+	}
+	if (caps->notifications & TERSE_NOTIFICATION_SUPPORT_BELL) {
+		feats |= TERSE_FEAT_NOTIFICATION_BELL;
+	}
+	if (caps->notifications & TERSE_NOTIFICATION_SUPPORT_VISUAL) {
+		feats |= TERSE_FEAT_NOTIFICATION_VISUAL;
+	}
+	if (caps->notifications & TERSE_NOTIFICATION_SUPPORT_DESKTOP) {
+		feats |= TERSE_FEAT_NOTIFICATION_DESKTOP;
+	}
+	return feats;
+}
+
+uint64_t terse_caps_missing(terse_handle_t handle, uint64_t wanted)
+{
+	if (!handle) {
+		return wanted;
+	}
+	clear_error(handle);
+	uint64_t provided = features_from_capabilities(&handle->capabilities);
+	return wanted & ~provided;
+}
+
+uint64_t terse_require(terse_handle_t handle, uint64_t wanted)
+{
+	return terse_caps_missing(handle, wanted);
+}
+
+uint64_t terse_get_active_features(terse_handle_t handle)
+{
+	if (!handle) {
+		return 0;
+	}
+	clear_error(handle);
+	return features_from_capabilities(&handle->capabilities);
 }
