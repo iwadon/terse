@@ -363,9 +363,6 @@ terse_handle_t terse_open(terse_profile_t requested_profile, const terse_options
 void terse_close(terse_handle_t handle);
 
 terse_capabilities_t terse_get_capabilities(terse_handle_t handle);
-terse_error_t terse_capabilities_enable(terse_handle_t handle, unsigned int enable_mask);
-terse_error_t terse_capabilities_disable(terse_handle_t handle, unsigned int disable_mask);
-terse_error_t terse_capabilities_reset_overrides(terse_handle_t handle);
 terse_error_t terse_state_override(terse_handle_t handle, const terse_state_t *state);
 terse_error_t terse_state_clear(terse_handle_t handle);
 // Stack helpers for temporary state snapshots.
@@ -374,9 +371,6 @@ terse_error_t terse_pop_state(terse_handle_t handle);
 
 terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
 terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);
-terse_error_t terse_move_to(terse_handle_t handle, int row, int col);
-terse_error_t terse_move_by(terse_handle_t handle, int drow, int dcol);
-terse_error_t terse_show_cursor(terse_handle_t handle, int visible);
 terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes);
 terse_error_t terse_flush(terse_handle_t handle);
 terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event);
@@ -386,48 +380,17 @@ terse_error_t terse_get_options(terse_handle_t handle, terse_options_t *out_opti
 terse_error_t terse_validate_options(const terse_options_t *options);
 terse_error_t terse_get_last_error(terse_handle_t handle);
 
-terse_error_t terse_keyboard_enable(terse_handle_t handle, unsigned int feature_mask);
-terse_error_t terse_keyboard_disable(terse_handle_t handle, unsigned int feature_mask);
-unsigned int terse_keyboard_get_enabled(terse_handle_t handle);
-unsigned int terse_keyboard_get_supported(terse_handle_t handle);
 terse_error_t terse_capture_state(terse_handle_t handle, terse_state_t *out_state);
 terse_error_t terse_restore_state(terse_handle_t handle, const terse_state_t *state);
-terse_style_t terse_style_default(void);
-terse_color_t terse_color_default(void);
-terse_color_t terse_color_basic(terse_basic_color_t color, int bright);
-terse_color_t terse_color_palette(unsigned char index);
-terse_color_t terse_color_truecolor(unsigned char r, unsigned char g, unsigned char b);
 terse_error_t terse_set_style(terse_handle_t handle, const terse_style_t *style);
 terse_error_t terse_reset_style(terse_handle_t handle, terse_reset_scope_t scope);
-terse_error_t terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode);
-terse_error_t terse_disable_mouse(terse_handle_t handle);
-terse_error_t terse_enable_bracketed_paste(terse_handle_t handle);
-terse_error_t terse_disable_bracketed_paste(terse_handle_t handle);
-terse_error_t terse_set_title(terse_handle_t handle, const char *title);
-terse_error_t terse_set_hyperlink(terse_handle_t handle, const char *url, const char *label);
-terse_error_t terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, int blinking);
-terse_error_t terse_set_clipboard(terse_handle_t handle, const char *data);
-terse_error_t terse_display_image(terse_handle_t handle, const terse_image_request_t *request);
-terse_error_t terse_display_image_inline(terse_handle_t handle, const unsigned char *data, size_t size, const char *name);
-terse_error_t terse_notify(terse_handle_t handle, terse_notification_kind_t kind, const char *payload);
 
 /*
- * UTF-8 encoding utility
- * Encodes a Unicode scalar value to UTF-8 bytes.
- * Returns the number of bytes written (1-4), or 0 on error.
- * The out buffer must have room for at least 4 bytes.
+ * 低レベル層（terse-term）の公開 API。
+ * 型定義の後に include する（term.h は本ヘッダの型に依存する）。
+ * 既存利用側は <terse.h> を include すれば下記の低レベル API も取得できる。
  */
-int terse_encode_utf8(unsigned int scalar, unsigned char *out);
-
-/*
- * Character width utility
- * Returns the display width (in terminal cells) of a Unicode scalar value.
- * Returns 0 for control characters and combining marks.
- * Returns 1 for narrow characters.
- * Returns 2 for wide characters (CJK, etc.).
- * Ambiguous width characters respect the east_asian_ambiguous_as_wide option.
- */
-int terse_char_width(terse_handle_t handle, unsigned int scalar);
+#include "terse/term.h"
 
 #ifdef __cplusplus
 }
