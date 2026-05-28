@@ -24,6 +24,11 @@ typedef enum terse_clear_mode {
 	TERSE_CLEAR_ALL
 } terse_clear_mode_t;
 
+typedef enum terse_render_mode {
+	TERSE_RENDER_IMMEDIATE = 0, /* default: write escapes directly (current behavior) */
+	TERSE_RENDER_BUFFERED       /* opt-in: write into a virtual cell buffer, emit diff on flush */
+} terse_render_mode_t;
+
 typedef enum terse_color_support {
 	TERSE_COLOR_NONE = 0,
 	TERSE_COLOR_BASIC4, /* 4 colors via SGR (e.g. Human68k); enum 中間挿入のため後続値はシフト */
@@ -130,6 +135,20 @@ typedef struct terse_style {
 	unsigned int effects;
 } terse_style_t;
 
+/*
+ * A single screen cell in the virtual buffer used by TERSE_RENDER_BUFFERED.
+ * Holds one UTF-8 grapheme plus its color/effect attributes.
+ */
+typedef struct terse_cell {
+	char utf8_char[5];       /* UTF-8 grapheme (max 4 bytes + NUL); empty when char_len == 0 */
+	uint8_t char_len;        /* byte length of utf8_char (0 = empty cell) */
+	uint8_t display_width;   /* display width in columns (1 or 2) */
+	uint8_t is_continuation; /* nonzero when this is the 2nd column of a wide char */
+	terse_color_t fg;        /* foreground; kind DEFAULT means unspecified */
+	terse_color_t bg;        /* background; kind DEFAULT means unspecified */
+	uint16_t effects;        /* TERSE_STYLE_* bitmask */
+} terse_cell_t;
+
 typedef enum terse_reset_scope {
 	TERSE_RESET_ALL = 0,
 	TERSE_RESET_COLOR_ONLY,
@@ -160,6 +179,7 @@ typedef struct terse_capabilities {
 	terse_image_support_t images;
 	unsigned int notifications;
 	unsigned int keyboard_features;
+	int has_alt_screen; /* alternate screen buffer (DEC private mode 1049) */
 } terse_capabilities_t;
 
 typedef enum terse_capability_flag {
@@ -247,6 +267,8 @@ typedef struct terse_options {
 	unsigned int disabled_caps;
 	unsigned int enabled_caps;
 	int east_asian_ambiguous_as_wide;
+	terse_render_mode_t render_mode; /* default TERSE_RENDER_IMMEDIATE */
+	int use_alt_screen;              /* nonzero: enter alt screen on open, leave on close */
 } terse_options_t;
 
 typedef struct terse_size {

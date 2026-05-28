@@ -5,6 +5,7 @@
 #ifdef TERSE_ENABLE_TEST_MODE
 #include "terse_test_internal.h"
 #endif
+#include "terse_buffer.h"
 #include "terse_term_internal.h"
 
 #include <errno.h>
@@ -41,6 +42,14 @@ terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 	} rec_data = { mode };
 	TERSE_TEST_RECORD_CALL(handle, TERSE_CALL_CLEAR_SCREEN, rec_data);
 #endif
+
+	if (handle->render_mode == TERSE_RENDER_BUFFERED && !handle->in_flush) {
+		/* Buffered: clearing is a virtual-buffer operation; the emptied cells are
+		 * emitted by the next flush's diff. Only a full clear is meaningful here. */
+		terse_buffer_clear(handle);
+		clear_error(handle);
+		return TERSE_OK;
+	}
 
 	// Try platform-specific fast path first
 	terse_error_t fast_result = terse_platform_clear_screen_fast(handle, mode);
@@ -138,6 +147,14 @@ terse_error_t terse_set_style(terse_handle_t handle, const terse_style_t *style)
 
 	terse_style_t requested = terse_style_sanitize_request(style);
 	handle->style = requested;
+
+	if (handle->render_mode == TERSE_RENDER_BUFFERED && !handle->in_flush) {
+		/* Buffered: record the requested style on the handle; cells pick it up at
+		 * write time and the diff emits SGR per run during flush. */
+		clear_error(handle);
+		return TERSE_OK;
+	}
+
 	terse_style_t effective = terse_style_make_effective(&handle->capabilities, &requested);
 	if (handle->style_known && terse_style_styles_equal(&effective, &handle->effective_style)) {
 		clear_error(handle);
@@ -261,6 +278,12 @@ terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 	TERSE_TEST_RECORD_CALL(handle, TERSE_CALL_WRITE_TEXT, rec_data);
 #endif
 
+	if (handle->render_mode == TERSE_RENDER_BUFFERED && !handle->in_flush) {
+		terse_buffer_write_text(handle, handle->cursor_row, handle->cursor_col, graphemes);
+		clear_error(handle);
+		return TERSE_OK;
+	}
+
 	if (!handle->codec.from_utf8) {
 		/* passthrough: terminal is UTF-8 */
 		terse_error_t result = write_literal(handle, graphemes);
@@ -321,6 +344,18 @@ terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes)
 terse_error_t terse_flush(terse_handle_t handle)
 {
 	TERSE_CHECK_HANDLE(handle);
+
+	if (handle->render_mode == TERSE_RENDER_BUFFERED && handle->cur_cells) {
+		terse_error_t err;
+		handle->in_flush = 1;
+		err = terse_buffer_flush(handle);
+		handle->in_flush = 0;
+		if (err != TERSE_OK) {
+			set_error(handle, err);
+			return err;
+		}
+	}
+
 	clear_error(handle);
 	return 0;
 }

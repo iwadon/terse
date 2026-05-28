@@ -39,6 +39,11 @@ terse_error_t terse_move_by(terse_handle_t handle, int drow, int dcol);
 terse_error_t terse_show_cursor(terse_handle_t handle, int visible);
 terse_error_t terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t shape, int blinking);
 
+/* 代替スクリーンバッファ（DEC private mode 1049）。
+ * has_alt_screen が偽の端末では no-op（TERSE_OK を返す）。 */
+terse_error_t terse_enter_alt_screen(terse_handle_t handle);
+terse_error_t terse_leave_alt_screen(terse_handle_t handle);
+
 /* デバイス制御（マウス・ペースト・タイトル・ハイパーリンク） */
 terse_error_t terse_enable_mouse(terse_handle_t handle, terse_mouse_mode_t mode);
 terse_error_t terse_disable_mouse(terse_handle_t handle);

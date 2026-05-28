@@ -239,6 +239,16 @@ void recompute_capabilities(terse_handle_t handle)
 		handle->capabilities.colors = TERSE_COLOR_NONE;
 	}
 	handle->capabilities.effects = handle->capabilities.has_text_styles ? TERSE_STYLE_ALL_SUPPORTED : 0;
+
+	/*
+	 * Alternate screen (DEC private mode 1049) is a modern VT feature. Honor an
+	 * explicit detection if one set it; otherwise derive it from the profile
+	 * (P2+). P0/P1 terminals (incl. Human68k) get no alt screen.
+	 */
+	if (!handle->detected_capabilities.has_alt_screen) {
+		handle->capabilities.has_alt_screen = (handle->capabilities.profile >= TERSE_P2) ? 1 : 0;
+	}
+
 	if (handle->style_known) {
 		handle->effective_style = terse_style_make_effective(&handle->capabilities, &handle->style);
 	}

@@ -20,10 +20,6 @@ extern int write_sequence(terse_handle_t handle, const char *data, size_t length
 terse_error_t terse_move_to(terse_handle_t handle, int row, int col)
 {
 	TERSE_CHECK_HANDLE(handle);
-	if (!handle->capabilities.has_move_absolute) {
-		clear_error(handle);
-		return 0;
-	}
 
 	// Clamp to 0-based coordinate minimum
 	if (row < 0) {
@@ -32,6 +28,21 @@ terse_error_t terse_move_to(terse_handle_t handle, int row, int col)
 	if (col < 0) {
 		col = 0;
 	}
+
+	if (handle->render_mode == TERSE_RENDER_BUFFERED && !handle->in_flush) {
+		/* Buffered: track the cursor only; the diff positions output during flush. */
+		handle->cursor_row = row;
+		handle->cursor_col = col;
+		handle->cursor_known = 1;
+		clear_error(handle);
+		return TERSE_OK;
+	}
+
+	if (!handle->capabilities.has_move_absolute) {
+		clear_error(handle);
+		return 0;
+	}
+
 	if (handle->cursor_known && row == handle->cursor_row && col == handle->cursor_col) {
 		clear_error(handle);
 		return 0;
@@ -218,4 +229,43 @@ terse_error_t terse_set_cursor_shape(terse_handle_t handle, terse_cursor_shape_t
 		return TERSE_ERR_INVALID_ARGUMENT;
 	}
 	return write_literal(handle, seq);
+}
+
+/* ========================================================================
+ * Alternate screen buffer (DEC private mode 1049)
+ * ======================================================================== */
+
+terse_error_t terse_enter_alt_screen(terse_handle_t handle)
+{
+	TERSE_CHECK_HANDLE(handle);
+	if (!handle->capabilities.has_alt_screen || handle->alt_screen_active) {
+		clear_error(handle);
+		return TERSE_OK;
+	}
+	int rc = write_literal(handle, "\x1b[?1049h");
+	if (rc == 0) {
+		handle->alt_screen_active = 1;
+		/* The alt screen starts blank with the cursor home; our tracking is stale. */
+		handle->cursor_known = 0;
+		clear_error(handle);
+		return TERSE_OK;
+	}
+	return handle->last_error;
+}
+
+terse_error_t terse_leave_alt_screen(terse_handle_t handle)
+{
+	TERSE_CHECK_HANDLE(handle);
+	if (!handle->capabilities.has_alt_screen || !handle->alt_screen_active) {
+		clear_error(handle);
+		return TERSE_OK;
+	}
+	int rc = write_literal(handle, "\x1b[?1049l");
+	if (rc == 0) {
+		handle->alt_screen_active = 0;
+		handle->cursor_known = 0;
+		clear_error(handle);
+		return TERSE_OK;
+	}
+	return handle->last_error;
 }

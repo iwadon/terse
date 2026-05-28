@@ -40,6 +40,7 @@ add_library(terse
   src/core/terse.c
   src/core/terse_output.c
   src/core/terse_state.c
+  src/core/terse_buffer.c
   # term (低レベル: 検出・エスケープ生成・入力パース)
   src/term/terse_unicode.c
   src/term/terse_codec.c

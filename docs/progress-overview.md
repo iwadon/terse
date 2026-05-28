@@ -16,7 +16,9 @@ P0のライフサイクル・出力・入力・サイズ取得・エラー返却
 | ライフサイクル (`open`/`close`) | P0 | ✅ 実装済み | オプション検証・初期状態（カーソル表示/SGRリセット）・終了時の安全復帰（マウス/ペースト解除, カーソル表示, SGR 0）。|
 | 能力検出/取得 (`get_capabilities`) | P0-P3 | ✅ 実装済み | 環境検出＋リクエストでクリップ（P0〜P3）。ランタイム enable/disable/リセットで上書き可。色/Effetcs/マウス/ペースト/タイトル/リンク/画像/通知/カーソル形状などを包含。|
 | 能力要求 (`require`/`caps_missing`/`get_active_features`) | P0-P3 | ✅ 実装済み | `TERSE_FEAT_*` ビットマスクで必要機能を宣言し不足分を検査（副作用なし）。色段階は「以上」で充足。|
-| 出力制御 (`clear_*`, `move_*`, `show_cursor`, `write_text`, `flush`) | P0 | ✅ 実装済み | ANSI送出・ノーオペ縮退・重複出力抑止（同位置 `move_to`/同可視状態 `show_cursor`）。`flush` はNo-op。|
+| 出力制御 (`clear_*`, `move_*`, `show_cursor`, `write_text`, `flush`) | P0 | ✅ 実装済み | ANSI送出・ノーオペ縮退・重複出力抑止（同位置 `move_to`/同可視状態 `show_cursor`）。即時モードでは `flush` はNo-op、バッファドモードでは差分出力（下記参照）。|
+| バッファドモード（セル仮想バッファ＋差分描画） | P0+ | ✅ 実装済み | `terse_options_t.render_mode = TERSE_RENDER_BUFFERED` で opt-in。ダブルバッファ＋ダーティセル diff により `flush` 時に変更セルだけを `move_to`/SGR/テキストで出力（色・装飾・全角continuation対応）。既定は即時モードで振る舞い不変。|
+| 代替スクリーン（DEC private mode 1049） | P2+ | ✅ 実装済み | `terse_enter/leave_alt_screen`（低レベルAPI）と `terse_options_t.use_alt_screen`（open時自動進入/close時自動退出）。`has_alt_screen` ケイパビリティはP2+で真。非対応端末ではノーオペ。|
 | 入力 (`read_event`) | P0 | ✅ 実装済み（部分） | ASCII/Enter/Backspace/Tab/矢印（修飾付）/Resize/ブランケットペースト/SGRマウスを正規化。未対応：多バイト復号・機能キー全面。|
 | 端末サイズ (`get_size`) | P0 | ✅ 実装済み | `TIOCGWINSZ` ベース。`CSI 8 ; r ; c t` 受信で内部サイズ更新。無効化時は Unknown を返却。|
 | 状態管理（キャプチャ/復元・一時保存） | P0 | ✅ 実装済み | `capture/restore_state` と `push/pop_state` を提供。カーソル位置/可視/スタイルを安全に復元。|
@@ -37,6 +39,7 @@ P0のライフサイクル・出力・入力・サイズ取得・エラー返却
 | テストモード (API記録・モック) | - | ✅ 実装済み | `TERSE_ENABLE_TEST_MODE` ビルドオプションで有効化。API呼び出し記録（write_text/move_to/clear/set_style等）、能力・サイズ・イベントのモック機能を提供。`samples/test_mode_demo.c` 参照。|
 
 ## Next Steps Snapshot
+- バッファドモードの本格活用：terse-prompt の描画パスを `TERSE_RENDER_BUFFERED` 経由へ移行（Phase 5.5、別リポジトリ）。スクロール領域抽象化は必要が出てから検討。
 - 追加Codec（例：ISO-2022-JP）検討。
 - 入力正規化の拡充：機能キー/Home/End/Page/Function(n) ほか、修飾一貫性の強化、タイムアウト/合成のチューニング。
 - 環境検出の強化：tmux/screen配下や追加端末のSecondary DAマッピング、VISUAL通知サポート検出の拡充。

@@ -54,6 +54,16 @@ struct terse_handle {
 	int state_stack_top; // -1 when empty
 	unsigned char pending_byte;
 	int has_pending_byte;
+	/* Buffered rendering state (TERSE_RENDER_BUFFERED).
+	 * All NULL/0 in immediate mode; allocated in terse_open() when buffered. */
+	terse_render_mode_t render_mode;
+	terse_cell_t *cur_cells;  /* current frame (rows*cols), row-major */
+	terse_cell_t *prev_cells; /* previous frame, for diff */
+	unsigned char *dirty;     /* per-cell dirty flags (rows*cols) */
+	int buf_rows;             /* allocated buffer dimensions */
+	int buf_cols;
+	int in_flush;          /* nonzero while terse_flush() emits diff: write paths run immediately */
+	int alt_screen_active; /* nonzero while in the alternate screen buffer */
 	/* Platform-specific opaque state, owned by the platform layer.
 	 * Allocated in terse_platform_init() and freed in terse_platform_shutdown().
 	 * Platforms that need no per-handle state leave this NULL. */

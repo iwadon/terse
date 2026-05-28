@@ -4,6 +4,7 @@
 #ifdef TERSE_ENABLE_TEST_MODE
 #include "terse_test_internal.h"
 #endif
+#include "terse_buffer.h"
 #include "terse_output.h"
 #include "terse_state.h"
 #include "terse_term_internal.h"
@@ -226,6 +227,28 @@ refresh_size(terse_handle_t handle)
 	}
 }
 
+/*
+ * Apply the rendering-related options (render_mode, use_alt_screen) after the
+ * handle is fully detected/initialized. Called at the end of terse_open().
+ *
+ * Buffered mode needs a known terminal size to allocate its cell buffers; if the
+ * size is unknown we silently fall back to immediate mode (the write paths gate
+ * on handle->render_mode AND a non-NULL cur_cells, so this is safe).
+ */
+static void
+terse_open_finish_render(terse_handle_t handle)
+{
+	if (handle->options.use_alt_screen) {
+		(void)terse_enter_alt_screen(handle);
+	}
+
+	if (handle->options.render_mode == TERSE_RENDER_BUFFERED && handle->size.known && handle->size.rows > 0 && handle->size.cols > 0) {
+		if (terse_buffer_alloc(handle, handle->size.rows, handle->size.cols) == 0) {
+			handle->render_mode = TERSE_RENDER_BUFFERED;
+		}
+	}
+}
+
 terse_handle_t
 terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 {
@@ -296,6 +319,8 @@ terse_open(terse_profile_t requested_profile, const terse_options_t *options)
 	 * still works for plain output, just without escape-sequence features. */
 	(void)terse_platform_init(handle);
 
+	terse_open_finish_render(handle);
+
 	return handle;
 }
 
@@ -305,6 +330,10 @@ void terse_close(terse_handle_t handle)
 		if (handle->keyboard_enabled) {
 			(void)terse_keyboard_disable(handle, handle->keyboard_enabled);
 		}
+		if (handle->alt_screen_active) {
+			(void)terse_leave_alt_screen(handle);
+		}
+		terse_buffer_free(handle);
 #ifdef TERSE_ENABLE_TEST_MODE
 		terse_test_state_destroy(handle);
 #endif
