@@ -1,7 +1,7 @@
 #include "terse_state.h"
 #include "terse.h"
 #include "terse_handle.h"
-#include "terse_style.h"
+#include "terse_term_internal.h"
 
 #include <errno.h>
 #include <string.h>

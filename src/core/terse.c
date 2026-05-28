@@ -4,16 +4,9 @@
 #ifdef TERSE_ENABLE_TEST_MODE
 #include "terse_test_internal.h"
 #endif
-#include "terse_capabilities.h"
-#include "terse_codec.h"
-#include "terse_detection.h"
-#include "terse_event_helpers.h"
-#include "terse_input.h"
-#include "terse_keyboard.h"
 #include "terse_output.h"
 #include "terse_state.h"
-#include "terse_style.h"
-#include "terse_unicode.h"
+#include "terse_term_internal.h"
 
 #include <ctype.h>
 #include <errno.h>

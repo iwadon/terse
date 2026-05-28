@@ -5,8 +5,7 @@
 #ifdef TERSE_ENABLE_TEST_MODE
 #include "terse_test_internal.h"
 #endif
-#include "terse_codec.h"
-#include "terse_style.h"
+#include "terse_term_internal.h"
 
 #include <errno.h>
 #include <stdio.h>
