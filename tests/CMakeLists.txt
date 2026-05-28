@@ -28,7 +28,11 @@ add_executable(terse_unit_test
 	unit/terse_title_test.c
 	unit/terse_write_text_test.c
 )
-target_include_directories(terse_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../src)
+target_include_directories(terse_unit_test PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}/../src
+	${CMAKE_CURRENT_SOURCE_DIR}/../src/term
+	${CMAKE_CURRENT_SOURCE_DIR}/../src/core)
 target_link_libraries(terse_unit_test PRIVATE terse attest)
 # テストはC11でコンパイルする（terse本体はC99）
 set_target_properties(terse_unit_test PROPERTIES

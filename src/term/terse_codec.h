@@ -1,7 +1,7 @@
 #ifndef TERSE_CODEC_H_INCLUDED
 #define TERSE_CODEC_H_INCLUDED
 
-#include "../include/terse.h"
+#include "terse.h"
 #include <stddef.h>
 
 /*

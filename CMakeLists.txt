@@ -36,20 +36,23 @@ if(TERSE_BUILD_TESTING)
 endif()
 
 add_library(terse
-  src/terse.c
-  src/terse_unicode.c
-  src/terse_codec.c
-  src/terse_detection.c
-  src/terse_event_helpers.c
-  src/terse_input.c
-  src/terse_style.c
-  src/terse_output.c
-  src/terse_graphics.c
-  src/terse_cursor.c
-  src/terse_device.c
-  src/terse_state.c
-  src/terse_capabilities.c
-  src/terse_keyboard.c
+  # core (中レベル: 状態管理・統合API)
+  src/core/terse.c
+  src/core/terse_output.c
+  src/core/terse_state.c
+  # term (低レベル: 検出・エスケープ生成・入力パース)
+  src/term/terse_unicode.c
+  src/term/terse_codec.c
+  src/term/terse_detection.c
+  src/term/terse_event_helpers.c
+  src/term/terse_input.c
+  src/term/terse_style.c
+  src/term/terse_graphics.c
+  src/term/terse_cursor.c
+  src/term/terse_device.c
+  src/term/terse_capabilities.c
+  src/term/terse_keyboard.c
+  # test mode (横断的関心事)
   src/terse_test.c
 )
 
@@ -92,6 +95,10 @@ target_include_directories(terse
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/term
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core
 )
 
 if(TERSE_USE_SYSTEM_ICONV)
@@ -101,7 +108,7 @@ if(TERSE_USE_SYSTEM_ICONV)
   target_compile_definitions(terse PUBLIC TERSE_USE_SYSTEM_ICONV=1)
 else()
   message(STATUS "Using built-in mini_iconv for codec conversions")
-  target_sources(terse PRIVATE src/mini_iconv.c)
+  target_sources(terse PRIVATE src/term/mini_iconv.c)
   target_compile_definitions(terse PUBLIC TERSE_USE_SYSTEM_ICONV=0)
 endif()
 target_compile_definitions(terse PUBLIC TERSE_HAVE_ICONV=1)

@@ -245,14 +245,30 @@ target_include_directories(terse
 )
 ```
 
-### 6.3 tests / samples への影響
+### 6.3 tests / samples への影響（実地調査済み 2026-05-29）
 
-- `tests/CMakeLists.txt` が `src/` 配下のファイルを直接参照していないか確認する
-  （ユニットテストが内部実装ファイルを直接コンパイルしている場合、パス更新が必要）。
-- samples は公開ヘッダのみ使うため影響なしの想定だが、移動後にビルド確認する。
-
-> ※ `tests/` の依存は移動作業の着手時に grep で実地確認する（このドキュメント
-> 作成時点では未確認。§7 のチェックリストに含める）。
+調査結果:
+- tests は `src/` のソースを直接コンパイルせず、`terse` ライブラリに
+  リンクしている（`target_link_libraries(terse_unit_test PRIVATE terse attest)`）。
+  → ソースパス更新の必要なし。
+- **ただし** `tests/unit/terse_event_helpers_test.c` が内部ヘッダ
+  `#include "terse_event_helpers.h"` を直接 include している。このヘッダは
+  `src/term/` へ移動するため、tests 側の include パスに `../src/term` の追加が必要。
+- tests の現状 include 設定:
+  ```cmake
+  target_include_directories(terse_unit_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../src)
+  ```
+  → ここに `../src/term` `../src/core` を追加する:
+  ```cmake
+  target_include_directories(terse_unit_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/term
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/core)
+  ```
+- tools は内部ヘッダを include していない（影響なし）。
+- samples は公開ヘッダのみ使用（影響なし）。移動後にビルド確認する。
 
 ---
 
