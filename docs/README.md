@@ -30,6 +30,7 @@ This directory contains documentation for the Terse terminal abstraction library
 | Document | Description |
 |----------|-------------|
 | [testing-terminal-detection.md](testing-terminal-detection.md) | How to write unit tests that depend on terminal detection (env-var hygiene) |
+| [redesign-proposal.md](redesign-proposal.md) | (Draft) Redesign proposal: layered architecture, capability-centric API, buffered rendering |
 
 ## Internal Research Notes
 
