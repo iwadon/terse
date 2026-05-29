@@ -805,4 +805,32 @@ TEST(TerseBuffer, InvalidateForcesFullRedraw)
 	close(fds[1]);
 }
 
+/* Phase 5.5: terse_write_raw はモード無関係でバイト列を即時出力する。
+ * バッファドモードでもバッファに積まず、その場で端末へ書く。 */
+TEST(TerseBuffer, WriteRawEmitsImmediatelyInBufferedMode)
+{
+	int fds[2];
+	terse_handle_t handle;
+	make_pipe_handle(&handle, fds);
+
+	EXPECT_EQ(0, terse_buffer_alloc(handle, 2, 8));
+	handle->render_mode = TERSE_RENDER_BUFFERED;
+
+	/* flush していないのに即時出力される（バッファに積まれない）。 */
+	EXPECT_EQ(TERSE_OK, terse_write_raw(handle, "\x1b[J", 3));
+
+	char buf[64];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[J") != NULL);
+
+	/* NULL は INVALID_ARGUMENT、length 0 は何も出さず OK。 */
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_write_raw(handle, NULL, 3));
+	EXPECT_EQ(TERSE_OK, terse_write_raw(handle, "x", 0));
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
 #endif /* HAVE_POSIX_PIPE */

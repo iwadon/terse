@@ -359,3 +359,30 @@ terse_error_t terse_flush(terse_handle_t handle)
 	clear_error(handle);
 	return 0;
 }
+
+terse_error_t terse_write_raw(terse_handle_t handle, const char *bytes, size_t length)
+{
+	TERSE_CHECK_HANDLE(handle);
+
+	if (!bytes) {
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
+	}
+	if (length == 0) {
+		clear_error(handle);
+		return TERSE_OK;
+	}
+
+	/* Emit the bytes to the terminal verbatim, regardless of render mode and
+	 * without codec conversion: this is the escape-sequence / control-byte
+	 * escape hatch for callers that must drive the terminal directly (e.g. a
+	 * buffered-mode caller clearing area outside its rectangle, or writing a
+	 * line break to advance past it). Cursor tracking is invalidated since the
+	 * caller may have moved or scrolled the terminal in ways terse cannot model. */
+	if (write_sequence(handle, bytes, length) != 0) {
+		return handle->last_error;
+	}
+	handle->cursor_known = 0;
+	clear_error(handle);
+	return TERSE_OK;
+}

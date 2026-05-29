@@ -492,6 +492,14 @@ terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode)
 terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);
 terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes);
 terse_error_t terse_flush(terse_handle_t handle);
+
+/* Write raw bytes straight to the terminal, bypassing both the codec and the
+ * buffered render path — the bytes appear immediately in any render mode. This
+ * is the escape hatch for callers that must drive the terminal directly, e.g. a
+ * buffered-mode caller erasing area outside its virtual rectangle or emitting a
+ * line break to advance past it. terse's cursor tracking is invalidated by the
+ * call. Returns TERSE_OK, or TERSE_ERR_INVALID_ARGUMENT if bytes is NULL. */
+terse_error_t terse_write_raw(terse_handle_t handle, const char *bytes, size_t length);
 terse_error_t terse_read_event(terse_handle_t handle, int timeout_ms, terse_event_t *out_event);
 terse_size_t terse_get_size(terse_handle_t handle);
 terse_cursor_position_t terse_get_cursor_position(terse_handle_t handle);
