@@ -76,20 +76,35 @@ TEST(TersePty, SgrOutputReachesMaster)
 	EXPECT_EQ(0, terse_set_style(handle, &style));
 	terse_close(handle);
 
-	/* master 側を非ブロッキングにして読み出す。 */
+	/*
+	 * master 側を非ブロッキングにして読み出す。PTY では 1 回の read で全
+	 * バイトが揃うとは限らない（Linux と macOS で挙動が異なる）。EAGAIN を
+	 * 短く待ちつつ累積し、期待シーケンスが揃うまで読む（リトライ上限あり）。
+	 */
 	int flags = fcntl(master_fd, F_GETFL);
 	EXPECT_TRUE(flags != -1);
 	EXPECT_TRUE(fcntl(master_fd, F_SETFL, flags | O_NONBLOCK) == 0);
 
 	char buf[64];
 	memset(buf, 0, sizeof(buf));
-	ssize_t n = read(master_fd, buf, sizeof(buf) - 1);
-	if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-		struct timespec ts = { .tv_sec = 0, .tv_nsec = 1000000 };
-		nanosleep(&ts, NULL);
-		n = read(master_fd, buf, sizeof(buf) - 1);
+	size_t pos = 0;
+	for (int attempt = 0; attempt < 50 && pos < sizeof(buf) - 1; attempt++) {
+		ssize_t n = read(master_fd, buf + pos, sizeof(buf) - 1 - pos);
+		if (n > 0) {
+			pos += (size_t)n;
+			if (strstr(buf, "\x1b[0m\x1b[32m") != NULL) {
+				break; /* 期待シーケンスが揃った */
+			}
+			continue;
+		}
+		if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+			struct timespec ts = { .tv_sec = 0, .tv_nsec = 1000000 };
+			nanosleep(&ts, NULL);
+			continue;
+		}
+		break; /* EOF またはエラー */
 	}
-	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(pos > 0);
 	/* 緑前景の SGR（32）が含まれること。 */
 	EXPECT_TRUE(strstr(buf, "\x1b[0m\x1b[32m") != NULL);
 
