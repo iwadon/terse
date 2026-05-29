@@ -13,6 +13,7 @@ add_executable(terse_unit_test
 	unit/terse_function_keys_test.c
 	unit/terse_get_cursor_position_test.c
 	unit/terse_get_size_test.c
+	unit/terse_golden_test.c
 	unit/terse_hyperlink_test.c
 	unit/terse_image_test.c
 	unit/terse_keyboard_features_test.c
@@ -47,4 +48,8 @@ set_target_properties(terse_unit_test PROPERTIES
 if(UNIX)
 	target_compile_definitions(terse_unit_test PRIVATE _POSIX_C_SOURCE=200809L _XOPEN_SOURCE=700)
 endif()
+# ゴールデンテスト基盤 (Phase 6): ソースツリー内のゴールデン格納先を渡す。
+# 通常実行は読み取り専用比較、UPDATE_GOLDEN=1 のときのみ上書きする。
+target_compile_definitions(terse_unit_test PRIVATE
+	TERSE_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden")
 add_test(NAME terse_unit_test COMMAND terse_unit_test)
