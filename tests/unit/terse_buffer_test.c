@@ -833,4 +833,47 @@ TEST(TerseBuffer, WriteRawEmitsImmediatelyInBufferedMode)
 	close(fds[1]);
 }
 
+/* Phase 5.5: render_mode=BUFFERED を要求しても open 時に端末サイズ不明だと
+ * バッファ未 alloc になる（pipe は非 TTY）。その状態で set_region すると、
+ * 与えた寸法で遅延 alloc してバッファドモードを起動する。 */
+TEST(TerseBuffer, SetRegionLazilyStartsBufferedWhenSizeUnknownAtOpen)
+{
+	int fds[2];
+	EXPECT_TRUE(pipe(fds) == 0);
+	terse_options_t options = {
+		.input_fd = fds[0],
+		.output_fd = fds[1],
+		.codec_name = "UTF-8",
+		.render_mode = TERSE_RENDER_BUFFERED,
+	};
+	terse_handle_t handle = terse_open(TERSE_P0, &options);
+	EXPECT_NOT_NULL(handle);
+
+	/* 非 TTY ゆえ open 時にサイズ不明 → バッファ未 alloc。 */
+	EXPECT_TRUE(handle->cur_cells == NULL);
+
+	/* set_region で遅延起動。これ以降はバッファドとして使える。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_set_region(handle, 2, 3, 4, 10));
+	EXPECT_TRUE(handle->cur_cells != NULL);
+	EXPECT_EQ(4, handle->buf_rows);
+	EXPECT_EQ(10, handle->buf_cols);
+	EXPECT_EQ(2, handle->buf_origin_row);
+	EXPECT_EQ(3, handle->buf_origin_col);
+
+	/* 書いて flush すると origin 射影で出力される（ローカル(0,0)→絶対(2,3)=
+	 * 1-based (3,4)）。 */
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 0, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "Q"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+	char buf[128];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[3;4H") != NULL);
+	EXPECT_TRUE(strstr(buf, "Q") != NULL);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
 #endif /* HAVE_POSIX_PIPE */

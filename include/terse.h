@@ -446,12 +446,16 @@ terse_error_t terse_pop_state(terse_handle_t handle);
 
 /* Position the buffered-mode virtual screen so its top-left maps to terminal
  * cell (origin_row, origin_col). Buffer cell coordinates remain local (0-origin);
- * the flush projects them as absolute = origin + local. Only meaningful in
- * TERSE_RENDER_BUFFERED. If rows/cols differ from the current buffer dimensions
- * the cell buffers are reallocated (contents not preserved; the next flush fully
- * redraws), and any residue left by the previous, larger rectangle is erased on
- * that flush. Returns TERSE_OK, or an error if not in buffered mode or the
- * arguments are invalid. */
+ * the flush projects them as absolute = origin + local. If rows/cols differ from
+ * the current buffer dimensions the cell buffers are reallocated (contents not
+ * preserved; the next flush fully redraws), and any residue left by the previous,
+ * larger rectangle is erased on that flush. If buffered rendering was requested at
+ * open time but the buffer was never allocated because the terminal size was
+ * unknown then (e.g. a pipe or a size-mocked test handle), this allocates it now
+ * from rows/cols and starts buffered mode — a way to defer buffered startup until
+ * the size is known. Returns TERSE_OK, TERSE_ERR_INVALID_ARGUMENT for bad
+ * arguments, or TERSE_ERR_NOT_SUPPORTED if the handle is not (and cannot become)
+ * buffered. */
 terse_error_t terse_buffer_set_region(terse_handle_t handle,
                                       int origin_row, int origin_col,
                                       int rows, int cols);

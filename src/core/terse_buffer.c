@@ -160,13 +160,31 @@ terse_error_t terse_buffer_set_region(terse_handle_t handle,
 {
 	TERSE_CHECK_HANDLE(handle);
 
-	if (handle->render_mode != TERSE_RENDER_BUFFERED || !handle->cur_cells) {
-		set_error(handle, TERSE_ERR_NOT_SUPPORTED);
-		return TERSE_ERR_NOT_SUPPORTED;
-	}
 	if (origin_row < 0 || origin_col < 0 || rows <= 0 || cols <= 0) {
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
 		return TERSE_ERR_INVALID_ARGUMENT;
+	}
+
+	/* Lazy buffered-mode startup: if the caller requested buffered rendering at
+	 * open time but the terminal size was unknown then (so the cell buffer was
+	 * never allocated — e.g. a pipe or a test handle whose size is mocked after
+	 * open), allocate it now from the rectangle dimensions given here and switch
+	 * the handle into buffered mode. This lets a caller defer buffered startup
+	 * until it knows the size to use. */
+	if (!handle->cur_cells &&
+	    handle->options.render_mode == TERSE_RENDER_BUFFERED) {
+		if (terse_buffer_alloc(handle, rows, cols) != 0) {
+			set_error(handle, TERSE_ERR_OUT_OF_MEMORY);
+			return TERSE_ERR_OUT_OF_MEMORY;
+		}
+		handle->render_mode = TERSE_RENDER_BUFFERED;
+		handle->prev_rect_valid = 0;
+		handle->prev_valid = 0;
+	}
+
+	if (handle->render_mode != TERSE_RENDER_BUFFERED || !handle->cur_cells) {
+		set_error(handle, TERSE_ERR_NOT_SUPPORTED);
+		return TERSE_ERR_NOT_SUPPORTED;
 	}
 
 	/* A dimension change reallocates the cell buffers (contents not preserved; the
