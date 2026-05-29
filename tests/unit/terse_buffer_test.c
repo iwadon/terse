@@ -522,8 +522,8 @@ TEST(TerseBuffer, FlushErasesResidueOnOriginMove)
 	close(fds[1]);
 }
 
-/* Phase 5.5-A: set_region は origin のみ変更。サイズ変更は未実装(5.5-B)。
- * バッファドモードでなければ NOT_SUPPORTED、不正引数は INVALID_ARGUMENT。 */
+/* set_region の引数検証。バッファドモードでなければ NOT_SUPPORTED、
+ * 不正引数は INVALID_ARGUMENT。origin/サイズ変更は受理（5.5-B でサイズ対応）。 */
 TEST(TerseBuffer, SetRegionValidatesArguments)
 {
 	int fds[2];
@@ -540,13 +540,170 @@ TEST(TerseBuffer, SetRegionValidatesArguments)
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_buffer_set_region(handle, -1, 0, 4, 4));
 	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_buffer_set_region(handle, 0, 0, 0, 4));
 
-	/* サイズ変更は 5.5-A では未実装。 */
-	EXPECT_EQ(TERSE_ERR_NOT_IMPLEMENTED, terse_buffer_set_region(handle, 0, 0, 5, 4));
-
 	/* origin のみの変更は成功し、サイズ一致なら受理。 */
 	EXPECT_EQ(TERSE_OK, terse_buffer_set_region(handle, 2, 3, 4, 4));
 	EXPECT_EQ(2, handle->buf_origin_row);
 	EXPECT_EQ(3, handle->buf_origin_col);
+	EXPECT_EQ(4, handle->buf_rows);
+	EXPECT_EQ(4, handle->buf_cols);
+
+	/* サイズ変更（5.5-B）も受理し、バッファ寸法が更新される。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_set_region(handle, 0, 0, 5, 6));
+	EXPECT_EQ(5, handle->buf_rows);
+	EXPECT_EQ(6, handle->buf_cols);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+/* Phase 5.5-B: set_region によるサイズ拡大（可変高）。内容非保持で再確保され、
+ * 次 flush で新サイズに全描画される。 */
+TEST(TerseBuffer, SetRegionGrowsBufferAndRedraws)
+{
+	int fds[2];
+	terse_handle_t handle;
+	make_pipe_handle(&handle, fds);
+
+	EXPECT_EQ(0, terse_buffer_alloc(handle, 1, 4));
+	handle->render_mode = TERSE_RENDER_BUFFERED;
+
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 0, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "ab"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+	char drain[128];
+	(void)read_pipe(fds[0], drain, sizeof(drain));
+
+	/* 3 行へ拡大。再確保で内容は失われる。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_set_region(handle, 0, 0, 3, 4));
+	EXPECT_EQ(3, handle->buf_rows);
+	EXPECT_EQ(4, handle->buf_cols);
+
+	/* 2 行目に書いて flush → 新領域に描画される。 */
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 2, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "cd"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+
+	char buf[128];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	/* ローカル (2,0) = 1-based (3,1)。 */
+	EXPECT_TRUE(strstr(buf, "\x1b[3;1H") != NULL);
+	EXPECT_TRUE(strstr(buf, "cd") != NULL);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+/* Phase 5.5-B: set_region で縮小すると、前回矩形のうち今回矩形外の端末セルが
+ * flush 冒頭で空白消去される（残骸消去が縮小もカバー）。 */
+TEST(TerseBuffer, SetRegionShrinkErasesResidue)
+{
+	int fds[2];
+	terse_handle_t handle;
+	make_pipe_handle(&handle, fds);
+
+	EXPECT_EQ(0, terse_buffer_alloc(handle, 3, 4));
+	handle->render_mode = TERSE_RENDER_BUFFERED;
+
+	/* 3 行を埋めて flush。 */
+	int r;
+	for (r = 0; r < 3; r++) {
+		EXPECT_EQ(TERSE_OK, terse_move_to(handle, r, 0));
+		EXPECT_EQ(TERSE_OK, terse_write_text(handle, "xy"));
+	}
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+	char drain[256];
+	(void)read_pipe(fds[0], drain, sizeof(drain));
+
+	/* 1 行に縮小して flush。前回の行 1,2（ローカル）= 端末絶対行 1,2 が今回矩形外
+	 * となり空白消去される。1-based では行 2,3。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_set_region(handle, 0, 0, 1, 4));
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 0, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "xy"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+
+	char buf[256];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	/* 旧行 1,2（1-based 2,3）への移動＝残骸消去が出る。 */
+	EXPECT_TRUE(strstr(buf, "\x1b[2;1H") != NULL);
+	EXPECT_TRUE(strstr(buf, "\x1b[3;1H") != NULL);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+/* Phase 5.5-B: terse_get_cell は flush で確定した「画面表示中」の内容を返す。 */
+TEST(TerseBuffer, GetCellReturnsDisplayedContent)
+{
+	int fds[2];
+	terse_handle_t handle;
+	make_pipe_handle(&handle, fds);
+
+	terse_cell_t cell;
+
+	EXPECT_EQ(0, terse_buffer_alloc(handle, 2, 4));
+	handle->render_mode = TERSE_RENDER_BUFFERED;
+
+	/* 未 flush では表示中フレームが無いので NOT_SUPPORTED。 */
+	EXPECT_EQ(TERSE_ERR_NOT_SUPPORTED, terse_get_cell(handle, 0, 0, &cell));
+
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 0, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "Hi"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+	char drain[64];
+	(void)read_pipe(fds[0], drain, sizeof(drain));
+
+	/* flush 後は表示中フレーム = "Hi" を読める。 */
+	EXPECT_EQ(TERSE_OK, terse_get_cell(handle, 0, 0, &cell));
+	EXPECT_EQ(1, (int)cell.char_len);
+	EXPECT_TRUE(memcmp(cell.utf8_char, "H", 1) == 0);
+	EXPECT_EQ(TERSE_OK, terse_get_cell(handle, 0, 1, &cell));
+	EXPECT_TRUE(memcmp(cell.utf8_char, "i", 1) == 0);
+	/* 書いていないセルは空（char_len 0）。 */
+	EXPECT_EQ(TERSE_OK, terse_get_cell(handle, 1, 0, &cell));
+	EXPECT_EQ(0, (int)cell.char_len);
+
+	/* 範囲外 / null は INVALID_ARGUMENT。 */
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_get_cell(handle, 2, 0, &cell));
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_get_cell(handle, 0, 0, NULL));
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+/* Phase 5.5-B: resize 後・未 flush の過渡状態では get_cell は NOT_SUPPORTED
+ * （prev_cells が作り直され表示中フレームを失うため）。 */
+TEST(TerseBuffer, GetCellAfterResizeIsNotSupportedUntilFlush)
+{
+	int fds[2];
+	terse_handle_t handle;
+	make_pipe_handle(&handle, fds);
+
+	terse_cell_t cell;
+
+	EXPECT_EQ(0, terse_buffer_alloc(handle, 1, 4));
+	handle->render_mode = TERSE_RENDER_BUFFERED;
+
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 0, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "z"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+	char drain[64];
+	(void)read_pipe(fds[0], drain, sizeof(drain));
+	EXPECT_EQ(TERSE_OK, terse_get_cell(handle, 0, 0, &cell));
+
+	/* サイズ変更で表示中フレーム情報が失われる。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_set_region(handle, 0, 0, 2, 4));
+	EXPECT_EQ(TERSE_ERR_NOT_SUPPORTED, terse_get_cell(handle, 0, 0, &cell));
+
+	/* 次 flush 後は再び読める。 */
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+	(void)read_pipe(fds[0], drain, sizeof(drain));
+	EXPECT_EQ(TERSE_OK, terse_get_cell(handle, 0, 0, &cell));
 
 	terse_close(handle);
 	close(fds[0]);

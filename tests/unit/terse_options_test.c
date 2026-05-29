@@ -39,6 +39,31 @@ TEST(TerseValidateOptions, ReturnsEbaf_OnNegativeInputFd)
 	EXPECT_EQ(EBADF, errno);
 }
 
+TEST(TerseValidateOptions, ReturnsEinval_OnNegativeBufferRect)
+{
+	terse_options_t options = {
+		.input_fd = STDIN_FILENO,
+		.output_fd = STDOUT_FILENO,
+		.codec_name = "UTF-8",
+		.buffer_origin_row = -1,
+	};
+	errno = 0;
+	terse_error_t rc = terse_validate_options(&options);
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, rc);
+	EXPECT_EQ(EINVAL, errno);
+}
+
+TEST(TerseValidateOptions, AcceptsZeroBufferRect)
+{
+	/* 全0の矩形フィールド（既定）は端末全体・origin(0,0) を意味し、受理される。 */
+	terse_options_t options = {
+		.input_fd = STDIN_FILENO,
+		.output_fd = STDOUT_FILENO,
+		.codec_name = "UTF-8",
+	};
+	EXPECT_EQ(TERSE_OK, terse_validate_options(&options));
+}
+
 TEST(TerseOpen, ReturnsNull_OnInvalidOptions)
 {
 	terse_options_t options = {

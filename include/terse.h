@@ -269,6 +269,14 @@ typedef struct terse_options {
 	int east_asian_ambiguous_as_wide;
 	terse_render_mode_t render_mode; /* default TERSE_RENDER_IMMEDIATE */
 	int use_alt_screen;              /* nonzero: enter alt screen on open, leave on close */
+	/* Initial virtual-screen rectangle for TERSE_RENDER_BUFFERED. All zero (the
+	 * default) means origin (0,0) and the full terminal size, matching legacy
+	 * behavior. A nonzero buffer_rows/cols requests a smaller buffer; zero means
+	 * "use the terminal extent" for that dimension. */
+	int buffer_origin_row; /* default 0 */
+	int buffer_origin_col; /* default 0 */
+	int buffer_rows;       /* default 0 = terminal height */
+	int buffer_cols;       /* default 0 = terminal width */
 } terse_options_t;
 
 typedef struct terse_size {
@@ -446,6 +454,16 @@ terse_error_t terse_pop_state(terse_handle_t handle);
 terse_error_t terse_buffer_set_region(terse_handle_t handle,
                                       int origin_row, int origin_col,
                                       int rows, int cols);
+
+/* Read the cell currently displayed on the terminal at buffer-local coordinate
+ * (row, col) in TERSE_RENDER_BUFFERED. The returned content reflects the frame
+ * last committed by terse_flush() (terse's record of what it put on screen), not
+ * the in-progress frame being built before the next flush. Returns TERSE_OK and
+ * fills *out on success; TERSE_ERR_NOT_SUPPORTED if not in buffered mode or no
+ * frame has been flushed yet, TERSE_ERR_INVALID_ARGUMENT for a null out or an
+ * out-of-range coordinate. */
+terse_error_t terse_get_cell(terse_handle_t handle, int row, int col,
+                             terse_cell_t *out);
 
 terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
 terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);

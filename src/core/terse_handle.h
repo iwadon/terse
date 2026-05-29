@@ -68,11 +68,16 @@ struct terse_handle {
 	int buf_origin_row;
 	int buf_origin_col;
 	/* Rectangle emitted by the previous flush, used to erase residue when the
-	 * origin moves or the buffer shrinks. prev_valid is 0 until the first flush. */
+	 * origin moves or the buffer shrinks. prev_rect_valid is 0 until the first
+	 * flush; it survives a resize so the old extent is still cleaned up. */
 	int prev_origin_row;
 	int prev_origin_col;
 	int prev_buf_rows;
 	int prev_buf_cols;
+	int prev_rect_valid;
+	/* Nonzero when prev_cells holds a frame actually displayed on the terminal
+	 * (set after each flush, cleared by a resize that rebuilds the cells). Gates
+	 * terse_get_cell, which reports the currently displayed content. */
 	int prev_valid;
 	int in_flush;          /* nonzero while terse_flush() emits diff: write paths run immediately */
 	int alt_screen_active; /* nonzero while in the alternate screen buffer */

@@ -197,6 +197,10 @@ terse_error_t terse_validate_options(const terse_options_t *options)
 		errno = EBADF;
 		return TERSE_ERR_INVALID_HANDLE;
 	}
+	if (options->buffer_origin_row < 0 || options->buffer_origin_col < 0 || options->buffer_rows < 0 || options->buffer_cols < 0) {
+		errno = EINVAL;
+		return TERSE_ERR_INVALID_ARGUMENT;
+	}
 	return 0;
 }
 
@@ -243,12 +247,17 @@ terse_open_finish_render(terse_handle_t handle)
 	}
 
 	if (handle->options.render_mode == TERSE_RENDER_BUFFERED && handle->size.known && handle->size.rows > 0 && handle->size.cols > 0) {
-		if (terse_buffer_alloc(handle, handle->size.rows, handle->size.cols) == 0) {
+		/* Resolve the initial rectangle from options. Zero rows/cols mean "use the
+		 * full terminal extent" for that dimension; all-zero options (the default)
+		 * reproduce the legacy full-screen, origin-(0,0) buffer. */
+		int rows = handle->options.buffer_rows > 0 ? handle->options.buffer_rows : handle->size.rows;
+		int cols = handle->options.buffer_cols > 0 ? handle->options.buffer_cols : handle->size.cols;
+
+		if (terse_buffer_alloc(handle, rows, cols) == 0) {
 			handle->render_mode = TERSE_RENDER_BUFFERED;
-			/* Default the virtual screen origin to the terminal's top-left, where
-			 * local buffer coords coincide with absolute terminal coords. */
-			handle->buf_origin_row = 0;
-			handle->buf_origin_col = 0;
+			handle->buf_origin_row = handle->options.buffer_origin_row;
+			handle->buf_origin_col = handle->options.buffer_origin_col;
+			handle->prev_rect_valid = 0;
 			handle->prev_valid = 0;
 		}
 	}

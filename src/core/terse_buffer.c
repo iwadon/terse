@@ -139,8 +139,15 @@ int terse_buffer_resize(terse_handle_t handle, int rows, int cols)
 		terse_buffer_clear(handle);
 		return 0;
 	}
-	/* Reallocate from scratch; contents are not preserved (full redraw next flush). */
-	return terse_buffer_alloc(handle, rows, cols);
+	/* Reallocate from scratch; contents are not preserved (full redraw next flush).
+	 * prev_cells no longer reflects what is on screen, so terse_get_cell must report
+	 * "no displayed frame" until the next flush. The prev_rect_* record survives so
+	 * residue erase still cleans up the old extent. */
+	if (terse_buffer_alloc(handle, rows, cols) != 0) {
+		return -1;
+	}
+	handle->prev_valid = 0;
+	return 0;
 }
 
 /* ========================================================================
@@ -161,15 +168,46 @@ terse_error_t terse_buffer_set_region(terse_handle_t handle,
 		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
 		return TERSE_ERR_INVALID_ARGUMENT;
 	}
-	/* Phase 5.5-A handles origin changes only; resize lands in 5.5-B. Until then,
-	 * the requested dimensions must match the current buffer. */
+
+	/* A dimension change reallocates the cell buffers (contents not preserved; the
+	 * next flush fully redraws). The previous rectangle is remembered in the handle
+	 * via the prev_origin and prev_buf fields, so the next flush residue erase still
+	 * covers the old extent even after the cells are rebuilt: shrink cleanup needs
+	 * no special path here. */
 	if (rows != handle->buf_rows || cols != handle->buf_cols) {
-		set_error(handle, TERSE_ERR_NOT_IMPLEMENTED);
-		return TERSE_ERR_NOT_IMPLEMENTED;
+		if (terse_buffer_resize(handle, rows, cols) != 0) {
+			set_error(handle, TERSE_ERR_OUT_OF_MEMORY);
+			return TERSE_ERR_OUT_OF_MEMORY;
+		}
 	}
 
 	handle->buf_origin_row = origin_row;
 	handle->buf_origin_col = origin_col;
+	clear_error(handle);
+	return TERSE_OK;
+}
+
+terse_error_t terse_get_cell(terse_handle_t handle, int row, int col,
+                             terse_cell_t *out)
+{
+	size_t index;
+
+	TERSE_CHECK_HANDLE(handle);
+
+	/* prev_cells holds the frame last committed to the terminal (cur and prev are
+	 * swapped at the end of each flush). Without a completed flush there is nothing
+	 * displayed to report. */
+	if (handle->render_mode != TERSE_RENDER_BUFFERED || !handle->prev_cells || !handle->prev_valid) {
+		set_error(handle, TERSE_ERR_NOT_SUPPORTED);
+		return TERSE_ERR_NOT_SUPPORTED;
+	}
+	if (!out || row < 0 || row >= handle->buf_rows || col < 0 || col >= handle->buf_cols) {
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
+	}
+
+	index = (size_t)row * (size_t)handle->buf_cols + (size_t)col;
+	*out = handle->prev_cells[index];
 	clear_error(handle);
 	return TERSE_OK;
 }
@@ -356,7 +394,7 @@ static terse_error_t erase_residue(terse_handle_t handle)
 	int abs_row;
 	terse_error_t err;
 
-	if (!handle->prev_valid) {
+	if (!handle->prev_rect_valid) {
 		return TERSE_OK;
 	}
 
@@ -424,7 +462,7 @@ terse_error_t terse_buffer_flush(terse_handle_t handle)
 	 * the per-cell diff against it is meaningless: force a full redraw at the new
 	 * position. (Size changes already mark everything dirty via the diff path once
 	 * resize lands in 5.5-B; here we only need to cover the origin shift.) */
-	if (handle->prev_valid &&
+	if (handle->prev_rect_valid &&
 	    (handle->prev_origin_row != handle->buf_origin_row ||
 	     handle->prev_origin_col != handle->buf_origin_col)) {
 		memset(handle->dirty, 1, (size_t)handle->buf_rows * (size_t)handle->buf_cols);
@@ -491,6 +529,8 @@ terse_error_t terse_buffer_flush(terse_handle_t handle)
 	handle->prev_origin_col = handle->buf_origin_col;
 	handle->prev_buf_rows = handle->buf_rows;
 	handle->prev_buf_cols = handle->buf_cols;
+	handle->prev_rect_valid = 1;
+	/* After the swap below, prev_cells holds the frame just displayed. */
 	handle->prev_valid = 1;
 
 	swap_buffers(handle);
