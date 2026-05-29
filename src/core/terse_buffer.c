@@ -212,6 +212,31 @@ terse_error_t terse_get_cell(terse_handle_t handle, int row, int col,
 	return TERSE_OK;
 }
 
+terse_error_t terse_buffer_set_cursor(terse_handle_t handle, int row, int col)
+{
+	TERSE_CHECK_HANDLE(handle);
+
+	if (handle->render_mode != TERSE_RENDER_BUFFERED || !handle->cur_cells) {
+		set_error(handle, TERSE_ERR_NOT_SUPPORTED);
+		return TERSE_ERR_NOT_SUPPORTED;
+	}
+	if (row < 0 || col < 0) {
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
+	}
+
+	/* Recorded in rectangle-local coordinates; the next flush projects it to
+	 * the terminal as origin + (row, col) and moves the cursor there as its
+	 * final step. The position may sit outside the cell buffer (e.g. a trailing
+	 * cursor column reserved past the content), so it is not clamped to the
+	 * buffer dimensions. */
+	handle->buf_cursor_row = row;
+	handle->buf_cursor_col = col;
+	handle->buf_cursor_set = 1;
+	clear_error(handle);
+	return TERSE_OK;
+}
+
 /* ========================================================================
  * Writing into the current frame
  * ======================================================================== */
@@ -521,6 +546,19 @@ terse_error_t terse_buffer_flush(terse_handle_t handle)
 	err = terse_reset_style(handle, TERSE_RESET_ALL);
 	if (err != TERSE_OK) {
 		return err;
+	}
+
+	/* Place the terminal cursor at the caller's requested logical position
+	 * (rectangle-local), projected to absolute as origin + local. Runs while
+	 * in_flush is set, so the move emits immediately. Without a request the
+	 * cursor stays wherever the last diff run left it (legacy behavior). */
+	if (handle->buf_cursor_set) {
+		err = terse_move_to(handle,
+		                    handle->buf_origin_row + handle->buf_cursor_row,
+		                    handle->buf_origin_col + handle->buf_cursor_col);
+		if (err != TERSE_OK) {
+			return err;
+		}
 	}
 
 	/* Record the rectangle we just emitted so the next flush can erase any

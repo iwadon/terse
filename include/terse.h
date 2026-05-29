@@ -447,10 +447,11 @@ terse_error_t terse_pop_state(terse_handle_t handle);
 /* Position the buffered-mode virtual screen so its top-left maps to terminal
  * cell (origin_row, origin_col). Buffer cell coordinates remain local (0-origin);
  * the flush projects them as absolute = origin + local. Only meaningful in
- * TERSE_RENDER_BUFFERED. In Phase 5.5-A this changes the origin only; the rows
- * and cols arguments are reserved for resize support and currently must match
- * the existing buffer dimensions. Returns TERSE_OK, or an error if not in
- * buffered mode or the arguments are invalid. */
+ * TERSE_RENDER_BUFFERED. If rows/cols differ from the current buffer dimensions
+ * the cell buffers are reallocated (contents not preserved; the next flush fully
+ * redraws), and any residue left by the previous, larger rectangle is erased on
+ * that flush. Returns TERSE_OK, or an error if not in buffered mode or the
+ * arguments are invalid. */
 terse_error_t terse_buffer_set_region(terse_handle_t handle,
                                       int origin_row, int origin_col,
                                       int rows, int cols);
@@ -464,6 +465,18 @@ terse_error_t terse_buffer_set_region(terse_handle_t handle,
  * out-of-range coordinate. */
 terse_error_t terse_get_cell(terse_handle_t handle, int row, int col,
                              terse_cell_t *out);
+
+/* Request where the terminal cursor should rest after the next buffered flush,
+ * in buffer-local coordinates (projected to absolute as origin + (row, col)).
+ * terse_flush() moves the cursor there as its final step. Useful for callers
+ * that build a frame and then want the cursor at a logical position (e.g. a
+ * text input caret) rather than wherever the last diff run ended. The position
+ * is not clamped to the buffer dimensions, so a caret column reserved past the
+ * content is allowed. The request persists across flushes until changed. Only
+ * meaningful in TERSE_RENDER_BUFFERED. Returns TERSE_OK, TERSE_ERR_NOT_SUPPORTED
+ * if not in buffered mode, or TERSE_ERR_INVALID_ARGUMENT for a negative
+ * coordinate. */
+terse_error_t terse_buffer_set_cursor(terse_handle_t handle, int row, int col);
 
 terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
 terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);

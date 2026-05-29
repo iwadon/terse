@@ -710,4 +710,60 @@ TEST(TerseBuffer, GetCellAfterResizeIsNotSupportedUntilFlush)
 	close(fds[1]);
 }
 
+/* Phase 5.5: terse_buffer_set_cursor で指定したローカル位置へ flush 末尾で
+ * カーソルが移動する（origin 加算・1-based 変換込み）。 */
+TEST(TerseBuffer, SetCursorMovesCursorAfterFlush)
+{
+	int fds[2];
+	terse_handle_t handle;
+	make_pipe_handle(&handle, fds);
+
+	EXPECT_EQ(0, terse_buffer_alloc(handle, 3, 10));
+	handle->render_mode = TERSE_RENDER_BUFFERED;
+
+	/* 矩形を端末上の (4, 2) へ置く。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_set_region(handle, 4, 2, 3, 10));
+
+	/* ローカル (1, 5) にカーソルを要求 → 端末絶対 (5, 7) = 1-based (6, 8)。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_set_cursor(handle, 1, 5));
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 0, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "hi"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+
+	char buf[256];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	/* flush 末尾でカーソルが (6, 8) へ移動している。 */
+	EXPECT_TRUE(strstr(buf, "\x1b[6;8H") != NULL);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+/* set_cursor の引数検証: バッファドモードでなければ NOT_SUPPORTED、
+ * 負座標は INVALID_ARGUMENT。位置はバッファ寸法外でも受理（カーソル予約列）。 */
+TEST(TerseBuffer, SetCursorValidatesArguments)
+{
+	int fds[2];
+	terse_handle_t handle;
+	make_pipe_handle(&handle, fds);
+
+	/* 即時モードでは NOT_SUPPORTED。 */
+	EXPECT_EQ(TERSE_ERR_NOT_SUPPORTED, terse_buffer_set_cursor(handle, 0, 0));
+
+	EXPECT_EQ(0, terse_buffer_alloc(handle, 2, 4));
+	handle->render_mode = TERSE_RENDER_BUFFERED;
+
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_buffer_set_cursor(handle, -1, 0));
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_buffer_set_cursor(handle, 0, -1));
+
+	/* バッファ (2x4) の外側（行2・列4）でも受理される。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_set_cursor(handle, 2, 4));
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
 #endif /* HAVE_POSIX_PIPE */

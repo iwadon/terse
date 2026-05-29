@@ -79,6 +79,15 @@ struct terse_handle {
 	 * (set after each flush, cleared by a resize that rebuilds the cells). Gates
 	 * terse_get_cell, which reports the currently displayed content. */
 	int prev_valid;
+	/* Desired cursor position after a buffered flush, in rectangle-local
+	 * coordinates. Set by terse_buffer_set_cursor(); terse_buffer_flush() moves
+	 * the terminal cursor to origin + this position as its final step so the
+	 * caller's logical cursor lands where it wants. buf_cursor_set is 0 until
+	 * the caller requests a position (then flush leaves the cursor wherever the
+	 * last diff run ended, the legacy behavior). */
+	int buf_cursor_row;
+	int buf_cursor_col;
+	int buf_cursor_set;
 	int in_flush;          /* nonzero while terse_flush() emits diff: write paths run immediately */
 	int alt_screen_active; /* nonzero while in the alternate screen buffer */
 	/* Platform-specific opaque state, owned by the platform layer.
