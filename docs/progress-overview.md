@@ -37,6 +37,7 @@ P0のライフサイクル・出力・入力・サイズ取得・エラー返却
 | キーボード拡張 (modifyOtherKeys/kitty) | P0 | ✅ 実装済み | `terse_keyboard_enable/disable` で modifyOtherKeys level 2 および kitty CSI-u を opt-in（対応端末のみ）。|
 | 拡張キーレポート | P2+ | ⏳ 未着手 | `Shift+Enter` などの詳細修飾検出（xterm MOK, kitty 等）の検出/抽象化は今後。|
 | テストモード (API記録・モック) | - | ✅ 実装済み | `TERSE_ENABLE_TEST_MODE` ビルドオプションで有効化。API呼び出し記録（write_text/move_to/clear/set_style等）、能力・サイズ・イベントのモック機能を提供。`samples/test_mode_demo.c` 参照。|
+| テスト戦略 (ゴールデン/PTY) | - | ✅ 基盤導入済み | 出力バイト列ゴールデンテスト基盤（`tests/golden_helpers.h`、ハイブリッド更新フロー `UPDATE_GOLDEN=1`）と PTY 実プロセステスト基盤（`tests/pty_helpers.h`、POSIX 限定）。代表シナリオで実証済み。既存テストの段階移行・端末別スナップショット網羅は今後（Phase 6 計画書 `docs/redesign-phase6-plan.md` 参照）。|
 
 ## Next Steps Snapshot
 - バッファドモードの本格活用：terse-prompt の描画パスを `TERSE_RENDER_BUFFERED` 経由へ移行（Phase 5.5、別リポジトリ）。スクロール領域抽象化は必要が出てから検討。
