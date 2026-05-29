@@ -517,6 +517,42 @@ setup_raw_mode(STDIN_FILENO);
 
 **Note:** See `samples/event_logger_demo.c` for a complete example of terminal mode management.
 
+### Integrating with a poll/epoll/kqueue Loop (POSIX)
+
+By default you call `terse_read_event()` in your own loop. To wait on the
+terminal together with other file descriptors (sockets, timers, pipes) in a
+single `poll()`/`epoll`/`kqueue` loop, include the POSIX extension header and
+obtain the terminal's input fd:
+
+```c
+#include <terse/posix.h>
+#include <poll.h>
+
+int tfd = terse_posix_get_input_fd(handle);
+
+struct pollfd fds[2];
+fds[0].fd = tfd;        fds[0].events = POLLIN;
+fds[1].fd = other_fd;   fds[1].events = POLLIN;
+
+poll(fds, 2, -1);
+if (fds[0].revents & POLLIN) {
+    terse_event_t ev;
+    // Input is ready; read without blocking.
+    if (terse_read_event(handle, 0, &ev) == TERSE_OK) {
+        // handle ev
+    }
+}
+```
+
+Notes:
+- `<terse/posix.h>` is **POSIX-only**. Including it on Windows or Human68k
+  raises a `#error` (use `terse_read_event()` there; a platform-specific
+  extension header is planned for the future).
+- The returned fd is owned by terse and is closed by `terse_close()`. Use it for
+  polling, but do **not** `close()` it yourself.
+- This does not change the core API: `terse_read_event()` remains the way to
+  actually read events.
+
 **Event Types:**
 ```c
 typedef enum terse_event_type {

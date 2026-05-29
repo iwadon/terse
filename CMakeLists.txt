@@ -84,6 +84,8 @@ elseif(WIN32)
   target_compile_definitions(terse PRIVATE UNICODE _UNICODE)
 elseif(UNIX)
   target_sources(terse PRIVATE src/terse_posix.c)
+  # POSIX 拡張 API (<terse/posix.h>): 入力 fd 露出など POSIX 固有のアクセサ。
+  target_sources(terse PRIVATE src/core/terse_posix_ext.c)
 else()
   target_sources(terse PRIVATE src/terse_platform_stub.c)
 endif()

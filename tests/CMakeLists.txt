@@ -24,6 +24,7 @@ add_executable(terse_unit_test
 	unit/terse_options_test.c
 	unit/terse_output_test.c
 	unit/terse_paste_test.c
+	unit/terse_posix_ext_test.c
 	unit/terse_pty_test.c
 	unit/terse_read_event_ctrl_test.c
 	unit/terse_read_event_test.c
