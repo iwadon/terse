@@ -144,6 +144,37 @@ int terse_buffer_resize(terse_handle_t handle, int rows, int cols)
 }
 
 /* ========================================================================
+ * Region (origin) control — public API
+ * ======================================================================== */
+
+terse_error_t terse_buffer_set_region(terse_handle_t handle,
+                                      int origin_row, int origin_col,
+                                      int rows, int cols)
+{
+	TERSE_CHECK_HANDLE(handle);
+
+	if (handle->render_mode != TERSE_RENDER_BUFFERED || !handle->cur_cells) {
+		set_error(handle, TERSE_ERR_NOT_SUPPORTED);
+		return TERSE_ERR_NOT_SUPPORTED;
+	}
+	if (origin_row < 0 || origin_col < 0 || rows <= 0 || cols <= 0) {
+		set_error(handle, TERSE_ERR_INVALID_ARGUMENT);
+		return TERSE_ERR_INVALID_ARGUMENT;
+	}
+	/* Phase 5.5-A handles origin changes only; resize lands in 5.5-B. Until then,
+	 * the requested dimensions must match the current buffer. */
+	if (rows != handle->buf_rows || cols != handle->buf_cols) {
+		set_error(handle, TERSE_ERR_NOT_IMPLEMENTED);
+		return TERSE_ERR_NOT_IMPLEMENTED;
+	}
+
+	handle->buf_origin_row = origin_row;
+	handle->buf_origin_col = origin_col;
+	clear_error(handle);
+	return TERSE_OK;
+}
+
+/* ========================================================================
  * Writing into the current frame
  * ======================================================================== */
 
@@ -286,6 +317,90 @@ static void swap_buffers(terse_handle_t handle)
 	handle->cur_cells = tmp;
 }
 
+/* Emit a run of `count` spaces at the absolute terminal position (abs_row, abs_col),
+ * resetting style first so the erased cells carry no leftover attributes. */
+static terse_error_t erase_run(terse_handle_t handle, int abs_row, int abs_col, int count)
+{
+	terse_error_t err;
+	int i;
+
+	if (count <= 0) {
+		return TERSE_OK;
+	}
+	err = terse_move_to(handle, abs_row, abs_col);
+	if (err != TERSE_OK) {
+		return err;
+	}
+	err = terse_reset_style(handle, TERSE_RESET_ALL);
+	if (err != TERSE_OK) {
+		return err;
+	}
+	for (i = 0; i < count; i++) {
+		err = terse_write_text(handle, " ");
+		if (err != TERSE_OK) {
+			return err;
+		}
+	}
+	return TERSE_OK;
+}
+
+/* Erase the residue left by the previous flush: terminal cells that the previous
+ * rectangle covered but the current rectangle does not. Both rectangles are
+ * compared in absolute terminal coordinates (origin + size). terse only owns the
+ * cells it emitted itself, so the difference is exactly the previous rectangle
+ * minus the current one. */
+static terse_error_t erase_residue(terse_handle_t handle)
+{
+	int prev_top, prev_bottom, prev_left, prev_right;
+	int cur_top, cur_bottom, cur_left, cur_right;
+	int abs_row;
+	terse_error_t err;
+
+	if (!handle->prev_valid) {
+		return TERSE_OK;
+	}
+
+	prev_top = handle->prev_origin_row;
+	prev_bottom = handle->prev_origin_row + handle->prev_buf_rows; /* exclusive */
+	prev_left = handle->prev_origin_col;
+	prev_right = handle->prev_origin_col + handle->prev_buf_cols; /* exclusive */
+
+	cur_top = handle->buf_origin_row;
+	cur_bottom = handle->buf_origin_row + handle->buf_rows;
+	cur_left = handle->buf_origin_col;
+	cur_right = handle->buf_origin_col + handle->buf_cols;
+
+	for (abs_row = prev_top; abs_row < prev_bottom; abs_row++) {
+		int inside_row = (abs_row >= cur_top && abs_row < cur_bottom);
+
+		if (!inside_row) {
+			/* Entire previous row lies outside the current rectangle. */
+			err = erase_run(handle, abs_row, prev_left, prev_right - prev_left);
+			if (err != TERSE_OK) {
+				return err;
+			}
+			continue;
+		}
+		/* Row overlaps vertically: erase only the columns of the previous row
+		 * that fall outside the current rectangle (left and/or right margins). */
+		if (prev_left < cur_left) {
+			int end = prev_right < cur_left ? prev_right : cur_left;
+			err = erase_run(handle, abs_row, prev_left, end - prev_left);
+			if (err != TERSE_OK) {
+				return err;
+			}
+		}
+		if (prev_right > cur_right) {
+			int begin = prev_left > cur_right ? prev_left : cur_right;
+			err = erase_run(handle, abs_row, begin, prev_right - begin);
+			if (err != TERSE_OK) {
+				return err;
+			}
+		}
+	}
+	return TERSE_OK;
+}
+
 terse_error_t terse_buffer_flush(terse_handle_t handle)
 {
 	int row;
@@ -296,7 +411,24 @@ terse_error_t terse_buffer_flush(terse_handle_t handle)
 		return TERSE_OK;
 	}
 
+	/* Erase residue from the previous rectangle (origin moved or buffer shrank)
+	 * before drawing the current frame. */
+	err = erase_residue(handle);
+	if (err != TERSE_OK) {
+		return err;
+	}
+
 	terse_buffer_diff(handle);
+
+	/* When the origin moved, prev_cells describes a different absolute region, so
+	 * the per-cell diff against it is meaningless: force a full redraw at the new
+	 * position. (Size changes already mark everything dirty via the diff path once
+	 * resize lands in 5.5-B; here we only need to cover the origin shift.) */
+	if (handle->prev_valid &&
+	    (handle->prev_origin_row != handle->buf_origin_row ||
+	     handle->prev_origin_col != handle->buf_origin_col)) {
+		memset(handle->dirty, 1, (size_t)handle->buf_rows * (size_t)handle->buf_cols);
+	}
 
 	cols = handle->buf_cols;
 	for (row = 0; row < handle->buf_rows; row++) {
@@ -318,7 +450,7 @@ terse_error_t terse_buffer_flush(terse_handle_t handle)
 				col++;
 			}
 
-			err = terse_move_to(handle, row, start);
+			err = terse_move_to(handle, handle->buf_origin_row + row, handle->buf_origin_col + start);
 			if (err != TERSE_OK) {
 				return err;
 			}
@@ -352,6 +484,14 @@ terse_error_t terse_buffer_flush(terse_handle_t handle)
 	if (err != TERSE_OK) {
 		return err;
 	}
+
+	/* Record the rectangle we just emitted so the next flush can erase any
+	 * residue when the origin moves or the buffer shrinks. */
+	handle->prev_origin_row = handle->buf_origin_row;
+	handle->prev_origin_col = handle->buf_origin_col;
+	handle->prev_buf_rows = handle->buf_rows;
+	handle->prev_buf_cols = handle->buf_cols;
+	handle->prev_valid = 1;
 
 	swap_buffers(handle);
 	terse_buffer_clear(handle);

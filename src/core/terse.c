@@ -245,6 +245,11 @@ terse_open_finish_render(terse_handle_t handle)
 	if (handle->options.render_mode == TERSE_RENDER_BUFFERED && handle->size.known && handle->size.rows > 0 && handle->size.cols > 0) {
 		if (terse_buffer_alloc(handle, handle->size.rows, handle->size.cols) == 0) {
 			handle->render_mode = TERSE_RENDER_BUFFERED;
+			/* Default the virtual screen origin to the terminal's top-left, where
+			 * local buffer coords coincide with absolute terminal coords. */
+			handle->buf_origin_row = 0;
+			handle->buf_origin_col = 0;
+			handle->prev_valid = 0;
 		}
 	}
 }

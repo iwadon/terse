@@ -436,6 +436,17 @@ terse_error_t terse_state_clear(terse_handle_t handle);
 terse_error_t terse_push_state(terse_handle_t handle);
 terse_error_t terse_pop_state(terse_handle_t handle);
 
+/* Position the buffered-mode virtual screen so its top-left maps to terminal
+ * cell (origin_row, origin_col). Buffer cell coordinates remain local (0-origin);
+ * the flush projects them as absolute = origin + local. Only meaningful in
+ * TERSE_RENDER_BUFFERED. In Phase 5.5-A this changes the origin only; the rows
+ * and cols arguments are reserved for resize support and currently must match
+ * the existing buffer dimensions. Returns TERSE_OK, or an error if not in
+ * buffered mode or the arguments are invalid. */
+terse_error_t terse_buffer_set_region(terse_handle_t handle,
+                                      int origin_row, int origin_col,
+                                      int rows, int cols);
+
 terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
 terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);
 terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes);

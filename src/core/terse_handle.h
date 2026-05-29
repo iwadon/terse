@@ -62,6 +62,18 @@ struct terse_handle {
 	unsigned char *dirty;     /* per-cell dirty flags (rows*cols) */
 	int buf_rows;             /* allocated buffer dimensions */
 	int buf_cols;
+	/* Virtual screen origin on the terminal (local cell coords are projected to
+	 * the terminal as absolute = origin + local at flush time). Default (0,0),
+	 * where local coords coincide with absolute coords (legacy behavior). */
+	int buf_origin_row;
+	int buf_origin_col;
+	/* Rectangle emitted by the previous flush, used to erase residue when the
+	 * origin moves or the buffer shrinks. prev_valid is 0 until the first flush. */
+	int prev_origin_row;
+	int prev_origin_col;
+	int prev_buf_rows;
+	int prev_buf_cols;
+	int prev_valid;
 	int in_flush;          /* nonzero while terse_flush() emits diff: write paths run immediately */
 	int alt_screen_active; /* nonzero while in the alternate screen buffer */
 	/* Platform-specific opaque state, owned by the platform layer.

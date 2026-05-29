@@ -452,4 +452,105 @@ TEST(TerseAltScreen, EnterIsIdempotent)
 	close(fds[1]);
 }
 
+/* Phase 5.5-A: 任意 origin の矩形への射影。origin≠0 では flush 出力が
+ * absolute = origin + local で絶対化される。 */
+TEST(TerseBuffer, FlushProjectsThroughOrigin)
+{
+	int fds[2];
+	terse_handle_t handle;
+	make_pipe_handle(&handle, fds);
+
+	EXPECT_EQ(0, terse_buffer_alloc(handle, 3, 5));
+	handle->render_mode = TERSE_RENDER_BUFFERED;
+
+	/* 矩形を端末上の (5, 10) へ置く（origin のみ変更）。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_set_region(handle, 5, 10, 3, 5));
+	EXPECT_EQ(5, handle->buf_origin_row);
+	EXPECT_EQ(10, handle->buf_origin_col);
+
+	/* ローカル (1, 2) に書く → 端末絶対 (6, 12) = 1-based (7, 13)。 */
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 1, 2));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "X"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+
+	char buf[128];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	EXPECT_TRUE(strstr(buf, "\x1b[7;13H") != NULL);
+	EXPECT_TRUE(strstr(buf, "X") != NULL);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+/* Phase 5.5-A: origin を動かすと、前回矩形のうち今回矩形に含まれない端末セルが
+ * 空白で消去される（自己掃除）。 */
+TEST(TerseBuffer, FlushErasesResidueOnOriginMove)
+{
+	int fds[2];
+	terse_handle_t handle;
+	make_pipe_handle(&handle, fds);
+
+	EXPECT_EQ(0, terse_buffer_alloc(handle, 1, 3));
+	handle->render_mode = TERSE_RENDER_BUFFERED;
+
+	/* 1 回目: origin (0,0) に "abc" を出して flush。 */
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 0, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "abc"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+	char drain[128];
+	(void)read_pipe(fds[0], drain, sizeof(drain));
+
+	/* 2 回目: 矩形を (0,5) へずらして flush。前回 (0,0)-(0,2) は今回矩形外なので
+	 * その 3 セルが空白消去され、新しい位置 (0,5)= 1-based (1,6) に再描画される。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_set_region(handle, 0, 5, 1, 3));
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 0, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "abc"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+
+	char buf[256];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	/* 残骸消去: 前回 origin (0,0)= 1-based (1,1) へ移動して空白を出す。 */
+	EXPECT_TRUE(strstr(buf, "\x1b[1;1H") != NULL);
+	/* 新しい位置 (0,5)= 1-based (1,6) へ移動して再描画。 */
+	EXPECT_TRUE(strstr(buf, "\x1b[1;6H") != NULL);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+/* Phase 5.5-A: set_region は origin のみ変更。サイズ変更は未実装(5.5-B)。
+ * バッファドモードでなければ NOT_SUPPORTED、不正引数は INVALID_ARGUMENT。 */
+TEST(TerseBuffer, SetRegionValidatesArguments)
+{
+	int fds[2];
+	terse_handle_t handle;
+	make_pipe_handle(&handle, fds);
+
+	/* バッファ未確保（即時モード）では NOT_SUPPORTED。 */
+	EXPECT_EQ(TERSE_ERR_NOT_SUPPORTED, terse_buffer_set_region(handle, 0, 0, 4, 4));
+
+	EXPECT_EQ(0, terse_buffer_alloc(handle, 4, 4));
+	handle->render_mode = TERSE_RENDER_BUFFERED;
+
+	/* 不正な origin / サイズ。 */
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_buffer_set_region(handle, -1, 0, 4, 4));
+	EXPECT_EQ(TERSE_ERR_INVALID_ARGUMENT, terse_buffer_set_region(handle, 0, 0, 0, 4));
+
+	/* サイズ変更は 5.5-A では未実装。 */
+	EXPECT_EQ(TERSE_ERR_NOT_IMPLEMENTED, terse_buffer_set_region(handle, 0, 0, 5, 4));
+
+	/* origin のみの変更は成功し、サイズ一致なら受理。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_set_region(handle, 2, 3, 4, 4));
+	EXPECT_EQ(2, handle->buf_origin_row);
+	EXPECT_EQ(3, handle->buf_origin_col);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
 #endif /* HAVE_POSIX_PIPE */
