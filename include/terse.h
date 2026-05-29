@@ -478,6 +478,16 @@ terse_error_t terse_get_cell(terse_handle_t handle, int row, int col,
  * coordinate. */
 terse_error_t terse_buffer_set_cursor(terse_handle_t handle, int row, int col);
 
+/* Discard terse's record of the frame currently on screen so the next flush
+ * redraws the entire rectangle, even if its contents are unchanged. Use when
+ * the terminal under the rectangle changed without terse's knowledge — e.g. the
+ * display scrolled, or a new line of output was printed and the rectangle now
+ * sits over fresh terminal cells. The previous rectangle's extent is still
+ * remembered, so residue from a larger prior rectangle is erased on that flush.
+ * Only meaningful in TERSE_RENDER_BUFFERED. Returns TERSE_OK, or
+ * TERSE_ERR_NOT_SUPPORTED if not in buffered mode. */
+terse_error_t terse_buffer_invalidate(terse_handle_t handle);
+
 terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
 terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);
 terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes);

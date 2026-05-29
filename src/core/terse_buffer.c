@@ -237,6 +237,27 @@ terse_error_t terse_buffer_set_cursor(terse_handle_t handle, int row, int col)
 	return TERSE_OK;
 }
 
+terse_error_t terse_buffer_invalidate(terse_handle_t handle)
+{
+	TERSE_CHECK_HANDLE(handle);
+
+	if (handle->render_mode != TERSE_RENDER_BUFFERED || !handle->prev_cells) {
+		set_error(handle, TERSE_ERR_NOT_SUPPORTED);
+		return TERSE_ERR_NOT_SUPPORTED;
+	}
+
+	/* Empty prev_cells so the next flush diffs the current frame against blank
+	 * cells and redraws everything within the rectangle. The prev_rect_* record
+	 * is left intact so residue from a previous, larger rectangle is still
+	 * erased. prev_valid is cleared because prev no longer reflects the screen,
+	 * matching the resize path. Use when the terminal content under the
+	 * rectangle changed out from under terse (scroll, a fresh prompt line). */
+	cells_fill_empty(handle->prev_cells, (size_t)handle->buf_rows * (size_t)handle->buf_cols);
+	handle->prev_valid = 0;
+	clear_error(handle);
+	return TERSE_OK;
+}
+
 /* ========================================================================
  * Writing into the current frame
  * ======================================================================== */

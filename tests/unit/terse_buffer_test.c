@@ -766,4 +766,43 @@ TEST(TerseBuffer, SetCursorValidatesArguments)
 	close(fds[1]);
 }
 
+/* Phase 5.5: terse_buffer_invalidate は prev を破棄し、同一内容でも次 flush で
+ * 全再描画させる。即時モードでは NOT_SUPPORTED。 */
+TEST(TerseBuffer, InvalidateForcesFullRedraw)
+{
+	int fds[2];
+	terse_handle_t handle;
+	make_pipe_handle(&handle, fds);
+
+	/* 即時モードでは NOT_SUPPORTED。 */
+	EXPECT_EQ(TERSE_ERR_NOT_SUPPORTED, terse_buffer_invalidate(handle));
+
+	EXPECT_EQ(0, terse_buffer_alloc(handle, 1, 3));
+	handle->render_mode = TERSE_RENDER_BUFFERED;
+
+	/* 1 回目: "abc" を出して flush。 */
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 0, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "abc"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+	char drain[128];
+	(void)read_pipe(fds[0], drain, sizeof(drain));
+
+	/* 2 回目: 同じ "abc" を書く。invalidate しなければ差分ゼロで何も出ない。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_invalidate(handle));
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 0, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "abc"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+
+	char buf[256];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	/* 全再描画なので origin (0,0)= 1-based (1,1) へ移動して "abc" を再出力。 */
+	EXPECT_TRUE(strstr(buf, "\x1b[1;1H") != NULL);
+	EXPECT_TRUE(strstr(buf, "abc") != NULL);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
 #endif /* HAVE_POSIX_PIPE */
