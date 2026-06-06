@@ -1,5 +1,11 @@
 @PACKAGE_INIT@
 
+include(CMakeFindDependencyMacro)
+
+if(@TERSE_USE_SYSTEM_ICONV@)
+  find_dependency(Iconv)
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/terseTargets.cmake")
 
 check_required_components(terse)
