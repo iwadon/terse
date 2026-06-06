@@ -25,7 +25,7 @@ ninja -C build terse        # Build library only
 
 #### Initial Configuration
 ```cmd
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DTERSE_USE_SYSTEM_ICONV=OFF
+cmake -S . -B build -G "Visual Studio 18 2026" -A x64 -DTERSE_USE_SYSTEM_ICONV=OFF
 ```
 Or for Ninja with MSVC:
 ```cmd

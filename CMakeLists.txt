@@ -35,6 +35,12 @@ if(TERSE_BUILD_TESTING)
   FetchContent_MakeAvailable(attest)
 endif()
 
+# UTF-8 ソース内の日本語コメントによる C4819 を防ぐ。
+# add_compile_options は後続ターゲットにのみ効くため add_library より前に置く。
+if(MSVC)
+  add_compile_options(/source-charset:utf-8)
+endif()
+
 add_library(terse
   # core (中レベル: 状態管理・統合API)
   src/core/terse.c
@@ -58,10 +64,6 @@ add_library(terse
 )
 
 include(CheckIncludeFile)
-
-if(MSVC)
-  add_compile_options(/source-charset:utf-8)
-endif()
 
 # Auto-detect Human68k platform if not explicitly set
 if(NOT DEFINED TERSE_PLATFORM_HUMAN68K)
