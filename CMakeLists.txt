@@ -25,14 +25,16 @@ else()
   option(TERSE_BUILD_TESTING "Build terse tests" OFF)
 endif()
 
-include(FetchContent)
-
 if(TERSE_BUILD_TESTING)
-  FetchContent_Declare(attest
-    GIT_REPOSITORY https://github.com/iwadon/attest.git
-    GIT_TAG        5ea55d5cc94e68a737fcf730779caecb6149f61c
-  )
-  FetchContent_MakeAvailable(attest)
+  find_package(attest QUIET)
+  if(NOT attest_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(attest
+      GIT_REPOSITORY https://github.com/iwadon/attest.git
+      GIT_TAG        5ea55d5cc94e68a737fcf730779caecb6149f61c
+    )
+    FetchContent_MakeAvailable(attest)
+  endif()
 endif()
 
 # UTF-8 ソース内の日本語コメントによる C4819 を防ぐ。

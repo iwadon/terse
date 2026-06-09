@@ -39,7 +39,7 @@ target_include_directories(terse_unit_test PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/../src
 	${CMAKE_CURRENT_SOURCE_DIR}/../src/term
 	${CMAKE_CURRENT_SOURCE_DIR}/../src/core)
-target_link_libraries(terse_unit_test PRIVATE terse attest)
+target_link_libraries(terse_unit_test PRIVATE terse attest::attest)
 # テストはC11でコンパイルする（terse本体はC99）
 set_target_properties(terse_unit_test PROPERTIES
 	C_STANDARD 11
