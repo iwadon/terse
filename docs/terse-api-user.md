@@ -972,6 +972,37 @@ terse_buffer_invalidate(handle);
 // ... render and flush — no residue erasure from the old rectangle
 ```
 
+### Detach (Suspend Buffered Rendering)
+
+```c
+terse_error_t terse_buffer_detach(terse_handle_t handle);
+```
+
+Detaches from the current buffered frame, leaving it on screen as-is. Combines the effects of `terse_buffer_forget_previous_rect()` (no residue erasure) with a `prev_cells` reset (no stale diff), so the next flush only outputs cells written via `terse_buffer_set_cell()` since the detach.
+
+Use when temporarily leaving buffered mode (e.g. after a readline interaction) to hand control back to the application. Unlike calling `forget_previous_rect` + `invalidate` separately, `detach` ensures the next flush neither erases old output nor overwrites the screen with a full redraw from the diff.
+
+**Example — readline lifecycle (recommended):**
+```c
+// 1. Buffered mode: render the prompt UI
+terse_buffer_set_region(handle, start_row, 0, prompt_rows, cols);
+// ... set_cell, flush ...
+
+// 2. Readline completes, user presses Enter
+terse_write_raw(handle, "\r\n", 2);
+
+// 3. Detach — leaves the confirmed line on screen,
+//    suppresses both residue erasure and stale diff
+terse_buffer_detach(handle);
+
+// 4. Application prints output freely
+printf("You entered: %s\n", input);
+
+// 5. Next readline session starts at a new position
+terse_buffer_set_region(handle, new_start_row, 0, prompt_rows, cols);
+// ... set_cell, flush — only newly written cells are output
+```
+
 ### Raw Output Bypass
 
 ```c
@@ -2213,6 +2244,7 @@ if (caps.images == TERSE_IMAGE_NONE) {
 - `terse_get_cell()` - Read displayed cell content
 - `terse_buffer_invalidate()` - Force full redraw on next flush
 - `terse_buffer_forget_previous_rect()` - Skip residue erasure on next flush
+- `terse_buffer_detach()` - Suspend buffered rendering, leaving current frame on screen
 - `terse_write_raw()` - Bypass buffer and write raw bytes
 
 ### Colors/Styles (P1)

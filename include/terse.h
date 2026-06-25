@@ -503,6 +503,15 @@ terse_error_t terse_buffer_invalidate(terse_handle_t handle);
  * TERSE_ERR_NOT_SUPPORTED if not in buffered mode. */
 terse_error_t terse_buffer_forget_previous_rect(terse_handle_t handle);
 
+/* Detach from the current buffered frame, leaving it on screen as-is. Use
+ * when temporarily leaving buffered mode (e.g. after a readline interaction)
+ * so that the caller can write to the terminal freely. The next flush will
+ * only output cells written via terse_buffer_set_cell() since the detach;
+ * residue erasure is suppressed, so previously displayed content outside the
+ * new rectangle is not blanked. Combines forget_previous_rect (no residue
+ * erase) with a prev_cells reset (no stale diff). */
+terse_error_t terse_buffer_detach(terse_handle_t handle);
+
 terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
 terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);
 terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes);

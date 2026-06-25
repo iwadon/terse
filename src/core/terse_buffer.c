@@ -290,6 +290,23 @@ terse_error_t terse_buffer_forget_previous_rect(terse_handle_t handle)
 	return TERSE_OK;
 }
 
+terse_error_t terse_buffer_detach(terse_handle_t handle)
+{
+	TERSE_CHECK_HANDLE(handle);
+
+	if (handle->render_mode != TERSE_RENDER_BUFFERED || !handle->prev_cells) {
+		set_error(handle, TERSE_ERR_NOT_SUPPORTED);
+		return TERSE_ERR_NOT_SUPPORTED;
+	}
+
+	handle->prev_rect_valid = 0;
+	cells_fill_empty(handle->prev_cells,
+	                 (size_t)handle->buf_rows * (size_t)handle->buf_cols);
+	handle->prev_valid = 1;
+	clear_error(handle);
+	return TERSE_OK;
+}
+
 /* ========================================================================
  * Writing into the current frame
  * ======================================================================== */
