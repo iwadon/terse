@@ -98,8 +98,7 @@ terse_platform_init(terse_handle_t handle)
 	return TERSE_OK;
 }
 
-void
-terse_platform_shutdown(terse_handle_t handle)
+void terse_platform_shutdown(terse_handle_t handle)
 {
 	(void)handle;
 }
@@ -150,6 +149,7 @@ terse_platform_probe_secondary_da(int input_fd, int output_fd, unsigned char *bu
 	if (tcsetattr(input_fd, TCSANOW, &raw) != 0) {
 		return 0;
 	}
+	(void)tcflush(input_fd, TCIFLUSH);
 	const char request[] = "\x1b[>0c";
 	if (write(output_fd, request, sizeof(request) - 1) < 0) {
 		(void)tcsetattr(input_fd, TCSANOW, &original);
@@ -192,6 +192,9 @@ terse_platform_query_cursor_position(int input_fd, int output_fd, int *out_row, 
 	if (tcsetattr(input_fd, TCSANOW, &raw) != 0) {
 		return TERSE_ERR_IO;
 	}
+
+	// Discard any stale input (e.g. a prior DSR response that arrived late)
+	(void)tcflush(input_fd, TCIFLUSH);
 
 	// Send CPR (Cursor Position Report) request: CSI 6 n
 	const char request[] = "\x1b[6n";
