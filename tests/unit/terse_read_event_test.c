@@ -551,6 +551,50 @@ TEST(TerseReadEvent, ReturnsShiftEnter_OnModifyOtherKeys)
 	close(fds[1]);
 }
 
+TEST(TerseReadEvent, ReturnsEscChar_OnKittyCSIu)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	/* CSI 27 u = ESC key (codepoint 27, no modifiers) */
+	const char seq[] = "\x1b[27u";
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_OK, result);
+	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
+	EXPECT_EQ(0x1bu, event.data.ch.scalar);
+	EXPECT_EQ(0, event.data.ch.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+TEST(TerseReadEvent, ReturnsEscCharWithMods_OnKittyCSIu)
+{
+	int fds[2];
+	terse_handle_t handle;
+	create_input_handle(&handle, fds);
+
+	/* CSI 27;4u = Shift+Alt+ESC (modifier param 4 = shift+alt in kitty) */
+	const char seq[] = "\x1b[27;4u";
+	EXPECT_TRUE(write(fds[1], seq, sizeof(seq) - 1) == (ssize_t)(sizeof(seq) - 1));
+
+	terse_event_t event;
+	int result = terse_read_event(handle, 50, &event);
+	EXPECT_EQ(TERSE_OK, result);
+	EXPECT_EQ(TERSE_EVENT_CHAR, event.type);
+	EXPECT_EQ(0x1bu, event.data.ch.scalar);
+	EXPECT_EQ(TERSE_MOD_SHIFT | TERSE_MOD_ALT, event.data.ch.mods);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
 TEST(TerseReadEvent, ReturnsResize_OnCsi8Sequence)
 {
 	int fds[2];

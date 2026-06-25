@@ -523,6 +523,10 @@ int terse_parse_csi_event(terse_handle_t handle, terse_event_t *out_event,
 			terse_set_key_event(out_event, TERSE_EVENT_BACKSPACE, mods);
 			return 1;
 		}
+		if (code == 27) {
+			terse_set_char_event(handle, out_event, code, mods);
+			return 1;
+		}
 		if (code >= 0x20 && code <= 0x10ffff) {
 			terse_set_char_event(handle, out_event, code, mods);
 			return 1;
