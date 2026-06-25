@@ -12,13 +12,14 @@
 6. [P0: Basic Output](#p0-basic-output)
 7. [P0: Input Events](#p0-input-events)
 8. [P0: State Management](#p0-state-management)
-9. [P1: Colors and Styles](#p1-colors-and-styles)
-10. [P2: Advanced Input/Output](#p2-advanced-inputoutput)
-11. [P3: Extended Features](#p3-extended-features)
-12. [Test Mode and Mocking](#test-mode-and-mocking)
-13. [Best Practices](#best-practices)
-14. [Common Patterns](#common-patterns)
-15. [Troubleshooting](#troubleshooting)
+9. [P0: Buffered Rendering](#p0-buffered-rendering)
+10. [P1: Colors and Styles](#p1-colors-and-styles)
+11. [P2: Advanced Input/Output](#p2-advanced-inputoutput)
+12. [P3: Extended Features](#p3-extended-features)
+13. [Test Mode and Mocking](#test-mode-and-mocking)
+14. [Best Practices](#best-practices)
+15. [Common Patterns](#common-patterns)
+16. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -406,7 +407,7 @@ int terse_flush(terse_handle_t handle);
 
 **Notes:**
 - `graphemes`: UTF-8 or Shift_JIS string (depending on codec)
-- `terse_flush()`: Currently a no-op (output is unbuffered)
+- `terse_flush()`: In immediate mode, a no-op. In buffered mode, emits the diff between the current and previous frames (see [Buffered Rendering](#p0-buffered-rendering))
 
 **Example:**
 ```c
@@ -779,6 +780,270 @@ terse_state_t custom_state = {
 terse_state_override(handle, &custom_state);
 // ... operations ...
 terse_state_clear(handle);  // Clear override
+```
+
+---
+
+## P0: Buffered Rendering
+
+Buffered rendering mode maintains a virtual cell buffer and emits only the changed cells on each `terse_flush()` call — dramatically reducing terminal I/O for complex UIs. This is opt-in; the default immediate mode is unchanged.
+
+### Enabling Buffered Mode
+
+Set `render_mode` in `terse_options_t` when opening the session:
+
+```c
+terse_options_t options = {
+    .input_fd = STDIN_FILENO,
+    .output_fd = STDOUT_FILENO,
+    .codec_name = "UTF-8",
+    .render_mode = TERSE_RENDER_BUFFERED
+};
+
+terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
+```
+
+You can optionally specify the initial rectangle:
+
+```c
+terse_options_t options = {
+    // ...
+    .render_mode = TERSE_RENDER_BUFFERED,
+    .buffer_origin_row = 2,   // top-left row on the terminal
+    .buffer_origin_col = 0,   // top-left column on the terminal
+    .buffer_rows = 10,        // 0 = terminal height
+    .buffer_cols = 80         // 0 = terminal width
+};
+```
+
+### Render Modes
+
+```c
+typedef enum terse_render_mode {
+    TERSE_RENDER_IMMEDIATE = 0,  // default: write escapes directly
+    TERSE_RENDER_BUFFERED        // opt-in: virtual cell buffer with diff flush
+} terse_render_mode_t;
+```
+
+### Cell Structure
+
+Each cell in the virtual buffer holds one grapheme and its attributes:
+
+```c
+typedef struct terse_cell {
+    char utf8_char[5];       // UTF-8 grapheme (max 4 bytes + NUL)
+    uint8_t char_len;        // byte length (0 = empty cell)
+    uint8_t display_width;   // display width in columns (1 or 2)
+    uint8_t is_continuation; // nonzero for the 2nd column of a wide char
+    terse_color_t fg;        // foreground color
+    terse_color_t bg;        // background color
+    uint16_t effects;        // TERSE_STYLE_* bitmask
+} terse_cell_t;
+```
+
+### Writing and Flushing
+
+In buffered mode, `terse_move_to()`, `terse_write_text()`, and `terse_set_style()` write into the virtual buffer instead of directly to the terminal. Call `terse_flush()` to emit the diff:
+
+```c
+terse_move_to(handle, 0, 0);
+terse_write_text(handle, "Hello, buffered world!");
+terse_flush(handle);  // emits only changed cells
+```
+
+On the second flush, unchanged cells are skipped:
+
+```c
+terse_move_to(handle, 0, 0);
+terse_write_text(handle, "Hello, buffered world!");  // same content
+terse_flush(handle);  // no output — nothing changed
+```
+
+### Setting the Rectangle Region
+
+```c
+terse_error_t terse_buffer_set_region(terse_handle_t handle,
+                                      int origin_row, int origin_col,
+                                      int rows, int cols);
+```
+
+Moves and/or resizes the virtual rectangle. Buffer cell coordinates remain local (0-origin); flush projects them as `absolute = origin + local`.
+
+If `rows` or `cols` differ from the current dimensions, the cell buffers are reallocated (contents not preserved) and the next flush fully redraws. Any residue left by the previous, larger rectangle is automatically erased on that flush.
+
+**Example — resize tracking:**
+```c
+terse_size_t size = terse_get_size(handle);
+if (size.known) {
+    terse_buffer_set_region(handle, 0, 0, size.rows, size.cols);
+}
+```
+
+**Example — sub-region of the terminal:**
+```c
+// Place a 5-row, 40-column panel starting at row 3, column 10
+terse_buffer_set_region(handle, 3, 10, 5, 40);
+
+// Cell (0, 0) in the buffer maps to terminal position (3, 10)
+terse_move_to(handle, 0, 0);
+terse_write_text(handle, "Panel title");
+terse_flush(handle);
+```
+
+### Setting the Cursor Position
+
+```c
+terse_error_t terse_buffer_set_cursor(terse_handle_t handle, int row, int col);
+```
+
+Requests where the terminal cursor should rest after the next flush, in buffer-local coordinates. Useful for placing the cursor at a logical position (e.g. a text input caret) rather than wherever the last diff run ended. The position is not clamped to the buffer dimensions. The request persists across flushes until changed.
+
+**Example:**
+```c
+// Place cursor at the end of user input on row 2
+terse_buffer_set_cursor(handle, 2, input_length);
+terse_flush(handle);  // cursor lands at (origin_row + 2, origin_col + input_length)
+```
+
+### Reading Displayed Cells
+
+```c
+terse_error_t terse_get_cell(terse_handle_t handle, int row, int col,
+                             terse_cell_t *out);
+```
+
+Returns the cell content last committed by `terse_flush()` — terse's record of what it put on screen, not the in-progress frame being built before the next flush.
+
+**Example:**
+```c
+terse_cell_t cell;
+if (terse_get_cell(handle, 0, 0, &cell) == TERSE_OK) {
+    printf("Displayed: %.*s (width=%d)\n",
+           cell.char_len, cell.utf8_char, cell.display_width);
+}
+```
+
+### Forcing a Full Redraw
+
+```c
+terse_error_t terse_buffer_invalidate(terse_handle_t handle);
+```
+
+Discards terse's record of the on-screen frame so the next flush redraws the entire rectangle, even if its contents are unchanged. The previous rectangle's extent is still remembered, so residue from a larger prior rectangle is erased on that flush.
+
+Use when the terminal content under the rectangle changed without terse's knowledge — for example, the display scrolled or a new line of output was printed.
+
+**Example:**
+```c
+// Terminal scrolled — invalidate and redraw
+terse_buffer_invalidate(handle);
+terse_flush(handle);  // full redraw of the rectangle
+```
+
+### Forgetting the Previous Rectangle
+
+```c
+terse_error_t terse_buffer_forget_previous_rect(terse_handle_t handle);
+```
+
+Forgets the previous rectangle's position and extent so the next flush will not erase residue from it. This is the complement of `terse_buffer_invalidate()`, which intentionally preserves the previous rectangle record.
+
+Use when the caller temporarily leaves buffered mode (e.g. after a readline interaction) and normal terminal output has been written into the area the rectangle previously occupied. Without this call, the next flush would blank that output.
+
+**Example — readline lifecycle:**
+```c
+// 1. Buffered mode: render the prompt UI
+terse_buffer_set_region(handle, start_row, 0, prompt_rows, cols);
+// ... render and flush ...
+
+// 2. Readline completes, user presses Enter
+terse_write_raw(handle, "\r\n", 2);
+
+// 3. Forget the old rectangle so the next session doesn't erase
+//    the confirmed input line or any printf output below it
+terse_buffer_forget_previous_rect(handle);
+
+// 4. Application prints output
+printf("You entered: %s\n", input);
+
+// 5. Next readline session starts at a new position
+terse_buffer_set_region(handle, new_start_row, 0, prompt_rows, cols);
+terse_buffer_invalidate(handle);
+// ... render and flush — no residue erasure from the old rectangle
+```
+
+### Raw Output Bypass
+
+```c
+terse_error_t terse_write_raw(terse_handle_t handle,
+                              const char *bytes, size_t length);
+```
+
+Writes raw bytes straight to the terminal, bypassing both the codec and the buffered render path — the bytes appear immediately in any render mode. This is the escape hatch for callers that must drive the terminal directly, e.g. erasing area outside the virtual rectangle or emitting a line break to advance past it. Terse's cursor tracking is invalidated by the call.
+
+**Example:**
+```c
+// Emit a line break to scroll past the buffered rectangle
+terse_write_raw(handle, "\r\n", 2);
+```
+
+### Complete Buffered Mode Example
+
+```c
+#include "terse.h"
+#include <stdio.h>
+#include <unistd.h>
+
+int main(void) {
+    terse_options_t options = {
+        .input_fd = STDIN_FILENO,
+        .output_fd = STDOUT_FILENO,
+        .codec_name = "UTF-8",
+        .render_mode = TERSE_RENDER_BUFFERED
+    };
+
+    terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
+    if (!handle) return 1;
+
+    terse_size_t size = terse_get_size(handle);
+    if (!size.known) { terse_close(handle); return 1; }
+
+    // Set up full-screen rectangle
+    terse_buffer_set_region(handle, 0, 0, size.rows, size.cols);
+
+    // Draw content
+    terse_move_to(handle, 0, 0);
+    terse_write_text(handle, "Buffered Mode Demo");
+
+    terse_style_t style = terse_style_default();
+    style.foreground = terse_color_basic(TERSE_BASIC_COLOR_GREEN, 1);
+    terse_set_style(handle, &style);
+    terse_move_to(handle, 2, 0);
+    terse_write_text(handle, "Only changed cells are emitted on flush.");
+    terse_reset_style(handle, TERSE_RESET_ALL);
+
+    // Place cursor at a logical position
+    terse_buffer_set_cursor(handle, 2, 41);
+
+    // Flush — emits diff to terminal
+    terse_flush(handle);
+
+    // Handle resize
+    terse_event_t event;
+    while (terse_read_event(handle, -1, &event) == TERSE_OK) {
+        if (event.type == TERSE_EVENT_RESIZE) {
+            size = terse_get_size(handle);
+            terse_buffer_set_region(handle, 0, 0, size.rows, size.cols);
+            // Redraw and flush...
+        }
+        if (event.type == TERSE_EVENT_CHAR && event.data.ch.scalar == 'q') {
+            break;
+        }
+    }
+
+    terse_close(handle);
+    return 0;
+}
 ```
 
 ---
@@ -1921,7 +2186,7 @@ if (caps.images == TERSE_IMAGE_NONE) {
 - `terse_move_by()` - Relative cursor movement
 - `terse_show_cursor()` - Show/hide cursor
 - `terse_write_text()` - Write text
-- `terse_flush()` - Flush output (no-op)
+- `terse_flush()` - Flush output (diff in buffered mode)
 
 ### Input (P0)
 - `terse_read_event()` - Read input event
@@ -1941,6 +2206,14 @@ if (caps.images == TERSE_IMAGE_NONE) {
 - `terse_pop_state()` - Pop state from stack
 - `terse_state_override()` - Override state
 - `terse_state_clear()` - Clear override
+
+### Buffered Rendering (P0)
+- `terse_buffer_set_region()` - Set rectangle origin and dimensions
+- `terse_buffer_set_cursor()` - Set logical cursor position after flush
+- `terse_get_cell()` - Read displayed cell content
+- `terse_buffer_invalidate()` - Force full redraw on next flush
+- `terse_buffer_forget_previous_rect()` - Skip residue erasure on next flush
+- `terse_write_raw()` - Bypass buffer and write raw bytes
 
 ### Colors/Styles (P1)
 - `terse_color_default()` - Default color

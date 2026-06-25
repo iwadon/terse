@@ -12,13 +12,14 @@
 6. [P0: 基本的な出力](#p0-基本的な出力)
 7. [P0: 入力イベント](#p0-入力イベント)
 8. [P0: 状態管理](#p0-状態管理)
-9. [P1: 色とスタイル](#p1-色とスタイル)
-10. [P2: 高度な入出力](#p2-高度な入出力)
-11. [P3: 拡張機能](#p3-拡張機能)
-12. [テストモードとモック](#テストモードとモック)
-13. [ベストプラクティス](#ベストプラクティス)
-14. [一般的なパターン](#一般的なパターン)
-15. [トラブルシューティング](#トラブルシューティング)
+9. [P0: バッファドレンダリング](#p0-バッファドレンダリング)
+10. [P1: 色とスタイル](#p1-色とスタイル)
+11. [P2: 高度な入出力](#p2-高度な入出力)
+12. [P3: 拡張機能](#p3-拡張機能)
+13. [テストモードとモック](#テストモードとモック)
+14. [ベストプラクティス](#ベストプラクティス)
+15. [一般的なパターン](#一般的なパターン)
+16. [トラブルシューティング](#トラブルシューティング)
 
 ---
 
@@ -406,7 +407,7 @@ int terse_flush(terse_handle_t handle);
 
 **注意:**
 - `graphemes`: UTF-8またはShift_JIS文字列(コーデックに依存)
-- `terse_flush()`: 現在は何もしない(出力はバッファリングされていない)
+- `terse_flush()`: 即時モードでは何もしない。バッファドモードでは現在フレームと前回フレームの差分を出力する ([バッファドレンダリング](#p0-バッファドレンダリング)参照)
 
 **例:**
 ```c
@@ -743,6 +744,270 @@ terse_state_t custom_state = {
 terse_state_override(handle, &custom_state);
 // ... operations ...
 terse_state_clear(handle);  // Clear override
+```
+
+---
+
+## P0: バッファドレンダリング
+
+バッファドレンダリングモードは仮想セルバッファを維持し、`terse_flush()` 呼び出し時に変更されたセルのみを出力します。複雑なUIの端末I/Oを大幅に削減します。オプトイン方式で、デフォルトの即時モードはそのままです。
+
+### バッファドモードの有効化
+
+セッションを開く際に `terse_options_t` で `render_mode` を設定します:
+
+```c
+terse_options_t options = {
+    .input_fd = STDIN_FILENO,
+    .output_fd = STDOUT_FILENO,
+    .codec_name = "UTF-8",
+    .render_mode = TERSE_RENDER_BUFFERED
+};
+
+terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
+```
+
+初期矩形をオプションで指定することもできます:
+
+```c
+terse_options_t options = {
+    // ...
+    .render_mode = TERSE_RENDER_BUFFERED,
+    .buffer_origin_row = 2,   // 端末上の左上行
+    .buffer_origin_col = 0,   // 端末上の左上列
+    .buffer_rows = 10,        // 0 = 端末の高さ
+    .buffer_cols = 80         // 0 = 端末の幅
+};
+```
+
+### レンダリングモード
+
+```c
+typedef enum terse_render_mode {
+    TERSE_RENDER_IMMEDIATE = 0,  // デフォルト: エスケープシーケンスを直接出力
+    TERSE_RENDER_BUFFERED        // オプトイン: 仮想セルバッファと差分flush
+} terse_render_mode_t;
+```
+
+### セル構造体
+
+仮想バッファの各セルは1つの書記素とその属性を保持します:
+
+```c
+typedef struct terse_cell {
+    char utf8_char[5];       // UTF-8書記素 (最大4バイト + NUL)
+    uint8_t char_len;        // バイト長 (0 = 空セル)
+    uint8_t display_width;   // 表示幅 (1 or 2)
+    uint8_t is_continuation; // 全角文字の2列目の場合は非ゼロ
+    terse_color_t fg;        // 前景色
+    terse_color_t bg;        // 背景色
+    uint16_t effects;        // TERSE_STYLE_* ビットマスク
+} terse_cell_t;
+```
+
+### 書き込みとフラッシュ
+
+バッファドモードでは、`terse_move_to()`、`terse_write_text()`、`terse_set_style()` は端末に直接出力する代わりに仮想バッファに書き込みます。`terse_flush()` を呼んで差分を出力します:
+
+```c
+terse_move_to(handle, 0, 0);
+terse_write_text(handle, "Hello, buffered world!");
+terse_flush(handle);  // 変更されたセルのみ出力
+```
+
+2回目のフラッシュでは、変更のないセルはスキップされます:
+
+```c
+terse_move_to(handle, 0, 0);
+terse_write_text(handle, "Hello, buffered world!");  // 同じ内容
+terse_flush(handle);  // 出力なし — 変更なし
+```
+
+### 矩形領域の設定
+
+```c
+terse_error_t terse_buffer_set_region(terse_handle_t handle,
+                                      int origin_row, int origin_col,
+                                      int rows, int cols);
+```
+
+仮想矩形の移動やサイズ変更を行います。バッファセル座標はローカル (0起点) のまま維持され、フラッシュ時に `絶対 = origin + ローカル` として投影されます。
+
+`rows` または `cols` が現在のサイズと異なる場合、セルバッファは再確保され (内容は保持されない)、次のフラッシュで全再描画します。前回の大きい矩形が残した残骸は、そのフラッシュで自動消去されます。
+
+**例 — リサイズ追従:**
+```c
+terse_size_t size = terse_get_size(handle);
+if (size.known) {
+    terse_buffer_set_region(handle, 0, 0, size.rows, size.cols);
+}
+```
+
+**例 — 端末の一部分にパネルを配置:**
+```c
+// 行3, 列10から 5行×40列のパネルを配置
+terse_buffer_set_region(handle, 3, 10, 5, 40);
+
+// バッファのセル (0, 0) は端末位置 (3, 10) に対応
+terse_move_to(handle, 0, 0);
+terse_write_text(handle, "Panel title");
+terse_flush(handle);
+```
+
+### カーソル位置の設定
+
+```c
+terse_error_t terse_buffer_set_cursor(terse_handle_t handle, int row, int col);
+```
+
+次のフラッシュ後に端末カーソルを配置する位置を、バッファローカル座標で指定します。テキスト入力のキャレットなど、論理的な位置にカーソルを置きたい場合に使います。位置はバッファ寸法にクランプされません。リクエストは変更されるまでフラッシュをまたいで持続します。
+
+**例:**
+```c
+// 行2のユーザー入力末尾にカーソルを配置
+terse_buffer_set_cursor(handle, 2, input_length);
+terse_flush(handle);  // カーソルは (origin_row + 2, origin_col + input_length) に
+```
+
+### 表示中のセルの読み取り
+
+```c
+terse_error_t terse_get_cell(terse_handle_t handle, int row, int col,
+                             terse_cell_t *out);
+```
+
+最後の `terse_flush()` でコミットされたセル内容を返します — 次のフラッシュ前に構築中のフレームではなく、terseが画面に出力した記録です。
+
+**例:**
+```c
+terse_cell_t cell;
+if (terse_get_cell(handle, 0, 0, &cell) == TERSE_OK) {
+    printf("表示中: %.*s (幅=%d)\n",
+           cell.char_len, cell.utf8_char, cell.display_width);
+}
+```
+
+### 全再描画の強制
+
+```c
+terse_error_t terse_buffer_invalidate(terse_handle_t handle);
+```
+
+画面上のフレーム記録を破棄し、内容が変わっていなくても次のフラッシュで矩形全体を再描画させます。前回矩形の位置・サイズ記録は保持されるため、以前の大きい矩形の残骸はそのフラッシュで消去されます。
+
+端末の矩形下の内容がterseの知らないうちに変わった場合に使います — 例えば、表示がスクロールした、新しい出力行が表示された、など。
+
+**例:**
+```c
+// 端末がスクロールした — 無効化して再描画
+terse_buffer_invalidate(handle);
+terse_flush(handle);  // 矩形全体を再描画
+```
+
+### 前回矩形の記録の破棄
+
+```c
+terse_error_t terse_buffer_forget_previous_rect(terse_handle_t handle);
+```
+
+前回矩形の位置とサイズの記録を破棄し、次のフラッシュでその残骸消去をスキップさせます。`terse_buffer_invalidate()` が前回矩形の記録を意図的に保持するのに対し、この関数はそれを破棄する補完関数です。
+
+呼び出し側がバッファドモードを一時的に離れた場合 (例: readline操作の後) に、前回矩形が占めていた領域に通常の端末出力が書き込まれたとき使います。これを呼ばないと、次のフラッシュがその出力を空白で上書きしてしまいます。
+
+**例 — readlineライフサイクル:**
+```c
+// 1. バッファドモード: プロンプトUIをレンダリング
+terse_buffer_set_region(handle, start_row, 0, prompt_rows, cols);
+// ... レンダリングとフラッシュ ...
+
+// 2. readline完了、ユーザーがEnterを押下
+terse_write_raw(handle, "\r\n", 2);
+
+// 3. 旧矩形を忘れて、次のセッションが確定済み入力行や
+//    その下のprintf出力を消さないようにする
+terse_buffer_forget_previous_rect(handle);
+
+// 4. アプリケーションが出力
+printf("入力: %s\n", input);
+
+// 5. 次のreadlineセッションが新しい位置で開始
+terse_buffer_set_region(handle, new_start_row, 0, prompt_rows, cols);
+terse_buffer_invalidate(handle);
+// ... レンダリングとフラッシュ — 旧矩形からの残骸消去なし
+```
+
+### 生バイト出力のバイパス
+
+```c
+terse_error_t terse_write_raw(terse_handle_t handle,
+                              const char *bytes, size_t length);
+```
+
+コーデックとバッファドレンダリングパスの両方をバイパスして、生バイトを直接端末に書き込みます。どのレンダリングモードでも即座に出力されます。仮想矩形外の領域を消去したり、矩形を超えて改行を出力するなど、呼び出し側が直接端末を操作する必要がある場合のエスケープハッチです。terseのカーソル追跡は無効化されます。
+
+**例:**
+```c
+// バッファド矩形を超えて改行でスクロール
+terse_write_raw(handle, "\r\n", 2);
+```
+
+### バッファドモード完全な例
+
+```c
+#include "terse.h"
+#include <stdio.h>
+#include <unistd.h>
+
+int main(void) {
+    terse_options_t options = {
+        .input_fd = STDIN_FILENO,
+        .output_fd = STDOUT_FILENO,
+        .codec_name = "UTF-8",
+        .render_mode = TERSE_RENDER_BUFFERED
+    };
+
+    terse_handle_t handle = terse_open(TERSE_PROFILE_AUTO, &options);
+    if (!handle) return 1;
+
+    terse_size_t size = terse_get_size(handle);
+    if (!size.known) { terse_close(handle); return 1; }
+
+    // 全画面矩形を設定
+    terse_buffer_set_region(handle, 0, 0, size.rows, size.cols);
+
+    // 内容を描画
+    terse_move_to(handle, 0, 0);
+    terse_write_text(handle, "バッファドモード デモ");
+
+    terse_style_t style = terse_style_default();
+    style.foreground = terse_color_basic(TERSE_BASIC_COLOR_GREEN, 1);
+    terse_set_style(handle, &style);
+    terse_move_to(handle, 2, 0);
+    terse_write_text(handle, "変更されたセルのみがflush時に出力されます。");
+    terse_reset_style(handle, TERSE_RESET_ALL);
+
+    // 論理カーソル位置を設定
+    terse_buffer_set_cursor(handle, 2, 41);
+
+    // フラッシュ — 差分を端末に出力
+    terse_flush(handle);
+
+    // リサイズ処理
+    terse_event_t event;
+    while (terse_read_event(handle, -1, &event) == TERSE_OK) {
+        if (event.type == TERSE_EVENT_RESIZE) {
+            size = terse_get_size(handle);
+            terse_buffer_set_region(handle, 0, 0, size.rows, size.cols);
+            // 再描画してフラッシュ...
+        }
+        if (event.type == TERSE_EVENT_CHAR && event.data.ch.scalar == 'q') {
+            break;
+        }
+    }
+
+    terse_close(handle);
+    return 0;
+}
 ```
 
 ---
@@ -1885,7 +2150,7 @@ if (caps.images == TERSE_IMAGE_NONE) {
 - `terse_move_by()` - 相対カーソル移動
 - `terse_show_cursor()` - カーソルの表示/非表示
 - `terse_write_text()` - テキストを書く
-- `terse_flush()` - 出力をフラッシュ(何もしない)
+- `terse_flush()` - 出力をフラッシュ(バッファドモードでは差分出力)
 
 ### 入力 (P0)
 - `terse_read_event()` - 入力イベントを読む
@@ -1905,6 +2170,14 @@ if (caps.images == TERSE_IMAGE_NONE) {
 - `terse_pop_state()` - 状態をスタックからポップ
 - `terse_state_override()` - 状態をオーバーライド
 - `terse_state_clear()` - オーバーライドをクリア
+
+### バッファドレンダリング (P0)
+- `terse_buffer_set_region()` - 矩形のoriginとサイズを設定
+- `terse_buffer_set_cursor()` - flush後の論理カーソル位置を設定
+- `terse_get_cell()` - 表示中のセル内容を読み取り
+- `terse_buffer_invalidate()` - 次のflushで全再描画を強制
+- `terse_buffer_forget_previous_rect()` - 次のflushで残骸消去をスキップ
+- `terse_write_raw()` - バッファをバイパスして生バイトを出力
 
 ### 色/スタイル (P1)
 - `terse_color_default()` - デフォルト色
