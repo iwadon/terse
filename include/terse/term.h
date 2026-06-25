@@ -65,6 +65,22 @@ unsigned int terse_keyboard_get_enabled(terse_handle_t handle);
 unsigned int terse_keyboard_get_supported(terse_handle_t handle);
 
 /*
+ * Encoding conversion utility (handle-independent)
+ *
+ * Converts text between encodings. UTF-8 <-> Shift_JIS is guaranteed on all
+ * platforms; other encodings are supported only when system iconv is available.
+ * Returns TERSE_ERR_INVALID_ARGUMENT for unsupported encoding pairs.
+ *
+ * The caller provides an output buffer (out/outlen). On success *outlen is set
+ * to the number of bytes written. TERSE_ERR_BUFFER_TOO_SMALL is returned when
+ * the buffer is too small; call again with a larger buffer.
+ */
+terse_error_t terse_convert_encoding(const char *from_encoding,
+                                     const char *to_encoding,
+                                     const char *in, size_t inlen,
+                                     char *out, size_t *outlen);
+
+/*
  * UTF-8 encoding utility
  * Encodes a Unicode scalar value to UTF-8 bytes.
  * Returns the number of bytes written (1-4), or 0 on error.

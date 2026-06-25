@@ -8,6 +8,7 @@ P0のライフサイクル・出力・入力・サイズ取得・エラー返却
 ## Build Options
 
 - `-DTERSE_USE_SYSTEM_ICONV=OFF` で外部 iconv 非依存ビルドが可能に。内蔵の mini iconv が `Shift_JIS` ⇔ `UTF-8` 相互変換を提供する（背景・設計は `docs/mini-iconv-plan.md` を参照）。
+- `terse_convert_encoding()`: ハンドル不要のスタンドアロンエンコーディング変換 API。UTF-8 ⇔ Shift_JIS は全プラットフォームで保証、その他はシステム iconv 利用時のみ対応。
 
 ## Progress Matrix
 

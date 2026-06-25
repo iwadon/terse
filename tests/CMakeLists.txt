@@ -7,6 +7,7 @@ add_executable(terse_unit_test
 	unit/terse_char_width_test.c
 	unit/terse_clipboard_test.c
 	unit/terse_close_test.c
+	unit/terse_convert_encoding_test.c
 	unit/terse_cursor_shape_test.c
 	unit/terse_encode_utf8_test.c
 	unit/terse_event_helpers_test.c

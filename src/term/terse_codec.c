@@ -549,3 +549,48 @@ int terse_encode_utf8(unsigned int scalar, unsigned char *out)
 	}
 	return 0;
 }
+
+/* ========================================================================
+ * Public stateless encoding conversion
+ * ======================================================================== */
+
+terse_error_t
+terse_convert_encoding(const char *from_encoding, const char *to_encoding,
+                       const char *in, size_t inlen,
+                       char *out, size_t *outlen)
+{
+	if (!from_encoding || !to_encoding || !in || !out || !outlen) {
+		return TERSE_ERR_INVALID_ARGUMENT;
+	}
+
+	int from_utf8 = is_utf8_name(from_encoding);
+	int to_utf8 = is_utf8_name(to_encoding);
+
+	if (from_utf8 && to_utf8) {
+		size_t copy = inlen < *outlen ? inlen : *outlen;
+		memcpy(out, in, copy);
+		*outlen = copy;
+		return (copy < inlen) ? TERSE_ERR_BUFFER_TOO_SMALL : TERSE_OK;
+	}
+
+	const char *codec_name = from_utf8 ? to_encoding : to_utf8 ? from_encoding
+	                                                           : NULL;
+	if (!codec_name) {
+		return TERSE_ERR_INVALID_ARGUMENT;
+	}
+
+	terse_codec_t codec;
+	terse_error_t err = terse_codec_init(&codec, codec_name);
+	if (err != TERSE_OK) {
+		return TERSE_ERR_INVALID_ARGUMENT;
+	}
+
+	if (from_utf8) {
+		err = terse_codec_from_utf8(&codec, in, inlen, out, outlen);
+	} else {
+		err = terse_codec_to_utf8(&codec, in, inlen, out, outlen);
+	}
+
+	terse_codec_destroy(&codec);
+	return err;
+}

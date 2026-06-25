@@ -1931,6 +1931,42 @@ Terseは2つの文字エンコーディングをサポートします:
 - **UTF-8** (推奨): 普遍的で現代的なエンコーディング
 - **Shift_JIS**: 日本語のレガシーエンコーディング
 
+#### スタンドアロンのエンコーディング変換
+
+`terse_convert_encoding()` はハンドル不要のエンコーディング変換関数です。terseセッションを開かずに使用できます:
+
+```c
+#include <terse.h>
+
+/* UTF-8 → Shift_JIS */
+const char *utf8_text = "あいう";
+char sjis_buf[256];
+size_t sjis_len = sizeof(sjis_buf);
+terse_error_t err = terse_convert_encoding("UTF-8", "Shift_JIS",
+                                           utf8_text, strlen(utf8_text),
+                                           sjis_buf, &sjis_len);
+if (err == TERSE_OK) {
+    /* sjis_buf に sjis_len バイトの Shift_JIS データが格納される */
+}
+
+/* Shift_JIS → UTF-8 */
+char utf8_buf[256];
+size_t utf8_len = sizeof(utf8_buf);
+err = terse_convert_encoding("Shift_JIS", "UTF-8",
+                             sjis_buf, sjis_len,
+                             utf8_buf, &utf8_len);
+```
+
+**対応エンコーディング:**
+
+- **UTF-8 ↔ Shift_JIS**: 全プラットフォーム（macOS、Linux、Windows、Human68k）で保証
+- **その他のエンコーディング**: システムiconvが利用可能な環境（macOS、`-DTERSE_USE_SYSTEM_ICONV=ON` のLinux）でのみ対応。非対応の組み合わせでは `TERSE_ERR_INVALID_ARGUMENT` を返す
+
+**制約事項:**
+
+- 変換の一方は必ずUTF-8である必要がある。非UTF-8同士の直接変換（例: Shift_JIS → EUC-JP）は `TERSE_ERR_INVALID_ARGUMENT` を返す
+- 出力バッファが不足している場合は `TERSE_ERR_BUFFER_TOO_SMALL` を返す。より大きなバッファで再試行すること
+
 **東アジアの文字幅処理:**
 
 ```c
@@ -1948,7 +1984,7 @@ terse_options_t options = {
 cmake -S . -B build -DTERSE_USE_SYSTEM_ICONV=OFF
 ```
 
-内蔵のmini iconvを使用します(Shift_JIS ↔ UTF-8のみ)。
+内蔵のmini iconvを使用します(Shift_JIS ↔ UTF-8のみ)。この構成では `terse_convert_encoding()` もUTF-8とShift_JISのみ対応となります。
 
 ### ターミナル検出
 
@@ -2204,6 +2240,11 @@ if (caps.images == TERSE_IMAGE_NONE) {
 - `terse_display_image()` - 画像を表示
 - `terse_display_image_inline()` - 画像を表示(レガシー)
 - `terse_notify()` - 通知を送信
+
+### ユーティリティ (ハンドル非依存)
+- `terse_convert_encoding()` - 文字エンコーディング間の変換
+- `terse_encode_utf8()` - Unicodeスカラー値をUTF-8にエンコード
+- `terse_char_width()` - Unicode文字の表示幅を取得
 
 ---
 

@@ -1998,6 +1998,42 @@ Terse supports two character encodings:
 - **UTF-8** (recommended): Universal, modern encoding
 - **Shift_JIS**: Japanese legacy encoding
 
+#### Standalone Encoding Conversion
+
+`terse_convert_encoding()` provides handle-independent encoding conversion. It can be used without opening a terse session:
+
+```c
+#include <terse.h>
+
+/* UTF-8 → Shift_JIS */
+const char *utf8_text = "あいう";
+char sjis_buf[256];
+size_t sjis_len = sizeof(sjis_buf);
+terse_error_t err = terse_convert_encoding("UTF-8", "Shift_JIS",
+                                           utf8_text, strlen(utf8_text),
+                                           sjis_buf, &sjis_len);
+if (err == TERSE_OK) {
+    /* sjis_buf contains sjis_len bytes of Shift_JIS data */
+}
+
+/* Shift_JIS → UTF-8 */
+char utf8_buf[256];
+size_t utf8_len = sizeof(utf8_buf);
+err = terse_convert_encoding("Shift_JIS", "UTF-8",
+                             sjis_buf, sjis_len,
+                             utf8_buf, &utf8_len);
+```
+
+**Supported encodings:**
+
+- **UTF-8 ↔ Shift_JIS**: Guaranteed on all platforms (macOS, Linux, Windows, Human68k)
+- **Other encodings**: Available only when system iconv is present (macOS, Linux with `-DTERSE_USE_SYSTEM_ICONV=ON`). Returns `TERSE_ERR_INVALID_ARGUMENT` for unsupported pairs.
+
+**Constraints:**
+
+- One side of the conversion must be UTF-8. Direct conversion between two non-UTF-8 encodings (e.g. Shift_JIS → EUC-JP) returns `TERSE_ERR_INVALID_ARGUMENT`.
+- Returns `TERSE_ERR_BUFFER_TOO_SMALL` when the output buffer is insufficient. Retry with a larger buffer.
+
 **East Asian Width Handling:**
 
 ```c
@@ -2015,7 +2051,7 @@ Characters like `±`, `×`, `§` can be 1 or 2 cells wide depending on context. 
 cmake -S . -B build -DTERSE_USE_SYSTEM_ICONV=OFF
 ```
 
-Uses built-in mini iconv (Shift_JIS ↔ UTF-8 only).
+Uses built-in mini iconv (Shift_JIS ↔ UTF-8 only). `terse_convert_encoding()` will only support UTF-8 and Shift_JIS in this configuration.
 
 ### Terminal Detection
 
@@ -2272,6 +2308,11 @@ if (caps.images == TERSE_IMAGE_NONE) {
 - `terse_display_image()` - Display image
 - `terse_display_image_inline()` - Display image (legacy)
 - `terse_notify()` - Send notification
+
+### Utilities (handle-independent)
+- `terse_convert_encoding()` - Convert between character encodings
+- `terse_encode_utf8()` - Encode Unicode scalar to UTF-8
+- `terse_char_width()` - Get display width of a Unicode character
 
 ---
 
