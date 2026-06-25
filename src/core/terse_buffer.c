@@ -276,6 +276,20 @@ terse_error_t terse_buffer_invalidate(terse_handle_t handle)
 	return TERSE_OK;
 }
 
+terse_error_t terse_buffer_forget_previous_rect(terse_handle_t handle)
+{
+	TERSE_CHECK_HANDLE(handle);
+
+	if (handle->render_mode != TERSE_RENDER_BUFFERED) {
+		set_error(handle, TERSE_ERR_NOT_SUPPORTED);
+		return TERSE_ERR_NOT_SUPPORTED;
+	}
+
+	handle->prev_rect_valid = 0;
+	clear_error(handle);
+	return TERSE_OK;
+}
+
 /* ========================================================================
  * Writing into the current frame
  * ======================================================================== */

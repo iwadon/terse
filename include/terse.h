@@ -492,6 +492,17 @@ terse_error_t terse_buffer_set_cursor(terse_handle_t handle, int row, int col);
  * TERSE_ERR_NOT_SUPPORTED if not in buffered mode. */
 terse_error_t terse_buffer_invalidate(terse_handle_t handle);
 
+/* Forget the previous rectangle's position and extent so the next flush will
+ * not erase residue from it. Use when the caller leaves buffered mode
+ * temporarily (e.g. after a readline interaction) and normal terminal output
+ * has been written into the area the rectangle previously occupied — without
+ * this call, the next flush would blank that output.
+ * terse_buffer_invalidate() intentionally preserves the previous rectangle
+ * record; this function is the complement that discards it.
+ * Only meaningful in TERSE_RENDER_BUFFERED. Returns TERSE_OK, or
+ * TERSE_ERR_NOT_SUPPORTED if not in buffered mode. */
+terse_error_t terse_buffer_forget_previous_rect(terse_handle_t handle);
+
 terse_error_t terse_clear_screen(terse_handle_t handle, terse_clear_mode_t mode);
 terse_error_t terse_clear_line(terse_handle_t handle, terse_clear_mode_t mode);
 terse_error_t terse_write_text(terse_handle_t handle, const char *graphemes);

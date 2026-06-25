@@ -876,4 +876,58 @@ TEST(TerseBuffer, SetRegionLazilyStartsBufferedWhenSizeUnknownAtOpen)
 	close(fds[1]);
 }
 
+/* terse_buffer_forget_previous_rect は prev_rect_valid をクリアし、
+ * 次 flush で erase_residue をスキップさせる。即時モードでは NOT_SUPPORTED。 */
+TEST(TerseBuffer, ForgetPreviousRectSkipsEraseResidue)
+{
+	int fds[2];
+	terse_handle_t handle;
+	make_pipe_handle(&handle, fds);
+
+	/* 即時モードでは NOT_SUPPORTED。 */
+	EXPECT_EQ(TERSE_ERR_NOT_SUPPORTED,
+	          terse_buffer_forget_previous_rect(handle));
+
+	EXPECT_EQ(0, terse_buffer_alloc(handle, 2, 4));
+	handle->render_mode = TERSE_RENDER_BUFFERED;
+
+	/* 2×4 の矩形を origin (0,0) で flush して prev_rect を記録。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_set_region(handle, 0, 0, 2, 4));
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 0, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "ABCD"));
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 1, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "EFGH"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+	char drain[256];
+	(void)read_pipe(fds[0], drain, sizeof(drain));
+	EXPECT_EQ(1, handle->prev_rect_valid);
+
+	/* forget を呼ぶと prev_rect_valid がクリアされる。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_forget_previous_rect(handle));
+	EXPECT_EQ(0, handle->prev_rect_valid);
+
+	/* 矩形を 1×2 に縮小して origin (2,0) に移動。
+	 * forget 済みなので erase_residue は旧領域(行0-1)を消さない。 */
+	EXPECT_EQ(TERSE_OK, terse_buffer_set_region(handle, 2, 0, 1, 2));
+	EXPECT_EQ(TERSE_OK, terse_buffer_invalidate(handle));
+	EXPECT_EQ(TERSE_OK, terse_move_to(handle, 0, 0));
+	EXPECT_EQ(TERSE_OK, terse_write_text(handle, "XY"));
+	EXPECT_EQ(TERSE_OK, terse_flush(handle));
+
+	char buf[512];
+	ssize_t n = read_pipe(fds[0], buf, sizeof(buf));
+	EXPECT_TRUE(n > 0);
+	/* 新矩形の origin (2,0) = 1-based (3,1) への移動と "XY" があるはず。 */
+	EXPECT_TRUE(strstr(buf, "\x1b[3;1H") != NULL);
+	EXPECT_TRUE(strstr(buf, "XY") != NULL);
+	/* 旧行0 (1-based row 1) を空白で消す erase_run がないことを確認。
+	 * erase_run は行先頭へ移動してスペース列を出すので、\x1b[1;1H が
+	 * 出力に含まれなければ旧領域の消去は行われていない。 */
+	EXPECT_TRUE(strstr(buf, "\x1b[1;1H") == NULL);
+
+	terse_close(handle);
+	close(fds[0]);
+	close(fds[1]);
+}
+
 #endif /* HAVE_POSIX_PIPE */
