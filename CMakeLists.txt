@@ -26,8 +26,10 @@ else()
 endif()
 
 if(TERSE_BUILD_TESTING)
-  find_package(attest QUIET)
-  if(NOT attest_FOUND)
+  option(TERSE_USE_SYSTEM_ATTEST "Use system-installed attest instead of fetching" OFF)
+  if(TERSE_USE_SYSTEM_ATTEST)
+    find_package(attest REQUIRED)
+  else()
     include(FetchContent)
     FetchContent_Declare(attest
       GIT_REPOSITORY https://github.com/iwadon/attest.git
