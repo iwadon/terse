@@ -2,6 +2,16 @@ environments:
   - executor: host
   - executor: container
     image: ubuntu:26.04
+
+# ドキュメントのみの変更ではCIを起動しない。
+# 変更ファイルが全てこのパターンに一致する場合だけスキップされるため、
+# コードとドキュメントが混在するコミットは通常どおり実行される。
+# weirの "**" はセグメント単位なので、"*.md" はルート直下にしか
+# マッチしない。全階層をカバーするには "**/*.md" と書く必要がある。
+paths-ignore:
+  - "**/*.md"
+  - "docs/**"
+
 steps:
   - name: install dependencies
     run: |
