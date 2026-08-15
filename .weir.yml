@@ -1,0 +1,17 @@
+environments:
+  - executor: host
+  - executor: container
+    image: ubuntu:26.04
+steps:
+  - name: install dependencies
+    run: |
+      set -eo pipefail
+      apt-get update
+      apt-get install -y cmake build-essential git
+    only: [container]
+  - name: configure
+    run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+  - name: build
+    run: cmake --build build --config Release
+  - name: test
+    run: ctest --test-dir build --output-on-failure -C Release
